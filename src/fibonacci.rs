@@ -1,26 +1,25 @@
 //! Fibonacci encoding of integers.
-//! 
+//!
 //! See [here](https://en.wikipedia.org/wiki/Fibonacci_coding)
-//! 
+//!
 //! # Usage
 //! ```rust
 //! use fastfibonacci::fibonacci::{fib_enc_multiple_fast,FibonacciDecoder};
 //! let encode = fib_enc_multiple_fast(&vec![34, 12]) ;
-//! 
+//!
 //! // 2nd argument: shift all values by -1 (in case we wanted to encode 0 in the fibonacci encoding)
 //! let f = FibonacciDecoder::new(&encode, false);
 //! assert_eq!(f.collect::<Vec<_>>(), vec![34,12])
 //! ```
 
 use itertools::izip;
-use std::fmt::Debug;
 use num::CheckedSub;
+use std::fmt::Debug;
 
-/// note the the entire content of this module is 
+/// note the the entire content of this module is
 /// independent of the choice of BitOrder, i.e.
 /// both Lsb0 and Msb0 work the same way!
 use crate::{MyBitSlice, MyBitVector};
-
 
 /// Iterative fibonacci.
 ///
@@ -47,23 +46,80 @@ fn iterative_fibonacci() -> Fibonacci {
     Fibonacci { curr: 1, next: 1 }
 }
 
-
 // let v: Vec<_> = iterative_fibonacci().take(65 - 1).collect();
 // println!("{:?}", v);
 /// All fibonacci numbers up to 64bit
-pub const FIB64: &[u64]= &[1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 
-610, 987, 1597, 2584, 4181, 6765, 10946, 17711, 28657, 46368, 75025, 
-121393, 196418, 317811, 514229, 832040, 1346269, 2178309, 3524578, 5702887, 
-9227465, 14930352, 24157817, 39088169, 63245986, 102334155, 165580141, 267914296, 
-433494437, 701408733, 1134903170, 1836311903, 2971215073, 4807526976, 7778742049, 
-12586269025, 20365011074, 32951280099, 53316291173, 86267571272, 139583862445, 225851433717, 
-365435296162, 591286729879, 956722026041, 1548008755920, 2504730781961, 4052739537881, 
-6557470319842, 10610209857723, 17_167_680_177_565];
+pub const FIB64: &[u64] = &[
+    1,
+    2,
+    3,
+    5,
+    8,
+    13,
+    21,
+    34,
+    55,
+    89,
+    144,
+    233,
+    377,
+    610,
+    987,
+    1597,
+    2584,
+    4181,
+    6765,
+    10946,
+    17711,
+    28657,
+    46368,
+    75025,
+    121393,
+    196418,
+    317811,
+    514229,
+    832040,
+    1346269,
+    2178309,
+    3524578,
+    5702887,
+    9227465,
+    14930352,
+    24157817,
+    39088169,
+    63245986,
+    102334155,
+    165580141,
+    267914296,
+    433494437,
+    701408733,
+    1134903170,
+    1836311903,
+    2971215073,
+    4807526976,
+    7778742049,
+    12586269025,
+    20365011074,
+    32951280099,
+    53316291173,
+    86267571272,
+    139583862445,
+    225851433717,
+    365435296162,
+    591286729879,
+    956722026041,
+    1548008755920,
+    2504730781961,
+    4052739537881,
+    6557470319842,
+    10610209857723,
+    17_167_680_177_565,
+];
 // TODO calc all fib up to u64::MAX! -> no point, we cant encode that in 64bits anyway!
 
 /// convert a bitslice holding a single fibbonacci encoding into the numerical representation.
 /// Essentially assumes that the bitslice ends with ....11 and has no other occurance of 11
-fn bitslice_to_fibonacci(b: &MyBitSlice) -> u64{
+fn bitslice_to_fibonacci(b: &MyBitSlice) -> u64 {
     // omits the initial 1, i.e.
     // fib = [1,2,3,5,...]
     // let fib: Vec<_> = iterative_fibonacci().take(b.len() - 1).collect(); // shorten by one as we omit the final bit
@@ -74,16 +130,16 @@ fn bitslice_to_fibonacci(b: &MyBitSlice) -> u64{
     }
     // TODO make sure its a proper fib-encoding (no 11 except the end)
     let mut sum = 0;
-    for (bit, f) in izip!(&b[..b.len()-1], FIB64) {
+    for (bit, f) in izip!(&b[..b.len() - 1], FIB64) {
         if *bit {
-            sum+=f;
+            sum += f;
         }
     }
     sum
 }
 
-/// 
-fn bitslice_to_fibonacci3(b: &MyBitSlice) -> u64{
+///
+fn bitslice_to_fibonacci3(b: &MyBitSlice) -> u64 {
     // omits the initial 1, i.e.
     // fib = [1,2,3,5,...]
     // let fib: Vec<_> = iterative_fibonacci().take(b.len() - 1).collect(); // shorten by one as we omit the final bit
@@ -95,14 +151,14 @@ fn bitslice_to_fibonacci3(b: &MyBitSlice) -> u64{
     // TODO make sure its a proper fib-encoding (no 11 except the end)
     let mut sum = 0;
     // for (bit, f) in izip!(&b[..b.len()-1], FIB64) {
-    for i in 0..b.len()-1 {
-        sum+= FIB64[i]* (b[i] as u64);
+    for i in 0..b.len() - 1 {
+        sum += FIB64[i] * (b[i] as u64);
     }
     sum
 }
 
-/// 
-fn bitslice_to_fibonacci2(b: &MyBitSlice) -> u64{
+///
+fn bitslice_to_fibonacci2(b: &MyBitSlice) -> u64 {
     // omits the initial 1, i.e.
     // fib = [1,2,3,5,...]
     // let fib: Vec<_> = iterative_fibonacci().take(b.len() - 1).collect(); // shorten by one as we omit the final bit
@@ -113,14 +169,14 @@ fn bitslice_to_fibonacci2(b: &MyBitSlice) -> u64{
     }
     // TODO make sure its a proper fib-encoding (no 11 except the end)
     let mut sum = 0;
-    for ix in b[..b.len()-1].iter_ones() {
-        sum+=FIB64[ix];
+    for ix in b[..b.len() - 1].iter_ones() {
+        sum += FIB64[ix];
     }
     sum
 }
 
-/// 
-fn bitslice_to_fibonacci4(b: &MyBitSlice) -> u64{
+///
+fn bitslice_to_fibonacci4(b: &MyBitSlice) -> u64 {
     // omits the initial 1, i.e.
     // fib = [1,2,3,5,...]
     // let fib: Vec<_> = iterative_fibonacci().take(b.len() - 1).collect(); // shorten by one as we omit the final bit
@@ -131,21 +187,21 @@ fn bitslice_to_fibonacci4(b: &MyBitSlice) -> u64{
     }
     // TODO make sure its a proper fib-encoding (no 11 except the end)
     // let mut sum = 0;
-    let sum = b[..b.len()-1]
+    let sum = b[..b.len() - 1]
         .iter()
         .by_vals()
         .enumerate()
-        .filter_map(|(ix, bit)| if bit {Some(FIB64[ix])} else {None})
+        .filter_map(|(ix, bit)| if bit { Some(FIB64[ix]) } else { None })
         .sum();
     sum
 }
 
-/// Marker trait for Fibonacci decoders. 
-/// This is an iterator over u64 (the decoded integers), 
+/// Marker trait for Fibonacci decoders.
+/// This is an iterator over u64 (the decoded integers),
 /// and lets you return parts of the buffer not yet decoded
-pub trait FbDec<'a>: Iterator<Item=u64> {
+pub trait FbDec<'a>: Iterator<Item = u64> {
     /// Returns the buffer behind the last bit processed.
-    /// Comes handy when the buffer contains data OTHER than fibonacci encoded 
+    /// Comes handy when the buffer contains data OTHER than fibonacci encoded
     /// data that needs to be processed externally.
     fn get_remaining_buffer(&self) -> &'a MyBitSlice;
 
@@ -154,10 +210,10 @@ pub trait FbDec<'a>: Iterator<Item=u64> {
 }
 
 /// Decoder for Fibonacci encoded integer sequences
-/// 
+///
 /// Constructed from a bufffer (a binary sequence) which is gradually processed
 /// when iterating. The buffer remains unchanged, just the pointers into the buffer move
-/// 
+///
 /// # Example
 /// ```rust
 /// use fastfibonacci::fibonacci::FibonacciDecoder;
@@ -167,41 +223,44 @@ pub trait FbDec<'a>: Iterator<Item=u64> {
 /// for decoded in d {
 ///     println!("{}", decoded);
 /// }
-/// ``` 
+/// ```
 #[derive(Debug)]
-pub struct FibonacciDecoder <'a> {
+pub struct FibonacciDecoder<'a> {
     buffer: &'a MyBitSlice,
     current_pos: usize, // where we are at in the buffer (the last split), i.e the unprocessed part is buffer[current_pos..]
     shifted_by_one: bool, // if true, this means that a decoded value of `1` actually is a zero (and was shifted in the encoding)
 }
 
-impl <'a> FibonacciDecoder<'a> {
-    /// Creates a new fibonacci decoder for the given buffer. 
+impl<'a> FibonacciDecoder<'a> {
+    /// Creates a new fibonacci decoder for the given buffer.
     /// This leaves the buffer  unchanged, just moves a pointer (self.current_pos) in the buffer around
     pub fn new(buffer: &'a MyBitSlice, shifted_by_one: bool) -> Self {
-        FibonacciDecoder { buffer, current_pos:0, shifted_by_one}
+        FibonacciDecoder {
+            buffer,
+            current_pos: 0,
+            shifted_by_one,
+        }
     }
 }
 
-impl <'a> FbDec<'a> for FibonacciDecoder<'a> {
+impl<'a> FbDec<'a> for FibonacciDecoder<'a> {
     /// Returns the buffer behind the last bit processed.
-    /// Comes handy when the buffer contains data OTHER than fibonacci encoded 
+    /// Comes handy when the buffer contains data OTHER than fibonacci encoded
     /// data that needs to be processed externally.
-    fn get_remaining_buffer(&self) -> &'a MyBitSlice{
+    fn get_remaining_buffer(&self) -> &'a MyBitSlice {
         &self.buffer[self.current_pos..]
     }
 
     /// how far did we process into the buffer (pretty much the first bit after a 11).
-    fn get_bits_processed(&self) -> usize{
+    fn get_bits_processed(&self) -> usize {
         self.current_pos
     }
 }
 
-impl <'a> Iterator for FibonacciDecoder<'a> {
-    type Item=u64;
+impl<'a> Iterator for FibonacciDecoder<'a> {
+    type Item = u64;
 
     fn next(&mut self) -> Option<Self::Item> {
-
         let mut prev_bit = false;
         let mut accumulator = 0;
         let current_slice = &self.buffer[self.current_pos..];
@@ -217,15 +276,15 @@ impl <'a> Iterator for FibonacciDecoder<'a> {
                 }
                 (true, true) => {
                     // found 11
-                    let hit_len = idx+1;
+                    let hit_len = idx + 1;
                     self.current_pos += hit_len;
                     if self.shifted_by_one {
-                        return Some(accumulator-1);
+                        return Some(accumulator - 1);
                     } else {
                         return Some(accumulator);
                     }
                 }
-                (false, false) | (true, false) => {}  // current bit is zero, nothing to add
+                (false, false) | (true, false) => {} // current bit is zero, nothing to add
             }
             prev_bit = current_bit
         }
@@ -233,12 +292,10 @@ impl <'a> Iterator for FibonacciDecoder<'a> {
     }
 }
 
-
 /// Slightly faster (2x) encoding of multiple integers into a bitvector via Fibonacci Encoding
-pub fn fib_enc_multiple_fast(data: &[u64]) -> MyBitVector{
-
+pub fn fib_enc_multiple_fast(data: &[u64]) -> MyBitVector {
     // the capacity is a minimum, assuming each element of data is 1, i.e. `11` in fib encoding
-    let mut overall = MyBitVector::with_capacity(2*data.len()); 
+    let mut overall = MyBitVector::with_capacity(2 * data.len());
 
     // this just appends to the `overall` bitvec
     for &x in data {
@@ -263,7 +320,7 @@ where
     /// number than the number to encode.
     Underflow(T),
 }
-/// slightly faster fibonacci endocing (2x faster), taken from 
+/// slightly faster fibonacci endocing (2x faster), taken from
 /// <https://github.com/antifuchs/fibonacci_codec>
 #[inline]
 pub fn bits_from_table<T>(
@@ -306,42 +363,37 @@ where
     Ok(())
 }
 
-
 #[cfg(test)]
 mod test {
-    use crate::fibonacci::{bitslice_to_fibonacci, FibonacciDecoder, MyBitVector, fib_enc_multiple_fast};
+    use crate::fibonacci::{
+        bitslice_to_fibonacci, fib_enc_multiple_fast, FibonacciDecoder, MyBitVector,
+    };
     use bitvec::prelude::*;
 
     mod test_table {
+        use crate::fibonacci::{bits_from_table, fib_enc_multiple_fast, MyBitVector, FIB64};
         use bitvec::vec::BitVec;
-        use crate::fibonacci::{FIB64, bits_from_table, fib_enc_multiple_fast, MyBitVector};
 
         #[test]
         fn test_1() {
             let mut bv: MyBitVector = BitVec::new();
             bits_from_table(1, FIB64, &mut bv).unwrap();
-            assert_eq!(
-                bv.iter().collect::<Vec<_>>(), 
-                vec![true, true] 
-            );
+            assert_eq!(bv.iter().collect::<Vec<_>>(), vec![true, true]);
         }
 
         #[test]
         fn test_2() {
             let mut bv: MyBitVector = BitVec::new();
             bits_from_table(2, FIB64, &mut bv).unwrap();
-            assert_eq!(
-                bv.iter().collect::<Vec<_>>(), 
-                vec![false, true, true] 
-            );
+            assert_eq!(bv.iter().collect::<Vec<_>>(), vec![false, true, true]);
         }
         #[test]
         fn test_14() {
             let mut bv: MyBitVector = BitVec::new();
             bits_from_table(14, FIB64, &mut bv).unwrap();
             assert_eq!(
-                bv.iter().collect::<Vec<_>>(), 
-                vec![true, false, false, false, false, true, true] 
+                bv.iter().collect::<Vec<_>>(),
+                vec![true, false, false, false, false, true, true]
             );
         }
         #[test]
@@ -351,39 +403,38 @@ mod test {
             bits_from_table(2, FIB64, &mut bv).unwrap();
             bits_from_table(1, FIB64, &mut bv).unwrap();
             assert_eq!(
-                bv.iter().collect::<Vec<_>>(), 
-                vec![true, true, false,true,true, true, true] 
+                bv.iter().collect::<Vec<_>>(),
+                vec![true, true, false, true, true, true, true]
             );
         }
 
         #[test]
         fn test_fib_enc_multiple_fast() {
-            let x = vec![1,2,3];
+            let x = vec![1, 2, 3];
             let bv = fib_enc_multiple_fast(&x);
             assert_eq!(
-                bv.iter().collect::<Vec<_>>(), 
-                vec![true, true, false,true,true, false, false, true, true] 
+                bv.iter().collect::<Vec<_>>(),
+                vec![true, true, false, true, true, false, false, true, true]
             );
         }
-        
+
         #[test]
         fn test_fib_enc_multiple_fas_single_item() {
             let x = vec![3];
             let bv = fib_enc_multiple_fast(&x);
             assert_eq!(
-                bv.iter().collect::<Vec<_>>(), 
-                vec![false, false, true, true] 
+                bv.iter().collect::<Vec<_>>(),
+                vec![false, false, true, true]
             );
         }
-
     }
 
     #[test]
     fn test_fib_encode_mutiple() {
-        let enc = fib_enc_multiple_fast( &vec![1,14]);
+        let enc = fib_enc_multiple_fast(&vec![1, 14]);
         assert_eq!(
-            enc.iter().collect::<Vec<_>>(), 
-            vec![true, true, true, false, false, false, false, true, true] 
+            enc.iter().collect::<Vec<_>>(),
+            vec![true, true, true, false, false, false, false, true, true]
         );
     }
 
@@ -399,60 +450,38 @@ mod test {
 
     // }
 
-
     #[test]
-    fn test_bitslice_to_fibonacci(){
+    fn test_bitslice_to_fibonacci() {
         let b = bits![u8, Msb0; 1, 1];
 
-        assert_eq!(
-            bitslice_to_fibonacci(b),
-            1
-        );
+        assert_eq!(bitslice_to_fibonacci(b), 1);
 
         let b = bits![u8, Msb0; 0, 1, 1];
 
-        assert_eq!(
-            bitslice_to_fibonacci(&b),
-            2
-        );
+        assert_eq!(bitslice_to_fibonacci(&b), 2);
         let b = bits![u8, Msb0; 0,0,1, 1];
 
-        assert_eq!(
-            bitslice_to_fibonacci(&b),
-            3
-        );
+        assert_eq!(bitslice_to_fibonacci(&b), 3);
 
         let b = bits![u8, Msb0; 1,0, 1, 1];
-        assert_eq!(
-            bitslice_to_fibonacci(&b),
-            4
-        );
+        assert_eq!(bitslice_to_fibonacci(&b), 4);
 
         let b = bits![u8, Msb0; 1,0,0,0,0,1,1];
 
-        assert_eq!(
-            bitslice_to_fibonacci(&b),
-            14
-        );
+        assert_eq!(bitslice_to_fibonacci(&b), 14);
 
         let b = bits![u8, Msb0; 1,0,1,0,0,1,1];
-        assert_eq!(
-            bitslice_to_fibonacci(&b),
-            17
-        );
+        assert_eq!(bitslice_to_fibonacci(&b), 17);
     }
 
     #[test]
     fn test_max_decode() {
-        let mut v: Vec<bool> = [0_u8; 64].iter().map(|x|*x==1).collect();
-        v[62]=true;
-        v[63]=true;
+        let mut v: Vec<bool> = [0_u8; 64].iter().map(|x| *x == 1).collect();
+        v[62] = true;
+        v[63] = true;
 
-        let b: MyBitVector  = BitVec::from_iter(v.into_iter());
-        assert_eq!(
-            bitslice_to_fibonacci(&b),
-            10610209857723 
-        );
+        let b: MyBitVector = BitVec::from_iter(v.into_iter());
+        assert_eq!(bitslice_to_fibonacci(&b), 10610209857723);
     }
 
     #[test]
@@ -462,16 +491,14 @@ mod test {
         let b = bits![u8, Msb0; 0,0,1,1];
 
         // println!("full : {:?}", b);
-        let mut my = FibonacciDecoder {buffer: b, current_pos:0, shifted_by_one: false};
+        let mut my = FibonacciDecoder {
+            buffer: b,
+            current_pos: 0,
+            shifted_by_one: false,
+        };
 
-        assert_eq!(
-            my.next(), 
-            Some(3)
-        );
-        assert_eq!(
-            my.next(), 
-            None
-        );
+        assert_eq!(my.next(), Some(3));
+        assert_eq!(my.next(), None);
     }
 
     #[test]
@@ -479,38 +506,35 @@ mod test {
         let b = bits![u8, Msb0; 0,0,1,1,1,1];
 
         println!("full : {:?}", b);
-        let mut my = FibonacciDecoder {buffer: b, current_pos:0, shifted_by_one: false};
+        let mut my = FibonacciDecoder {
+            buffer: b,
+            current_pos: 0,
+            shifted_by_one: false,
+        };
 
-        assert_eq!(
-            my.next(), 
-            Some(3)
-        );
-        assert_eq!(
-            my.next(), 
-            Some(1)
-        );
-        assert_eq!(
-            my.next(), 
-            None
-        );        
+        assert_eq!(my.next(), Some(3));
+        assert_eq!(my.next(), Some(1));
+        assert_eq!(my.next(), None);
     }
 
     #[test]
     fn test_myfib_decoder_nothing() {
         let b = bits![u8, Msb0; 0,0,1,0,1,0,1];
 
-        let mut my = FibonacciDecoder {buffer: b, current_pos:0, shifted_by_one: false};
-        assert_eq!(
-            my.next(), 
-            None
-        );
+        let mut my = FibonacciDecoder {
+            buffer: b,
+            current_pos: 0,
+            shifted_by_one: false,
+        };
+        assert_eq!(my.next(), None);
 
         // shift
-        let mut my = FibonacciDecoder {buffer: b, current_pos:0, shifted_by_one: true};
-        assert_eq!(
-            my.next(), 
-            None
-        );
+        let mut my = FibonacciDecoder {
+            buffer: b,
+            current_pos: 0,
+            shifted_by_one: true,
+        };
+        assert_eq!(my.next(), None);
     }
     #[test]
     fn test_myfib_decoder_shifted() {
@@ -519,19 +543,14 @@ mod test {
         let b = bits![u8, Msb0; 0,0,1,1,1,1];
 
         // println!("full : {:?}", b);
-        let mut my = FibonacciDecoder {buffer: b, current_pos:0, shifted_by_one: true};
+        let mut my = FibonacciDecoder {
+            buffer: b,
+            current_pos: 0,
+            shifted_by_one: true,
+        };
 
-        assert_eq!(
-            my.next(), 
-            Some(2)
-        );
-        assert_eq!(
-            my.next(), 
-            Some(0)
-        );
-        assert_eq!(
-            my.next(), 
-            None
-        );
-    }    
+        assert_eq!(my.next(), Some(2));
+        assert_eq!(my.next(), Some(0));
+        assert_eq!(my.next(), None);
+    }
 }

@@ -3,34 +3,33 @@
 use crate::fibonacci::FIB64;
 use crate::MyBitVector;
 /// Fibonacci encoding of a single integer
-/// 
+///
 /// # Example:
 /// ```rust
 /// # use fastfibonacci::fibonacci_old::fib_enc;
 /// let enc = fib_enc(1);  // a BitVec
 /// assert_eq!(enc.iter().collect::<Vec<_>>(), vec![true, true]);
 /// ```
-pub fn fib_enc(mut n: u64) -> MyBitVector{
-
-    assert!(n>0, "n must be positive");
-    assert!(n<FIB64[FIB64.len()-1], "n must be smaller than max fib");
+pub fn fib_enc(mut n: u64) -> MyBitVector {
+    assert!(n > 0, "n must be positive");
+    assert!(n < FIB64[FIB64.len() - 1], "n must be smaller than max fib");
 
     let mut i = FIB64.len() - 1;
     let mut indices = Vec::new(); //indices of the bits that are set! will be sortet highest-lowest
-    while n >0{
-        // println!("n={},i={}, F[i] {}", n,i, FIB64[i] );
+    while n > 0 {
         if FIB64[i] <= n {
             indices.push(i);
             n -= FIB64[i];
         }
-        if n == 0 { //otherwise the i-1 might cause underflow
-            break
+        if n == 0 {
+            //otherwise the i-1 might cause underflow
+            break;
         }
         i -= 1;
     }
     let max_ix = indices[0];
 
-    let mut bits = MyBitVector::repeat(false, max_ix+1);
+    let mut bits = MyBitVector::repeat(false, max_ix + 1);
 
     // set all recoded bits
     for i in indices {
@@ -55,37 +54,34 @@ pub fn fib_enc_multiple(data: &[u64]) -> MyBitVector {
 
 #[cfg(test)]
 mod test {
-    use crate::fibonacci_old::fib_enc_multiple;
     use super::fib_enc;
-   
+    use crate::fibonacci_old::fib_enc_multiple;
+
     #[test]
     fn test_fib_encode_5() {
         assert_eq!(
-            fib_enc(5).iter().collect::<Vec<_>>(), 
+            fib_enc(5).iter().collect::<Vec<_>>(),
             vec![false, false, false, true, true]
-         );
+        );
     }
     #[test]
     fn test_fib_encode_1() {
-        assert_eq!(
-            fib_enc(1).iter().collect::<Vec<_>>(), 
-            vec![true, true] 
-        );
+        assert_eq!(fib_enc(1).iter().collect::<Vec<_>>(), vec![true, true]);
     }
     #[test]
     fn test_fib_encode_14() {
         assert_eq!(
-            fib_enc(14).iter().collect::<Vec<_>>(), 
-            vec![true, false, false, false, false, true, true] 
+            fib_enc(14).iter().collect::<Vec<_>>(),
+            vec![true, false, false, false, false, true, true]
         );
     }
 
     #[test]
     fn test_fib_encode_mutiple() {
-        let enc = fib_enc_multiple( &vec![1,14]);
+        let enc = fib_enc_multiple(&vec![1, 14]);
         assert_eq!(
-            enc.iter().collect::<Vec<_>>(), 
-            vec![true, true, true, false, false, false, false, true, true] 
+            enc.iter().collect::<Vec<_>>(),
+            vec![true, true, true, false, false, false, false, true, true]
         );
     }
 
