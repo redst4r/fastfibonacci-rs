@@ -1,11 +1,11 @@
-//! Fibonacci encoding of integers.
+//! Regular Fibonacci encoding and decoding of integers.
 //!
 //! See [here](https://en.wikipedia.org/wiki/Fibonacci_coding)
 //!
 //! # Usage
 //! ```rust
-//! use fastfibonacci::fibonacci::{fib_enc_multiple_fast,FibonacciDecoder};
-//! let encode = fib_enc_multiple_fast(&vec![34, 12]) ;
+//! use fastfibonacci::fibonacci::{encode,FibonacciDecoder};
+//! let encode = encode(&vec![34, 12]) ;
 //!
 //! // 2nd argument: shift all values by -1 (in case we wanted to encode 0 in the fibonacci encoding)
 //! let f = FibonacciDecoder::new(&encode, false);
@@ -16,105 +16,12 @@ use itertools::izip;
 use num::CheckedSub;
 use std::fmt::Debug;
 
+use crate::utils::FIB64;
 /// note the the entire content of this module is
 /// independent of the choice of BitOrder, i.e.
 /// both Lsb0 and Msb0 work the same way!
 use crate::{MyBitSlice, MyBitVector};
 
-/// Iterative fibonacci.
-///
-/// <https://github.com/rust-lang/rust-by-example>
-struct Fibonacci {
-    curr: u64,
-    next: u64,
-}
-
-impl Iterator for Fibonacci {
-    type Item = u64;
-    fn next(&mut self) -> Option<u64> {
-        let new_next = self.curr + self.next;
-
-        self.curr = self.next;
-        self.next = new_next;
-
-        Some(self.curr)
-    }
-}
-/// A "constructor" for Iterative fibonacci.
-#[allow(dead_code)] // only needed to generate the fibonacci sequence below
-fn iterative_fibonacci() -> Fibonacci {
-    Fibonacci { curr: 1, next: 1 }
-}
-
-// let v: Vec<_> = iterative_fibonacci().take(65 - 1).collect();
-// println!("{:?}", v);
-/// All fibonacci numbers up to 64bit
-pub const FIB64: &[u64] = &[
-    1,
-    2,
-    3,
-    5,
-    8,
-    13,
-    21,
-    34,
-    55,
-    89,
-    144,
-    233,
-    377,
-    610,
-    987,
-    1597,
-    2584,
-    4181,
-    6765,
-    10946,
-    17711,
-    28657,
-    46368,
-    75025,
-    121393,
-    196418,
-    317811,
-    514229,
-    832040,
-    1346269,
-    2178309,
-    3524578,
-    5702887,
-    9227465,
-    14930352,
-    24157817,
-    39088169,
-    63245986,
-    102334155,
-    165580141,
-    267914296,
-    433494437,
-    701408733,
-    1134903170,
-    1836311903,
-    2971215073,
-    4807526976,
-    7778742049,
-    12586269025,
-    20365011074,
-    32951280099,
-    53316291173,
-    86267571272,
-    139583862445,
-    225851433717,
-    365435296162,
-    591286729879,
-    956722026041,
-    1548008755920,
-    2504730781961,
-    4052739537881,
-    6557470319842,
-    10610209857723,
-    17_167_680_177_565,
-];
 // TODO calc all fib up to u64::MAX! -> no point, we cant encode that in 64bits anyway!
 
 /// convert a bitslice holding a single fibbonacci encoding into the numerical representation.
@@ -293,20 +200,19 @@ impl<'a> Iterator for FibonacciDecoder<'a> {
 }
 
 /// Slightly faster (2x) encoding of multiple integers into a bitvector via Fibonacci Encoding
-pub fn fib_enc_multiple_fast(data: &[u64]) -> MyBitVector {
+pub fn encode(data: &[u64]) -> MyBitVector {
     // the capacity is a minimum, assuming each element of data is 1, i.e. `11` in fib encoding
     let mut overall = MyBitVector::with_capacity(2 * data.len());
 
     // this just appends to the `overall` bitvec
     for &x in data {
-        bits_from_table(x, FIB64, &mut overall).unwrap();
+        bits_from_table_internal(x, FIB64, &mut overall).unwrap();
     }
     overall
 }
 
-#[derive(Debug, PartialEq)]
-
 /// Hijacked from <https://github.com/antifuchs/fibonacci_codec>
+#[derive(Debug, PartialEq)]
 pub enum EncodeError<T>
 where
     T: Debug + Send + Sync + 'static,
@@ -323,7 +229,7 @@ where
 /// slightly faster fibonacci endocing (2x faster), taken from
 /// <https://github.com/antifuchs/fibonacci_codec>
 #[inline]
-pub fn bits_from_table<T>(
+fn bits_from_table_internal<T>(
     n: T,
     table: &'static [T],
     result: &mut MyBitVector,
@@ -365,32 +271,30 @@ where
 
 #[cfg(test)]
 mod test {
-    use crate::fibonacci::{
-        bitslice_to_fibonacci, fib_enc_multiple_fast, FibonacciDecoder, MyBitVector,
-    };
+    use crate::fibonacci::{bitslice_to_fibonacci, encode, FibonacciDecoder, MyBitVector};
     use bitvec::prelude::*;
 
     mod test_table {
-        use crate::fibonacci::{bits_from_table, fib_enc_multiple_fast, MyBitVector, FIB64};
+        use crate::fibonacci::{bits_from_table_internal, encode, MyBitVector, FIB64};
         use bitvec::vec::BitVec;
 
         #[test]
         fn test_1() {
             let mut bv: MyBitVector = BitVec::new();
-            bits_from_table(1, FIB64, &mut bv).unwrap();
+            bits_from_table_internal(1, FIB64, &mut bv).unwrap();
             assert_eq!(bv.iter().collect::<Vec<_>>(), vec![true, true]);
         }
 
         #[test]
         fn test_2() {
             let mut bv: MyBitVector = BitVec::new();
-            bits_from_table(2, FIB64, &mut bv).unwrap();
+            bits_from_table_internal(2, FIB64, &mut bv).unwrap();
             assert_eq!(bv.iter().collect::<Vec<_>>(), vec![false, true, true]);
         }
         #[test]
         fn test_14() {
             let mut bv: MyBitVector = BitVec::new();
-            bits_from_table(14, FIB64, &mut bv).unwrap();
+            bits_from_table_internal(14, FIB64, &mut bv).unwrap();
             assert_eq!(
                 bv.iter().collect::<Vec<_>>(),
                 vec![true, false, false, false, false, true, true]
@@ -399,9 +303,9 @@ mod test {
         #[test]
         fn test_consecutive() {
             let mut bv: MyBitVector = BitVec::new();
-            bits_from_table(1, FIB64, &mut bv).unwrap();
-            bits_from_table(2, FIB64, &mut bv).unwrap();
-            bits_from_table(1, FIB64, &mut bv).unwrap();
+            bits_from_table_internal(1, FIB64, &mut bv).unwrap();
+            bits_from_table_internal(2, FIB64, &mut bv).unwrap();
+            bits_from_table_internal(1, FIB64, &mut bv).unwrap();
             assert_eq!(
                 bv.iter().collect::<Vec<_>>(),
                 vec![true, true, false, true, true, true, true]
@@ -409,9 +313,9 @@ mod test {
         }
 
         #[test]
-        fn test_fib_enc_multiple_fast() {
+        fn test_encode() {
             let x = vec![1, 2, 3];
-            let bv = fib_enc_multiple_fast(&x);
+            let bv = encode(&x);
             assert_eq!(
                 bv.iter().collect::<Vec<_>>(),
                 vec![true, true, false, true, true, false, false, true, true]
@@ -419,9 +323,9 @@ mod test {
         }
 
         #[test]
-        fn test_fib_enc_multiple_fas_single_item() {
+        fn test_encode_single_item() {
             let x = vec![3];
-            let bv = fib_enc_multiple_fast(&x);
+            let bv = encode(&x);
             assert_eq!(
                 bv.iter().collect::<Vec<_>>(),
                 vec![false, false, true, true]
@@ -430,8 +334,8 @@ mod test {
     }
 
     #[test]
-    fn test_fib_encode_mutiple() {
-        let enc = fib_enc_multiple_fast(&vec![1, 14]);
+    fn test_encode_mutiple() {
+        let enc = encode(&vec![1, 14]);
         assert_eq!(
             enc.iter().collect::<Vec<_>>(),
             vec![true, true, true, false, false, false, false, true, true]

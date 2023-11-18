@@ -1,16 +1,16 @@
 //! Some older, slower code for fibonacci encoding
 //! mostly educational
-use crate::fibonacci::FIB64;
+use crate::utils::FIB64;
 use crate::MyBitVector;
 /// Fibonacci encoding of a single integer
 ///
 /// # Example:
 /// ```rust
-/// # use fastfibonacci::fibonacci_old::fib_enc;
-/// let enc = fib_enc(1);  // a BitVec
+/// # use fastfibonacci::fibonacci_old::encode;
+/// let enc = encode(1);  // a BitVec
 /// assert_eq!(enc.iter().collect::<Vec<_>>(), vec![true, true]);
 /// ```
-pub fn fib_enc(mut n: u64) -> MyBitVector {
+pub fn encode(mut n: u64) -> MyBitVector {
     assert!(n > 0, "n must be positive");
     assert!(n < FIB64[FIB64.len() - 1], "n must be smaller than max fib");
 
@@ -46,7 +46,7 @@ pub fn fib_enc_multiple(data: &[u64]) -> MyBitVector {
     let mut acc = MyBitVector::new();
 
     for &x in data {
-        let mut b = fib_enc(x);
+        let mut b = encode(x);
         acc.append(&mut b);
     }
     acc
@@ -54,24 +54,24 @@ pub fn fib_enc_multiple(data: &[u64]) -> MyBitVector {
 
 #[cfg(test)]
 mod test {
-    use super::fib_enc;
+    use super::encode;
     use crate::fibonacci_old::fib_enc_multiple;
 
     #[test]
     fn test_fib_encode_5() {
         assert_eq!(
-            fib_enc(5).iter().collect::<Vec<_>>(),
+            encode(5).iter().collect::<Vec<_>>(),
             vec![false, false, false, true, true]
         );
     }
     #[test]
     fn test_fib_encode_1() {
-        assert_eq!(fib_enc(1).iter().collect::<Vec<_>>(), vec![true, true]);
+        assert_eq!(encode(1).iter().collect::<Vec<_>>(), vec![true, true]);
     }
     #[test]
     fn test_fib_encode_14() {
         assert_eq!(
-            fib_enc(14).iter().collect::<Vec<_>>(),
+            encode(14).iter().collect::<Vec<_>>(),
             vec![true, false, false, false, false, true, true]
         );
     }
@@ -88,11 +88,11 @@ mod test {
     #[test]
     #[should_panic(expected = "n must be positive")]
     fn test_fib_encode_0() {
-        fib_enc(0);
+        encode(0);
     }
     #[test]
     #[should_panic(expected = "n must be smaller than max fib")]
     fn test_fib_encode_u64max() {
-        fib_enc(u64::MAX);
+        encode(u64::MAX);
     }
 }

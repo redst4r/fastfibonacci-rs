@@ -36,8 +36,8 @@
 //! ```
 
 use crate::{
-    fib_utils::fibonacci_left_shift,
-    fibonacci::{FbDec, FIB64},
+    fibonacci::FbDec,
+    utils::{fibonacci_left_shift, FIB64},
 };
 use bitvec::prelude::*;
 use bitvec::{field::BitField, vec::BitVec, view::BitView};
@@ -360,8 +360,8 @@ mod test_iter {
     }
     #[test]
     fn test_correctness_iter() {
-        use crate::fib_utils::random_fibonacci_stream;
         use crate::fibonacci::FibonacciDecoder;
+        use crate::utils::random_fibonacci_stream;
         let b = random_fibonacci_stream(100000, 1, 1000);
         // let b = dummy_encode(vec![64, 11, 88]);
         // make a copy for fast decoder
@@ -911,8 +911,8 @@ mod testing_fast_decode {
 
     #[test]
     fn test_correctness_fast_decode() {
-        use crate::fib_utils::random_fibonacci_stream;
         use crate::fibonacci::FibonacciDecoder;
+        use crate::utils::random_fibonacci_stream;
         let b = random_fibonacci_stream(100000, 1, 1000);
         // let b = dummy_encode(vec![64, 11, 88]);
         // make a copy for fast decoder
@@ -931,8 +931,8 @@ mod testing_fast_decode {
 
     #[test]
     fn test_correctness_fast_decode_u8() {
-        use crate::fib_utils::random_fibonacci_stream;
         use crate::fibonacci::FibonacciDecoder;
+        use crate::utils::random_fibonacci_stream;
         let b = random_fibonacci_stream(100000, 1, 1000);
         // make a copy for fast decoder
         let mut b_fast: BitVec<u8, FFBitorder> = BitVec::new();
@@ -953,8 +953,8 @@ mod testing_fast_decode {
 
     #[test]
     fn test_correctness_fast_decode_u16() {
-        use crate::fib_utils::random_fibonacci_stream;
         use crate::fibonacci::FibonacciDecoder;
+        use crate::utils::random_fibonacci_stream;
         let b = random_fibonacci_stream(1000000, 1, 1000);
         // make a copy for fast decoder
         let mut b_fast: BitVec<u8, FFBitorder> = BitVec::new();
@@ -975,7 +975,7 @@ mod testing_fast_decode {
     // #[test]
     #[allow(dead_code)]
     fn test_fast_speed() {
-        use crate::fib_utils::random_fibonacci_stream;
+        use crate::utils::random_fibonacci_stream;
 
         let b = random_fibonacci_stream(10_000_000, 100000, 1000000);
         // make a copy for fast decoder
@@ -1349,7 +1349,6 @@ impl U16Lookup for LookupU16Hash {
 #[cfg(test)]
 mod testing_lookups {
     use super::*;
-    use bitvec::prelude::*;
     // use pretty_assertions::{assert_eq, assert_ne};
 
     #[test]
