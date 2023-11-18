@@ -1,0 +1,55 @@
+# FastFibonacci
+
+Rust library implementing the [FastFibonacci](https://ceur-ws.org/Vol-567/paper14.pdf) integer compression/decompression algorithm. Besides the crate also supplies regular fibonacci compression/decompression
+
+## Introduction
+[Fibonacci encoding](https://en.wikipedia.org/wiki/Fibonacci_coding) is a variable-length encoding of integers, with the special property that any encoding of an interger ends in `1` (binary) and no encoding contains `11`. Hence one can use `11` as a separator in a stream of Fibonacci encoded integers.
+
+Regular Fibonacci decoding works decoding bit by bit, which can be quite slow. `Fast Fibonacci` decoding looks at `n` bits at once, decoding this chunk in a single operation which can be faster.
+
+
+## Performance
+Regular Fibonacci encoding is up to speed with other rust implementations, e.g. `fibonnaci_codec` crate (which I took some code from):
+- Fibonacci encoding: 
+    - this crate: 75ms/ 1M integers 
+    - fibonnaci_codec: 88ms / 1M integers
+
+Regular fibonacci decoding (iterator based) is up to speed with the `fibonnaci_codec` crate. 
+The **FastFibonacci** decoding functions are ~2x faster, but have some constant overhead  (i.e. only pays of when decoding *many* integers):
+- Fibonacci decoding: 
+    - regular decoding: 92ms/ 1M integers
+    - fibonnaci_codec: 108ms / 1M integers
+    - fast decoding (u8 segments): 40ms / 1M integers
+    - fast decoding (u16 segments): 30ms / 1M integers
+    - fast decoding (using an iterator): 54ms / 1M integers
+
+
+## Examples
+Regular encoding and decoding:
+```rust
+use fastfibonacci::fibonacci::{fib_enc_multiple_fast,FibonacciDecoder};
+let encode = fib_enc_multiple_fast(&vec![34, 12]) ;
+
+// 2nd argument: shift all values by -1 (in case we wanted to encode 0 in the fibonacci encoding)
+let f = FibonacciDecoder::new(&encode, false);
+assert_eq!(f.collect::<Vec<_>>(), vec![34,12])
+```
+
+Fast decoding:
+```rust
+use fastfibonacci::fibonacci_fast::{fast_decode_u8,fast_decode_u16, LookupU8Vec, LookupU16Vec };
+use bitvec::prelude as bv;
+let bits = bv::bits![u8, bv::Msb0; 
+    1,0,1,1,0,1,0,1,
+    1,0,1,0,0,1,0,1,
+    0,1,1,1,0,0,1,0].to_bitvec();
+// using a u8 lookup table
+let table = LookupU8Vec::new();
+let r = fast_decode_u8(bits.clone(), &table);
+assert_eq!(r, vec![4,7, 86]);
+
+// using a u16 table
+let table = LookupU16Vec::new();
+let r = fast_decode_u16(bits.clone(), &table);
+assert_eq!(r, vec![4,7, 86]);
+```
