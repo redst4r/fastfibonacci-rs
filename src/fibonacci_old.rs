@@ -1,7 +1,9 @@
 //! Some older, slower code for fibonacci encoding
 //! mostly educational
+use itertools::izip;
+
 use crate::utils::FIB64;
-use crate::MyBitVector;
+use crate::{MyBitVector, MyBitSlice};
 /// Fibonacci encoding of a single integer
 ///
 /// # Example:
@@ -52,10 +54,92 @@ pub fn fib_enc_multiple(data: &[u64]) -> MyBitVector {
     acc
 }
 
+/// convert a bitslice holding a single fibbonacci encoding into the numerical representation.
+/// Essentially assumes that the bitslice ends with ....11 and has no other occurance of 11
+fn bitslice_to_fibonacci(b: &MyBitSlice) -> u64 {
+    // omits the initial 1, i.e.
+    // fib = [1,2,3,5,...]
+    // let fib: Vec<_> = iterative_fibonacci().take(b.len() - 1).collect(); // shorten by one as we omit the final bit
+    // println!("{:?}", fib);
+    // b.ends_with(&[true, true].into());
+    if b.len() > 64 {
+        panic!("fib-codes cant be longer than 64bit, something is wrong!");
+    }
+    // TODO make sure its a proper fib-encoding (no 11 except the end)
+    let mut sum = 0;
+    for (bit, f) in izip!(&b[..b.len() - 1], FIB64) {
+        if *bit {
+            sum += f;
+        }
+    }
+    sum
+}
+
+///
+fn bitslice_to_fibonacci3(b: &MyBitSlice) -> u64 {
+    // omits the initial 1, i.e.
+    // fib = [1,2,3,5,...]
+    // let fib: Vec<_> = iterative_fibonacci().take(b.len() - 1).collect(); // shorten by one as we omit the final bit
+    // println!("{:?}", fib);
+    // b.ends_with(&[true, true].into());
+    if b.len() > 64 {
+        panic!("fib-codes cant be longer than 64bit, something is wrong!");
+    }
+    // TODO make sure its a proper fib-encoding (no 11 except the end)
+    let mut sum = 0;
+    // for (bit, f) in izip!(&b[..b.len()-1], FIB64) {
+    for i in 0..b.len() - 1 {
+        sum += FIB64[i] * (b[i] as u64);
+    }
+    sum
+}
+
+///
+fn bitslice_to_fibonacci2(b: &MyBitSlice) -> u64 {
+    // omits the initial 1, i.e.
+    // fib = [1,2,3,5,...]
+    // let fib: Vec<_> = iterative_fibonacci().take(b.len() - 1).collect(); // shorten by one as we omit the final bit
+    // println!("{:?}", fib);
+    // b.ends_with(&[true, true].into());
+    if b.len() > 64 {
+        panic!("fib-codes cant be longer than 64bit, something is wrong!");
+    }
+    // TODO make sure its a proper fib-encoding (no 11 except the end)
+    let mut sum = 0;
+    for ix in b[..b.len() - 1].iter_ones() {
+        sum += FIB64[ix];
+    }
+    sum
+}
+
+///
+fn bitslice_to_fibonacci4(b: &MyBitSlice) -> u64 {
+    // omits the initial 1, i.e.
+    // fib = [1,2,3,5,...]
+    // let fib: Vec<_> = iterative_fibonacci().take(b.len() - 1).collect(); // shorten by one as we omit the final bit
+    // println!("{:?}", fib);
+    // b.ends_with(&[true, true].into());
+    if b.len() > 64 {
+        panic!("fib-codes cant be longer than 64bit, something is wrong!");
+    }
+    // TODO make sure its a proper fib-encoding (no 11 except the end)
+    // let mut sum = 0;
+    let sum = b[..b.len() - 1]
+        .iter()
+        .by_vals()
+        .enumerate()
+        .filter_map(|(ix, bit)| if bit { Some(FIB64[ix]) } else { None })
+        .sum();
+    sum
+}
+
+
 #[cfg(test)]
 mod test {
+    use bitvec::{bits, order::Msb0, vec::BitVec};
+
     use super::encode;
-    use crate::fibonacci_old::fib_enc_multiple;
+    use crate::{fibonacci_old::{fib_enc_multiple, bitslice_to_fibonacci}, MyBitVector};
 
     #[test]
     fn test_fib_encode_5() {
@@ -94,5 +178,40 @@ mod test {
     #[should_panic(expected = "n must be smaller than max fib")]
     fn test_fib_encode_u64max() {
         encode(u64::MAX);
+    }
+
+
+    #[test]
+    fn test_bitslice_to_fibonacci() {
+        let b = bits![u8, Msb0; 1, 1];
+
+        assert_eq!(bitslice_to_fibonacci(b), 1);
+
+        let b = bits![u8, Msb0; 0, 1, 1];
+
+        assert_eq!(bitslice_to_fibonacci(&b), 2);
+        let b = bits![u8, Msb0; 0,0,1, 1];
+
+        assert_eq!(bitslice_to_fibonacci(&b), 3);
+
+        let b = bits![u8, Msb0; 1,0, 1, 1];
+        assert_eq!(bitslice_to_fibonacci(&b), 4);
+
+        let b = bits![u8, Msb0; 1,0,0,0,0,1,1];
+
+        assert_eq!(bitslice_to_fibonacci(&b), 14);
+
+        let b = bits![u8, Msb0; 1,0,1,0,0,1,1];
+        assert_eq!(bitslice_to_fibonacci(&b), 17);
+    }
+
+    #[test]
+    fn test_max_decode() {
+        let mut v: Vec<bool> = [0_u8; 64].iter().map(|x| *x == 1).collect();
+        v[62] = true;
+        v[63] = true;
+
+        let b: MyBitVector = BitVec::from_iter(v.into_iter());
+        assert_eq!(bitslice_to_fibonacci(&b), 10610209857723);
     }
 }

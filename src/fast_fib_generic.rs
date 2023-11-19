@@ -15,6 +15,7 @@ pub trait LookupTable<T> {
     /// the (precomputed) new state and decoding result
     fn lookup(&self, s: State, segment: T) -> (State, &DecodingResult);
 }
+
 /// Vector based lookup table for u8/u16
 pub struct LookupVec<T> {
     table_state0: Vec<(State, DecodingResult)>,
@@ -306,7 +307,7 @@ mod testing_fast_decode {
     #[test]
     fn test_correctness_fast_decode_u8() {
         use crate::fibonacci::FibonacciDecoder;
-        use crate::fib_utils::random_fibonacci_stream;
+        use crate::utils::random_fibonacci_stream;
         let b = random_fibonacci_stream(100000, 1, 1000);
         // let b = dummy_encode(vec![64, 11, 88]);
         // make a copy for fast decoder
@@ -333,7 +334,7 @@ mod testing_fast_decode {
     // #[test]
     #[allow(dead_code)]
     fn test_fast_speed() {
-        use crate::fib_utils::random_fibonacci_stream;
+        use crate::utils::random_fibonacci_stream;
 
         let b = random_fibonacci_stream(10_000_000, 100000, 1000000);
         // make a copy for fast decoder

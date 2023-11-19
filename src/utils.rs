@@ -2,6 +2,8 @@
 //!
 use crate::fibonacci::encode;
 use crate::MyBitVector;
+use bitvec::{store::BitStore, order::BitOrder, slice::BitSlice};
+use itertools::Itertools;
 use rand::{distributions::Uniform, prelude::Distribution};
 use std::collections::HashMap;
 
@@ -184,15 +186,6 @@ pub fn random_fibonacci_stream(n_elements: usize, min: usize, max: usize) -> MyB
 
 /// precompuated EXTENDED fibbonaci left shift by 1
 /// n >> 1  = FIB_LEFT_1[n]
-// const FIB_EXT_LEFT_1: &[u64]= &[
-// 0,1,1,2,3,3,4,4,5,6,
-// 6,7,8,8,9,9,10,11,11,12,
-// 12,13,14,14,15,16,16,17,17,18,
-// 19,19,20,21,21,22,22,23,24,24,
-// 25,25,26,27,27,28,29,29,30,30,
-// 31,32,32,33,33
-// ];
-
 const FIB_EXT_LEFT_1: &[u64] = &[
     0, 1, 1, 2, 3, 3, 4, 4, 5, 6, 6, 7, 8, 8, 9, 9, 10, 11, 11, 12, 12, 13, 14, 14, 15, 16, 16, 17,
     17, 18, 19, 19, 20, 21, 21, 22, 22, 23, 24, 24, 25, 25, 26, 27, 27, 28, 29, 29, 30, 30, 31, 32,
@@ -363,6 +356,12 @@ pub(crate) fn fibonacci_left_shift(n: u64, k: usize) -> u64 {
 
     // shifted:
     f_km1 * n + f_km2 * FIB_EXT_LEFT_1[n as usize]
+}
+
+/// just for debugging purpose
+pub fn bitstream_to_string<T: BitStore, O: BitOrder>(buffer: &BitSlice<T, O>) -> String {
+    let s = buffer.iter().map(|x| if *x { "1" } else { "0" }).join("");
+    s
 }
 
 #[cfg(test)]

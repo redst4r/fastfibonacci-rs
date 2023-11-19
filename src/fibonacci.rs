@@ -4,117 +4,25 @@
 //!
 //! # Usage
 //! ```rust
-//! use fastfibonacci::fibonacci::{encode,FibonacciDecoder};
+//! use fastfibonacci::fibonacci::{encode, decode, FibonacciDecoder};
 //! let encode = encode(&vec![34, 12]) ;
 //!
-//! // 2nd argument: shift all values by -1 (in case we wanted to encode 0 in the fibonacci encoding)
+//! let decoded = decode(&encode, false); // 2nd argument: shift all values by -1 (in case we wanted to encode 0 in the fibonacci encoding)
+//! assert_eq!(decoded, vec![34,12]);
+//! 
+//! // Alternatively, we can also create an iterator (yields one decoded int at a time)
 //! let f = FibonacciDecoder::new(&encode, false);
 //! assert_eq!(f.collect::<Vec<_>>(), vec![34,12])
 //! ```
 
-use itertools::izip;
 use num::CheckedSub;
 use std::fmt::Debug;
-
 use crate::utils::FIB64;
 /// note the the entire content of this module is
 /// independent of the choice of BitOrder, i.e.
 /// both Lsb0 and Msb0 work the same way!
-use crate::{MyBitSlice, MyBitVector};
+use crate::{MyBitSlice, MyBitVector, FbDec};
 
-// TODO calc all fib up to u64::MAX! -> no point, we cant encode that in 64bits anyway!
-
-/// convert a bitslice holding a single fibbonacci encoding into the numerical representation.
-/// Essentially assumes that the bitslice ends with ....11 and has no other occurance of 11
-fn bitslice_to_fibonacci(b: &MyBitSlice) -> u64 {
-    // omits the initial 1, i.e.
-    // fib = [1,2,3,5,...]
-    // let fib: Vec<_> = iterative_fibonacci().take(b.len() - 1).collect(); // shorten by one as we omit the final bit
-    // println!("{:?}", fib);
-    // b.ends_with(&[true, true].into());
-    if b.len() > 64 {
-        panic!("fib-codes cant be longer than 64bit, something is wrong!");
-    }
-    // TODO make sure its a proper fib-encoding (no 11 except the end)
-    let mut sum = 0;
-    for (bit, f) in izip!(&b[..b.len() - 1], FIB64) {
-        if *bit {
-            sum += f;
-        }
-    }
-    sum
-}
-
-///
-fn bitslice_to_fibonacci3(b: &MyBitSlice) -> u64 {
-    // omits the initial 1, i.e.
-    // fib = [1,2,3,5,...]
-    // let fib: Vec<_> = iterative_fibonacci().take(b.len() - 1).collect(); // shorten by one as we omit the final bit
-    // println!("{:?}", fib);
-    // b.ends_with(&[true, true].into());
-    if b.len() > 64 {
-        panic!("fib-codes cant be longer than 64bit, something is wrong!");
-    }
-    // TODO make sure its a proper fib-encoding (no 11 except the end)
-    let mut sum = 0;
-    // for (bit, f) in izip!(&b[..b.len()-1], FIB64) {
-    for i in 0..b.len() - 1 {
-        sum += FIB64[i] * (b[i] as u64);
-    }
-    sum
-}
-
-///
-fn bitslice_to_fibonacci2(b: &MyBitSlice) -> u64 {
-    // omits the initial 1, i.e.
-    // fib = [1,2,3,5,...]
-    // let fib: Vec<_> = iterative_fibonacci().take(b.len() - 1).collect(); // shorten by one as we omit the final bit
-    // println!("{:?}", fib);
-    // b.ends_with(&[true, true].into());
-    if b.len() > 64 {
-        panic!("fib-codes cant be longer than 64bit, something is wrong!");
-    }
-    // TODO make sure its a proper fib-encoding (no 11 except the end)
-    let mut sum = 0;
-    for ix in b[..b.len() - 1].iter_ones() {
-        sum += FIB64[ix];
-    }
-    sum
-}
-
-///
-fn bitslice_to_fibonacci4(b: &MyBitSlice) -> u64 {
-    // omits the initial 1, i.e.
-    // fib = [1,2,3,5,...]
-    // let fib: Vec<_> = iterative_fibonacci().take(b.len() - 1).collect(); // shorten by one as we omit the final bit
-    // println!("{:?}", fib);
-    // b.ends_with(&[true, true].into());
-    if b.len() > 64 {
-        panic!("fib-codes cant be longer than 64bit, something is wrong!");
-    }
-    // TODO make sure its a proper fib-encoding (no 11 except the end)
-    // let mut sum = 0;
-    let sum = b[..b.len() - 1]
-        .iter()
-        .by_vals()
-        .enumerate()
-        .filter_map(|(ix, bit)| if bit { Some(FIB64[ix]) } else { None })
-        .sum();
-    sum
-}
-
-/// Marker trait for Fibonacci decoders.
-/// This is an iterator over u64 (the decoded integers),
-/// and lets you return parts of the buffer not yet decoded
-pub trait FbDec<'a>: Iterator<Item = u64> {
-    /// Returns the buffer behind the last bit processed.
-    /// Comes handy when the buffer contains data OTHER than fibonacci encoded
-    /// data that needs to be processed externally.
-    fn get_remaining_buffer(&self) -> &'a MyBitSlice;
-
-    /// how far did we process into the buffer (pretty much the first bit after a 11).
-    fn get_bits_processed(&self) -> usize;
-}
 
 /// Decoder for Fibonacci encoded integer sequences
 ///
@@ -211,6 +119,25 @@ pub fn encode(data: &[u64]) -> MyBitVector {
     overall
 }
 
+/// Fibonacci-decodes the bitstream into integers.
+/// 
+/// *Note*: this only decodes to the last delimiter (`11`) and skip any trailing bits.
+/// For examples if encoded=`011001` this will decode `011`, but will leave `001` untouched (as it is not proper fibonacci encoding).
+/// 
+/// # Parameters:
+/// * encoded: bitstream to decode
+/// * shifted_by_one: if true, subtracts 1 from each decoded number. In case the data was encoded after shifting (to allow 0 to be encoded)
+pub fn decode(encoded: &MyBitSlice, shifted_by_one:bool) -> Vec<u64> {
+    let dec = FibonacciDecoder::new(encoded, shifted_by_one);
+    let x: Vec<u64> = dec.collect();
+    x
+    // if dec.get_remaining_buffer().is_empty() {
+    //     Err(DecodeError::TrailingBits)
+    // } else {
+    //     Ok(x)
+    // }
+}
+
 /// Hijacked from <https://github.com/antifuchs/fibonacci_codec>
 #[derive(Debug, PartialEq)]
 pub enum EncodeError<T>
@@ -226,6 +153,15 @@ where
     /// number than the number to encode.
     Underflow(T),
 }
+
+pub enum DecodeError
+{
+    /// Raised when decoding a buffer which does NOT terminate with `11`,
+    /// i.e. there's some trailing bits
+    TrailingBits
+}
+
+
 /// slightly faster fibonacci endocing (2x faster), taken from
 /// <https://github.com/antifuchs/fibonacci_codec>
 #[inline]
@@ -271,7 +207,7 @@ where
 
 #[cfg(test)]
 mod test {
-    use crate::fibonacci::{bitslice_to_fibonacci, encode, FibonacciDecoder, MyBitVector};
+    use crate::fibonacci::{encode, FibonacciDecoder};
     use bitvec::prelude::*;
 
     mod test_table {
@@ -354,39 +290,6 @@ mod test {
 
     // }
 
-    #[test]
-    fn test_bitslice_to_fibonacci() {
-        let b = bits![u8, Msb0; 1, 1];
-
-        assert_eq!(bitslice_to_fibonacci(b), 1);
-
-        let b = bits![u8, Msb0; 0, 1, 1];
-
-        assert_eq!(bitslice_to_fibonacci(&b), 2);
-        let b = bits![u8, Msb0; 0,0,1, 1];
-
-        assert_eq!(bitslice_to_fibonacci(&b), 3);
-
-        let b = bits![u8, Msb0; 1,0, 1, 1];
-        assert_eq!(bitslice_to_fibonacci(&b), 4);
-
-        let b = bits![u8, Msb0; 1,0,0,0,0,1,1];
-
-        assert_eq!(bitslice_to_fibonacci(&b), 14);
-
-        let b = bits![u8, Msb0; 1,0,1,0,0,1,1];
-        assert_eq!(bitslice_to_fibonacci(&b), 17);
-    }
-
-    #[test]
-    fn test_max_decode() {
-        let mut v: Vec<bool> = [0_u8; 64].iter().map(|x| *x == 1).collect();
-        v[62] = true;
-        v[63] = true;
-
-        let b: MyBitVector = BitVec::from_iter(v.into_iter());
-        assert_eq!(bitslice_to_fibonacci(&b), 10610209857723);
-    }
 
     #[test]
     fn test_myfib_decoder() {

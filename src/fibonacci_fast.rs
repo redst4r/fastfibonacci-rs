@@ -2,7 +2,7 @@
 //! see this [paper](https://www.researchgate.net/publication/220827231_Fast_Fibonacci_Encoding_Algorithm)
 //!
 //! Basically, instead of decoding bit by bit, we do larger segments of bits, where
-//! we precomputed their decoded representation already in a lookup table.
+//! we precomputed their decoded representation already in a lookup table ([`LookupU8Vec`], [`LookupU16Vec`]).
 //!
 //! The tricky part: A segment might have a encoded number, but also parts of the next encoded number:
 //! ```bash,no_run  
@@ -36,15 +36,14 @@
 //! ```
 
 use crate::{
-    fibonacci::FbDec,
+    FbDec,
     utils::{fibonacci_left_shift, FIB64},
 };
 use bitvec::prelude::*;
-use bitvec::{field::BitField, vec::BitVec, view::BitView};
-use itertools::Itertools;
+use bitvec::{field::BitField, view::BitView};
 use num::traits::Pow;
-use std::cmp;
 use std::{
+    cmp,
     collections::{HashMap, VecDeque},
     hash::Hash,
 };
@@ -101,6 +100,7 @@ pub struct FastFibonacciDecoder<'a> {
     last_emission_last_position: Option<usize>,
     shifted_by_one: bool,
 }
+
 impl<'a> FastFibonacciDecoder<'a> {
     /// New FastFibonacciDecoder
     /// # Parameters
@@ -453,7 +453,6 @@ fn create_lookup(segment_size: usize) -> HashMap<(State, FFBitvec), (State, Deco
             // converting to u8 storage
             let mut b: BitVec<u8, FFBitorder> = BitVec::new();
             b.extend(bitstream);
-            // println!("Inserting {}", b);
             table.insert((laststate, b), (newstate, r));
         }
     }
@@ -471,12 +470,9 @@ pub(crate) fn decode_with_remainder<T: BitStore, O: BitOrder>(
         bitstream.len() < 64,
         "fib-codes cant be longer than 64bit, something is wrong!"
     );
-    // println!("{}", bitstream_to_string(bitstream));
     let mut prev_bit = lastbit_external;
     let mut decoded_ints = Vec::new();
     let mut decoded_end_pos: Vec<usize> = Vec::new();
-
-    // let mut current_start = None; // already add the unknown starto f the first el
 
     let mut accum = 0_u64;
     let mut offset = 0;
@@ -548,13 +544,12 @@ mod test_decode_with_remainder {
         );
     }
 
-    // #[test]
+    #[test]
     fn test_decode_with_remainder_from_table94() {
         // the exampel from the paper, Fig 9.4
-        let mut bits = &181_u8.view_bits::<FFBitorder>()[..8];
+        let bits = &181_u8.view_bits::<FFBitorder>()[..8];
         // bits.reverse();
 
-        println!("{bits:?}");
         // let bits = bits![u8, FFBitorder; 0,1,1,1,1];
         let r = decode_with_remainder(bits, false);
         assert_eq!(r.numbers, vec![4]);
@@ -563,7 +558,6 @@ mod test_decode_with_remainder {
 
         // the exampel from the paper, Fig 9.4
         let bits = &165_u8.view_bits::<FFBitorder>()[..8];
-        println!("{:?}", bits);
         let r = decode_with_remainder(&bits, true);
         assert_eq!(r.numbers, vec![0]);
         assert_eq!(r.u, 31);
@@ -624,7 +618,6 @@ mod test_decode_with_remainder {
 
 /// State of the decoding across multiple segments. Keeps track of completely
 /// decoded and partially decoded numbers (which could be completed with the next segment)
-///
 #[derive(Debug)]
 pub(crate) struct DecodingState {
     pub decoded_numbers: Vec<u64>, // completly decoded numbers across all segments so far
@@ -664,7 +657,7 @@ impl DecodingState {
     }
 }
 
-/// Reference implementation, very inefficient though. Use [fast_decode_u8] or [fast_decode_u16]
+/// Reference implementation, very inefficient though. Use [`fast_decode_u8`] or [`fast_decode_u16`]
 /// for actual applications.
 pub fn fast_decode(stream: FFBitvec, segment_size: usize) -> Vec<u64> {
     let the_table = create_lookup(segment_size);
@@ -998,12 +991,6 @@ mod testing_fast_decode {
         let f = FastFibonacciDecoder::new(&b_fast, false);
         println!("{}", f.sum::<u64>())
     }
-}
-
-/// just for debugging purpose
-pub fn bitstream_to_string<T: BitStore, O: BitOrder>(buffer: &BitSlice<T, O>) -> String {
-    let s = buffer.iter().map(|x| if *x { "1" } else { "0" }).join("");
-    s
 }
 
 /// Fast Fibonacci decoding lookup table for 8bit segments

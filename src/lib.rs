@@ -47,3 +47,17 @@ use bitvec::prelude as bv;
 pub(crate) type MyBitSlice = bv::BitSlice<u8, bv::Msb0>;
 /// reftype thqt goes with [`MyBitSlice`]
 pub(crate) type MyBitVector = bv::BitVec<u8, bv::Msb0>;
+
+
+/// Marker trait for Fibonacci decoders.
+/// This is an iterator over u64 (the decoded integers),
+/// and lets you return parts of the buffer not yet decoded
+pub trait FbDec<'a>: Iterator<Item = u64> {
+    /// Returns the buffer behind the last bit processed.
+    /// Comes handy when the buffer contains data OTHER than fibonacci encoded
+    /// data that needs to be processed externally.
+    fn get_remaining_buffer(&self) -> &'a MyBitSlice;
+
+    /// how far did we process into the buffer (pretty much the first bit after a 11).
+    fn get_bits_processed(&self) -> usize;
+}
