@@ -1,6 +1,6 @@
 # FastFibonacci
 
-Rust library implementing the [FastFibonacci](https://ceur-ws.org/Vol-567/paper14.pdf) integer compression/decompression algorithm. Besides the crate also supplies regular fibonacci compression/decompression
+Rust library implementing the [FastFibonacci](https://ceur-ws.org/Vol-567/paper14.pdf) integer compression/decompression algorithm. Besides, the crate also supplies regular fibonacci compression/decompression.
 
 ## Introduction
 [Fibonacci encoding](https://en.wikipedia.org/wiki/Fibonacci_coding) is a variable-length encoding of integers, with the special property that any encoding of an interger ends in `1` (binary) and no encoding contains `11`. Hence one can use `11` as a separator in a stream of Fibonacci encoded integers.

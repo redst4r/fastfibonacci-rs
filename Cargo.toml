@@ -1,6 +1,6 @@
 [package]
 name = "fastfibonacci"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 rust-version = "1.73"
 license = " GPL-3.0-or-later"
@@ -16,13 +16,14 @@ include = ["/src", "README.md"]
 [dependencies]
 bitvec="1"
 itertools="0.12"
-bit-vec="0.6"  # TODO: remove this old depenency
 rand = "0.8"
 num = "0.4"
 once_cell = "1.18.0"
+funty = "2"
 
 [dev-dependencies]
 fibonacci_codec="0.2" # TODO: remove this old depenency
+bit-vec="0.6"  # TODO: remove this old depenency
 criterion = "0.5"
 pretty_assertions = "1"
 rand_distr = "0.4.3"

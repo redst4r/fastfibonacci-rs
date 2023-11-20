@@ -52,8 +52,9 @@ pub mod fibonacci;
 pub mod fibonacci_fast;
 pub mod fibonacci_old;
 mod utils;
+mod fastutils;
 pub use utils::random_fibonacci_stream;
-
+pub mod fast_fib_generic;
 use bitvec::prelude as bv;
 
 /// The type of bitvector used in the crate.

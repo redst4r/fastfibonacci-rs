@@ -1,6 +1,7 @@
 use bitvec::slice::BitSlice;
-use bitvec::{prelude::Lsb0, prelude::Msb0, vec::BitVec};
+use bitvec::{prelude::Msb0, vec::BitVec};
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use fastfibonacci::fast_fib_generic::{LookupVec, fast_decode};
 use fastfibonacci::fibonacci::{encode, FibonacciDecoder};
 use fastfibonacci::fibonacci_fast::{
     fast_decode_u16, fast_decode_u8, FastFibonacciDecoder, LookupU16Vec, LookupU8Vec,
@@ -9,7 +10,6 @@ use fastfibonacci::fibonacci_old::fib_enc_multiple;
 use fastfibonacci::random_fibonacci_stream;
 use fibonacci_codec::Encode;
 use rand::distributions::{Distribution, Uniform};
-use rand_distr::Geometric;
 
 type MyBitVector = BitVec<u8, Msb0>;
 
@@ -34,15 +34,15 @@ fn fibonacci_encode(c: &mut Criterion) {
         data.push(data_dist.sample(&mut rng));
     }
 
-    c.bench_function(&format!("My Fibonacci Encoding {} elements", n), |b| {
+    c.bench_function(&format!("Encoding: My Fibonacci - {} elements", n), |b| {
         b.iter(|| _dummy_my_fib(black_box(data.clone())))
     });
 
     c.bench_function(
-        &format!("BitTable Fibonacci encoding {} elements", n),
+        &format!("Encoding: BitTable Fibonacci - {} elements", n),
         |b| b.iter(|| _dummy_bit_table(black_box(data.clone()))),
     );
-    c.bench_function(&format!("FibonacciCodec encoding {} elements", n), |b| {
+    c.bench_function(&format!("Encoding: FibonacciCodec - {} elements", n), |b| {
         b.iter(|| _dummy_fibonacci_codec(black_box(data.clone())))
     });
 }
@@ -93,7 +93,7 @@ fn fibonacci_decode(c: &mut Criterion) {
     }
 
     let enc = ground_truth.fib_encode().unwrap();
-    c.bench_function(&format!("Fib_Codec"), |b| {
+    c.bench_function(&format!("Decoding: Fibonacci_Codec"), |b| {
         b.iter(|| _dummy_fibonacci_codec_decode(black_box(enc.clone())))
     });
 
@@ -107,13 +107,26 @@ fn fibonacci_decode(c: &mut Criterion) {
     // =================================
 
     let table = LookupU8Vec::new();
-    c.bench_function(&format!("fast vec u8-decode"), |b| {
+    c.bench_function(&format!("Decoding: fast vec u8-decode"), |b| {
         b.iter(|| fast_decode_u8(black_box(data_fast.clone()), black_box(&table)))
     });
 
     let table = LookupU16Vec::new();
-    c.bench_function(&format!("fast vec u16-decode"), |b| {
+    c.bench_function(&format!("Decoding: fast vec u16-decode"), |b| {
         b.iter(|| fast_decode_u16(black_box(data_fast.clone()), black_box(&table)))
+    });
+
+    // =================================
+    // FastFibonacci generic:
+    // =================================
+    let table8: LookupVec<u8> = LookupVec::new();
+    c.bench_function(&format!("Decoding: generic fast vec u8-decode"), |b| {
+        b.iter(|| fast_decode(black_box(data_fast.clone()),false, &table8))
+    });
+
+    let table16: LookupVec<u16> = LookupVec::new();
+    c.bench_function(&format!("Decoding: generic fast vec u16-decode"), |b| {
+        b.iter(|| fast_decode(black_box(data_fast.clone()),false, &table16))
     });
 
     // =================================
@@ -124,7 +137,7 @@ fn fibonacci_decode(c: &mut Criterion) {
         let x: Vec<_> = f.collect();
         x
     }
-    c.bench_function(&format!("fast Iterator"), |b| {
+    c.bench_function(&format!("Decoding: fast Iterator"), |b| {
         b.iter(|| dummy_fast_iter(black_box(&data_fast.clone())))
     });
 
@@ -136,7 +149,7 @@ fn fibonacci_decode(c: &mut Criterion) {
         let x: Vec<_> = dec.collect();
         x
     }
-    c.bench_function(&format!("normal FibonacciDecoder"), |b| {
+    c.bench_function(&format!("Decoding: normal FibonacciDecoder"), |b| {
         b.iter(|| dummy(black_box(data.clone())))
     });
 }

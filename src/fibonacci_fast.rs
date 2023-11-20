@@ -37,7 +37,7 @@
 
 use crate::{
     FbDec,
-    utils::{fibonacci_left_shift, FIB64},
+    fastutils::{State, DecodingResult, DecodingState, decode_with_remainder, FFBitslice, FFBitvec, FFBitorder},
 };
 use bitvec::prelude::*;
 use bitvec::{field::BitField, view::BitView};
@@ -45,14 +45,7 @@ use num::traits::Pow;
 use std::{
     cmp,
     collections::{HashMap, VecDeque},
-    hash::Hash,
 };
-
-pub(crate) type FFBitorder = Msb0;
-
-// the type of bitstream we expect as input!
-type FFBitslice = BitSlice<u8, FFBitorder>;
-pub(crate) type FFBitvec = BitVec<u8, FFBitorder>;
 
 use once_cell::sync::Lazy;
 
@@ -381,22 +374,6 @@ mod test_iter {
     }
 }
 
-/// used to remember the position in the bitvector and the partically decoded number
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Copy)]
-pub struct State(pub usize);
-
-/// Result of the finite state machine in the paper
-/// for a given (state, input segment), it yields the next state
-/// and this result structure containing decoded numbers and some info about
-/// the trailing bits not yet decoded.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct DecodingResult {
-    pub(crate) numbers: Vec<u64>, // fully decoded numbers from the segment
-    pub(crate) number_end_in_segment: Vec<usize>, // the position in the segment where that number started; undefined for the first number (as it couldve started in theh previous segment)
-    /// Stores the partially decoded number left in hte segment
-    pub(crate) u: u64, // partially decoded number; i.e. anything that didnt have a delimiter so far, kind of the accumulator
-    pub(crate) lu: usize, // bitlength of U; i..e how many bits processed so far without hitting the delimieter
-}
 
 // lookup using the bitvec as an action on the statemachine
 fn create_lookup(segment_size: usize) -> HashMap<(State, FFBitvec), (State, DecodingResult)> {
@@ -459,203 +436,6 @@ fn create_lookup(segment_size: usize) -> HashMap<(State, FFBitvec), (State, Deco
     table
 }
 
-/// decodes a fibonacci stream until the very end of the stream
-/// there might be a remainder (behind the last 11 delimiter)
-/// which is also returned (its value in Fib, and its len in fib)
-pub(crate) fn decode_with_remainder<T: BitStore, O: BitOrder>(
-    bitstream: &BitSlice<T, O>,
-    lastbit_external: bool,
-) -> DecodingResult {
-    assert!(
-        bitstream.len() < 64,
-        "fib-codes cant be longer than 64bit, something is wrong!"
-    );
-    let mut prev_bit = lastbit_external;
-    let mut decoded_ints = Vec::new();
-    let mut decoded_end_pos: Vec<usize> = Vec::new();
-
-    let mut accum = 0_u64;
-    let mut offset = 0;
-    for (ix, b) in bitstream.iter().by_vals().enumerate() {
-        match (prev_bit, b) {
-            (false, true) => {
-                accum += FIB64[offset];
-                offset += 1;
-                prev_bit = b;
-            }
-            (true, true) => {
-                // found delimiter; Note, the bit has already been counted in acc
-                decoded_ints.push(accum);
-                decoded_end_pos.push(ix); // will be none the first iteration
-                // reset for next number
-                accum = 0;
-                offset = 0;
-                // BIG TRICK: we need to set lastbit=false for the next iteration; otherwise 011|11 picks up the next 11 as delimiter
-                prev_bit = false;
-            }
-            (false, false) | (true, false) => {
-                // nothing to add, jsut increase offset
-                offset += 1;
-                prev_bit = b;
-            }
-        }
-    }
-    DecodingResult {
-        numbers: decoded_ints,
-        u: accum,
-        lu: offset,
-        number_end_in_segment: decoded_end_pos,
-    }
-}
-
-#[cfg(test)]
-mod test_decode_with_remainder {
-    use super::*;
-    use pretty_assertions::assert_eq;
-    #[test]
-    fn test_decode_with_remainder_edge_case_delimiters() {
-        // the exampel from the paper, Fig 9.4
-        let bits = bits![u8, FFBitorder; 0,1,1,1,1];
-        let r = decode_with_remainder(bits, false);
-        assert_eq!(
-            r,
-            DecodingResult {
-                numbers: vec![2, 1],
-                u: 0,
-                lu: 0,
-                number_end_in_segment: vec![2, 4]
-            }
-        );
-    }
-
-    #[test]
-    fn test_decode_with_remainder_edge_case_delimiters2() {
-        // the exampel from the paper, Fig 9.4
-        let bits = bits![u8, FFBitorder; 0,0,0,0,0,0,1,1,1,0,0,0,0,0,1,1].to_bitvec();
-        let r = decode_with_remainder(&bits, false);
-        assert_eq!(
-            r,
-            DecodingResult {
-                numbers: vec![21, 22],
-                u: 0,
-                lu: 0,
-                number_end_in_segment: vec![7, 15]
-            }
-        );
-    }
-
-    #[test]
-    fn test_decode_with_remainder_from_table94() {
-        // the exampel from the paper, Fig 9.4
-        let bits = &181_u8.view_bits::<FFBitorder>()[..8];
-        // bits.reverse();
-
-        // let bits = bits![u8, FFBitorder; 0,1,1,1,1];
-        let r = decode_with_remainder(bits, false);
-        assert_eq!(r.numbers, vec![4]);
-        assert_eq!(r.u, 7);
-        assert_eq!(r.lu, 4);
-
-        // the exampel from the paper, Fig 9.4
-        let bits = &165_u8.view_bits::<FFBitorder>()[..8];
-        let r = decode_with_remainder(&bits, true);
-        assert_eq!(r.numbers, vec![0]);
-        assert_eq!(r.u, 31);
-        assert_eq!(r.lu, 7);
-
-        // the exampel from the paper, Fig 9.4
-        let bits = &114_u8.view_bits::<FFBitorder>()[..8];
-        let r = decode_with_remainder(&bits, true);
-        assert_eq!(r.numbers, vec![2]);
-        assert_eq!(r.u, 6);
-        assert_eq!(r.lu, 5);
-    }
-
-    #[test]
-    fn test_decode_with_remainder() {
-        // the exampel from the paper, Fig 9.4
-        let bits = bits![u8, FFBitorder; 1,0,1,1,0,1,0,1,1,0,1,0,0,1,0,1];
-        let r = decode_with_remainder(bits, false);
-        assert_eq!(
-            r,
-            DecodingResult {
-                numbers: vec![4, 7],
-                u: 31,
-                lu: 7,
-                number_end_in_segment: vec![3, 8,]
-            }
-        );
-
-        // the exampel from the paper, Fig 9.4
-        // no remainder this time
-        let bits = bits![u8, FFBitorder; 1,0,1,1,0,1,0,1,1];
-        let r = decode_with_remainder(bits, false);
-        assert_eq!(
-            r,
-            DecodingResult {
-                numbers: vec![4, 7],
-                u: 0,
-                lu: 0,
-                number_end_in_segment: vec![3, 8]
-            }
-        );
-    }
-    #[test]
-    fn test_decode_with_remainder_starts() {
-        let bits = bits![u8, FFBitorder; 1,0,1,1,0,1,0,1,1, 0,1,1,0,0,0];
-        let r = decode_with_remainder(bits, false);
-        assert_eq!(
-            r,
-            DecodingResult {
-                numbers: vec![4, 7, 2],
-                u: 0,
-                lu: 3,
-                number_end_in_segment: vec![3, 8, 11]
-            }
-        );
-    }
-}
-
-/// State of the decoding across multiple segments. Keeps track of completely
-/// decoded and partially decoded numbers (which could be completed with the next segment)
-#[derive(Debug)]
-pub(crate) struct DecodingState {
-    pub decoded_numbers: Vec<u64>, // completly decoded numbers across all segments so far
-    pub n: u64,                    // the partially decoded number from the last segment
-    pub len: usize, // length of the last partially decoded number in bits; needed to bitshift whatever the next decoding result is
-}
-impl DecodingState {
-    pub fn new() -> Self {
-        DecodingState {
-            decoded_numbers: Vec::new(),
-            n: 0,
-            len: 0,
-        }
-    }
-
-    /// update the current decoding state with the results from the last segment of bits;
-    /// i.e. new decoded numbers, new accumulator (n) and new trailing bits (len)
-    pub(crate) fn update(&mut self, decoding_result: &DecodingResult) {
-        for &num in decoding_result.numbers.iter() {
-            if self.len > 0 {
-                // some leftover from the previous segment
-                self.n += fibonacci_left_shift(num, self.len);
-            } else {
-                self.n = num;
-            }
-
-            self.decoded_numbers.push(self.n);
-            self.n = 0;
-            self.len = 0;
-        }
-
-        // the beginning and inner port of F(n)
-        if decoding_result.lu > 0 {
-            self.n += fibonacci_left_shift(decoding_result.u, self.len);
-            self.len += decoding_result.lu;
-        }
-    }
-}
 
 /// Reference implementation, very inefficient though. Use [`fast_decode_u8`] or [`fast_decode_u16`]
 /// for actual applications.
