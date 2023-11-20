@@ -1,18 +1,32 @@
-//! # fastfibonacci
 //!
-//! Fibonacci encoding of integers, either regular (bit by bit) or decoding in chunks.
+//! [Fibonacci encoding](https://en.wikipedia.org/wiki/Fibonacci_coding) of integers, 
+//! either regular (bit by bit) or decoding in chunks via the [FastFibonacci](https://ceur-ws.org/Vol-567/paper14.pdf) algorithm.
 //!
-//! ## Regular encoding and decoding:
+//! ## Introduction
+//! [Fibonacci encoding](https://en.wikipedia.org/wiki/Fibonacci_coding) is a variable-length encoding of integers, 
+//! with the special property that any encoding of an interger ends in `1` (binary) and no encoding contains `11`. 
+//! Hence one can use `11` as a separator in a stream of Fibonacci encoded integers.
+//! 
+//! Regular Fibonacci decoding works decoding bit by bit, which can be quite slow. 
+//! [FastFibonacci](https://ceur-ws.org/Vol-567/paper14.pdf) decoding looks at `n` bits at once, 
+//! decoding this chunk in a single operation which can be faster.
+//! 
+//! # Examples
+//! Regular encoding and decoding:
 //! ```rust
-//! use fastfibonacci::fibonacci::{encode,FibonacciDecoder};
+//! use fastfibonacci::fibonacci::{encode, decode, FibonacciDecoder};
 //! let encoded = encode(&vec![34, 12]) ;
 //!
-//! // 2nd argument: shift all values by -1 (in case we wanted to encode 0 in the fibonacci encoding)
+//! // Decoding
+//! let decoded = decode(&encoded, false); // 2nd argument: shift all values by -1 (in case we wanted to encode 0 in the fibonacci encoding)
+//! assert_eq!(decoded, vec![34,12]);
+//! 
+//! // Alternatively, we can also create an iterator (yields one decoded int at a time)
 //! let f = FibonacciDecoder::new(&encoded, false);
 //! assert_eq!(f.collect::<Vec<_>>(), vec![34,12])
 //! ```
 //!
-//! ## Fast decoding:
+//! Fast decoding:
 //! 1. Create a LookupTable first (expensive), which decodes multiple bits in a chunk.
 //!    Currently, we provide [`LookupU8Vec`] (decoding 8bits at a time) and [`LookupU16Vec`] (decoding 16 bits).
 //! 2. The lookup table can then be used to do any amount if decoding.

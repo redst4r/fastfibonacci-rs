@@ -84,6 +84,7 @@ fn fibonacci_decode(c: &mut Criterion) {
     let table = LookupU8Vec::new();
     let ground_truth = fast_decode_u8(data_fast.clone(), &table);
 
+    // reference/baseline 
     fn _dummy_fibonacci_codec_decode(data: bit_vec::BitVec) -> Vec<u64> {
         let x = fibonacci_codec::fib_decode_u64(data)
             .map(|x| x.unwrap())

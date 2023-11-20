@@ -1,7 +1,7 @@
 //! Fast Fibonacci Encoding Algorithm,
 //! see this [paper](https://www.researchgate.net/publication/220827231_Fast_Fibonacci_Encoding_Algorithm)
 //!
-//! Basically, instead of decoding bit by bit, we do larger segments of bits, where
+//! Instead of decoding bit by bit, we do larger segments of bits, where
 //! we precomputed their decoded representation already in a lookup table ([`LookupU8Vec`], [`LookupU16Vec`]).
 //!
 //! The tricky part: A segment might have a encoded number, but also parts of the next encoded number:
@@ -61,8 +61,8 @@ pub(crate) static FB_LOOKUP: Lazy<LookupU8Vec> = Lazy::new(|| {
     LookupU8Vec::new()
 });
 
-/// Fast Fibonacci decoding via an iterator. Let's you decode on element after the other,
-/// whereas [fast_decode_u8], [fast_decode_u16] decode the entire stream at once.
+/// Fast Fibonacci decoding via an iterator. Let's you decode one element after the other,
+/// whereas [`fast_decode_u8`], [`fast_decode_u16`] decode the entire stream at once.
 /// Using the iterator can be useful if the length of the binary-fibonacci code is not known, just the nubmer of elements.
 ///
 /// # Example
@@ -80,9 +80,9 @@ pub(crate) static FB_LOOKUP: Lazy<LookupU8Vec> = Lazy::new(|| {
 /// assert_eq!(x, vec![4,7, 86]);
 ///
 /// // on can still use the remaining buffer for other things:
-/// //use crate::newpfd::fibonacci::FbDec;
-/// //let r = f.get_remaining_buffer();
-/// //assert_eq!(r, &bits[19..]);        
+/// // use fastfibonacci::FbDec;
+/// // let r = f.get_remaining_buffer();
+/// // assert_eq!(r, &bits[19..]);        
 
 /// ```
 pub struct FastFibonacciDecoder<'a> {

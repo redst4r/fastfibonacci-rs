@@ -1,17 +1,18 @@
-//! Regular Fibonacci encoding and decoding of integers.
-//!
+//! Regular Fibonacci encoding and decoding of integers, going bit-by-bit.
 //! See [here](https://en.wikipedia.org/wiki/Fibonacci_coding)
 //!
 //! # Usage
 //! ```rust
+//! // Encoding
 //! use fastfibonacci::fibonacci::{encode, decode, FibonacciDecoder};
-//! let encode = encode(&vec![34, 12]) ;
+//! let encoded = encode(&vec![34, 12]) ;
 //!
-//! let decoded = decode(&encode, false); // 2nd argument: shift all values by -1 (in case we wanted to encode 0 in the fibonacci encoding)
+//! // Decoding
+//! let decoded = decode(&encoded, false); // 2nd argument: shift all values by -1 (in case we wanted to encode 0 in the fibonacci encoding)
 //! assert_eq!(decoded, vec![34,12]);
 //! 
 //! // Alternatively, we can also create an iterator (yields one decoded int at a time)
-//! let f = FibonacciDecoder::new(&encode, false);
+//! let f = FibonacciDecoder::new(&encoded, false);
 //! assert_eq!(f.collect::<Vec<_>>(), vec![34,12])
 //! ```
 
