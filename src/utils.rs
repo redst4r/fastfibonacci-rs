@@ -1,11 +1,10 @@
-//!
+//! Utility functions
 //!
 use crate::fibonacci::encode;
 use crate::MyBitVector;
 use bitvec::{store::BitStore, order::BitOrder, slice::BitSlice};
 use itertools::Itertools;
 use rand::{distributions::Uniform, prelude::Distribution};
-use std::collections::HashMap;
 
 /// Iterative fibonacci. just to get the first N fibonacci numbers
 ///
@@ -114,7 +113,6 @@ pub fn random_fibonacci_stream(n_elements: usize, min: usize, max: usize) -> MyB
     }
     encode(&data)
 }
-
 
 /// just for debugging purpose
 pub fn bitstream_to_string<T: BitStore, O: BitOrder>(buffer: &BitSlice<T, O>) -> String {

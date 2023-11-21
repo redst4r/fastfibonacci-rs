@@ -1,18 +1,16 @@
 use std::collections::HashMap;
 use bitvec::{store::BitStore, order::{BitOrder, Msb0}, slice::BitSlice, vec::BitVec};
-
 use crate::{utils::FIB64, fibonacci::encode};
+
+// the type of bitstream we expect as input!
+pub(crate) type FFBitorder = Msb0;
+pub(crate) type FFBitslice = BitSlice<u8, FFBitorder>;
+pub(crate) type FFBitvec = BitVec<u8, FFBitorder>;
+
 
 /// `State` is used to remember the position in the bitvector and the partically decoded number.
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Copy)]
 pub struct State(pub usize);
-
-pub(crate) type FFBitorder = Msb0;
-
-// the type of bitstream we expect as input!
-pub(crate) type FFBitslice = BitSlice<u8, FFBitorder>;
-pub(crate) type FFBitvec = BitVec<u8, FFBitorder>;
-
 
 /// Result of the finite state machine in the paper
 /// for a given (state, input segment), it yields the next state

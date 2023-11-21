@@ -9,12 +9,12 @@ Regular Fibonacci decoding works decoding bit by bit, which can be quite slow. [
 
 
 ## Performance
-Regular Fibonacci encoding is up to speed with other rust implementations, e.g. `fibonnaci_codec` crate (which I took some code from):
+Regular Fibonacci encoding is up to speed with other rust implementations, e.g. [fibonnaci_codec](https://crates.io/crates/fibonacci_codec) crate (which I took some code from):
 - Fibonacci encoding: 
     - this crate: 75ms/ 1M integers 
     - fibonnaci_codec: 88ms / 1M integers
 
-Regular fibonacci decoding (iterator based) is up to speed with the `fibonnaci_codec` crate. 
+Regular fibonacci decoding (iterator based) is up to speed with the [fibonnaci_codec](https://crates.io/crates/fibonacci_codec) crate. 
 The **FastFibonacci** decoding functions are ~2x faster, but have some constant overhead  (i.e. only pays of when decoding *many* integers):
 - Fibonacci decoding: 
     - regular decoding: 92ms/ 1M integers
@@ -41,19 +41,19 @@ assert_eq!(f.collect::<Vec<_>>(), vec![34,12])
 
 Fast decoding:
 ```rust
-use fastfibonacci::fibonacci_fast::{fast_decode_u8,fast_decode_u16, LookupU8Vec, LookupU16Vec };
+use fastfibonacci::fast::{fast_decode, LookupU8Vec, LookupU16Vec };
 use bitvec::prelude as bv;
 let bits = bv::bits![u8, bv::Msb0; 
     1,0,1,1,0,1,0,1,
     1,0,1,0,0,1,0,1,
     0,1,1,1,0,0,1,0].to_bitvec();
 // using a u8 lookup table
-let table = LookupU8Vec::new();
-let r = fast_decode_u8(bits.clone(), &table);
+let table: LookupVec<u8> = LookupVec::new();
+let r = fast_decode(&bits, &table);
 assert_eq!(r, vec![4,7, 86]);
 
 // using a u16 table
-let table = LookupU16Vec::new();
-let r = fast_decode_u16(bits.clone(), &table);
+let table: LookupVec<u16> = LookupVec::new();
+let r = fast_decode(&bits, &table);
 assert_eq!(r, vec![4,7, 86]);
 ```

@@ -6,7 +6,7 @@
 //! 
 //! # Example
 //! ```rust
-//! use fastfibonacci::fast_fib_generic::{fast_decode, LookupVec, get_u8_decoder,get_u16_decoder};
+//! use fastfibonacci::fast::{fast_decode, LookupVec, get_u8_decoder,get_u16_decoder};
 //! use bitvec::prelude as bv;
 //! let bits = bv::bits![u8, bv::Msb0;
 //!     1,0,1,1,0,1,0,1,
@@ -15,12 +15,12 @@
 //! 
 //! // using a u8 lookup table
 //! let table8: LookupVec<u8> = LookupVec::new();
-//! let r = fast_decode(bits.clone(), false, &table8);
+//! let r = fast_decode(&bits, false, &table8);
 //! assert_eq!(r, vec![4,7, 86]);
 //!
 //! // using a u16 table
 //! let table16: LookupVec<u16> = LookupVec::new();
-//! let r = fast_decode(bits.clone(), false, &table16);
+//! let r = fast_decode(&bits, false, &table16);
 //! assert_eq!(r, vec![4,7, 86]);
 //! 
 //! // Getting an iterator over the decoded values
@@ -163,7 +163,7 @@ impl <T:Integral> LookupTable<T> for LookupVec<T> {
 }
 
 /// fast Fibonacci decoding of the entire bitstream. Needs a precomputed lookup table.
-pub fn fast_decode<T:Integral>(stream: FFBitvec, shifted_by_one: bool, table: &impl LookupTable<T>) -> Vec<u64> {
+pub fn fast_decode<T:Integral>(stream: &FFBitslice, shifted_by_one: bool, table: &impl LookupTable<T>) -> Vec<u64> {
 
     // println!("Total stream {}", bitstream_to_string(&stream));
     let segment_size = T::BITS as usize;
@@ -267,7 +267,7 @@ mod testing_lookups {
         let bits = bits![u8, FFBitorder; 1,0,1,1,0,1,0,1,   0, 1, 0, 0, 0, 1, 1, 0].to_bitvec();
 
         assert_eq!(
-            fast_decode(bits, false, &t),
+            fast_decode(&bits, false, &t),
              vec![4, 109]
         );  
     }
@@ -277,7 +277,6 @@ mod testing_lookups {
 mod testing_fast_decode {
     use bitvec::prelude::*;
     use super::*;
-    // use pretty_assertions::assert_eq;
     
     #[test]
     fn test_fast_decode_correct_padding() {
@@ -288,11 +287,11 @@ mod testing_fast_decode {
             1,0,1,1].to_bitvec();
 
         let t: LookupVec<u8> = LookupVec::new();
-        let r = fast_decode(bits.clone(), false, &t);
+        let r = fast_decode(&bits, false, &t);
         assert_eq!(r, vec![4]);
 
         let t: LookupVec<u16> = LookupVec::new();
-        let r = fast_decode(bits.clone(),false, &t);
+        let r = fast_decode(&bits,false, &t);
         assert_eq!(r, vec![4]);      
     }
 
@@ -306,11 +305,11 @@ mod testing_fast_decode {
             0,1,1,1,0,0,1,0].to_bitvec();
 
         let t: LookupVec<u8> = LookupVec::new();
-        let r = fast_decode(bits.clone(),false, &t);
+        let r = fast_decode(&bits,false, &t);
         assert_eq!(r, vec![4,7, 86]);
 
         let t: LookupVec<u16> = LookupVec::new();
-        let r = fast_decode(bits.clone(),false, &t);
+        let r = fast_decode(&bits,false, &t);
         assert_eq!(r, vec![4,7, 86]);
     }
 
@@ -324,7 +323,7 @@ mod testing_fast_decode {
         ].to_bitvec();
 
         let t: LookupVec<u8> = LookupVec::new();
-        let r = fast_decode(bits.clone(), true, &t);
+        let r = fast_decode(&bits, true, &t);
         assert_eq!(r, vec![0, 1, 2]);
     }
 
@@ -334,16 +333,12 @@ mod testing_fast_decode {
         // make sure to no double count 
         let bits = bits![u8, FFBitorder; 0,0,0,0,0,0,1,1,1,0,0,0,0,0,1,1].to_bitvec();
         let t: LookupVec<u8> = LookupVec::new();
-        let r = fast_decode(bits.clone(),false, &t);        
+        let r = fast_decode(&bits,false, &t);        
         assert_eq!(r, vec![21, 22]);
 
         let t: LookupVec<u16> = LookupVec::new();
-        let r = fast_decode(bits.clone(),false, &t);        
-        assert_eq!(r, vec![21, 22]); 
-
-        // let t: LookupVec<u32> = LookupVec::new();
-        // let r = fast_decode(bits.clone(), &t);        
-        // assert_eq!(r, vec![21, 22]);         
+        let r = fast_decode(&bits,false, &t);        
+        assert_eq!(r, vec![21, 22]);     
     }
     #[test]
     fn test_fast_decode_special_case() {
@@ -356,7 +351,7 @@ mod testing_fast_decode {
         let expected = vec![2, 4, 1];
         
         let t: LookupVec<u8> = LookupVec::new();
-        let r = fast_decode(bits.clone(),false, &t);        
+        let r = fast_decode(&bits,false, &t);        
         assert_eq!(r, expected);
 
         // fr the u16, we need a much longer segment
@@ -367,7 +362,7 @@ mod testing_fast_decode {
         let expected = vec![1,1,1,1, 2, 4, 1];
 
         let t: LookupVec<u16> = LookupVec::new();
-        let r = fast_decode(bits.clone(),false, &t);        
+        let r = fast_decode(&bits,false, &t);        
         assert_eq!(r, expected);
     }
 
@@ -386,16 +381,12 @@ mod testing_fast_decode {
         let x1: Vec<_> = dec.collect();
 
         let t: LookupVec<u8> = LookupVec::new();
-        let x2 = fast_decode(b_fast.clone(),false, &t);        
+        let x2 = fast_decode(&b_fast,false, &t);        
         assert_eq!(x1, x2);
 
         let t: LookupVec<u16> = LookupVec::new();
-        let x2 = fast_decode(b_fast.clone(),false, &t);        
+        let x2 = fast_decode(&b_fast,false, &t);        
         assert_eq!(x1, x2);
-
-        // let t: LookupVec<u32> = LookupVec::new();
-        // let x2 = fast_decode(b_fast.clone(), &t);        
-        // assert_eq!(x1, x2);
     }
 
     // #[test]
@@ -411,17 +402,13 @@ mod testing_fast_decode {
         }
 
         let t: LookupVec<u8> = LookupVec::new();
-        let x2 = fast_decode(b_fast.clone(), false,&t);   
+        let x2 = fast_decode(&b_fast, false,&t);   
 
         println!("{}", x2.iter().sum::<u64>());
 
         let t: LookupVec<u16> = LookupVec::new();
-        let x2 = fast_decode(b_fast.clone(), false,&t);   
+        let x2 = fast_decode(&b_fast, false,&t);   
         println!("{}", x2.iter().sum::<u64>())    ;
-
-        // let t: LookupVec<u32> = LookupVec::new();
-        // let x2 = fast_decode(b_fast.clone(), &t);   
-        // println!("{}", x2.iter().sum::<u64>())    ;
     }
 
     #[test]
@@ -441,11 +428,11 @@ mod testing_fast_decode {
         let dec = FibonacciDecoder::new(&b, false);
         let x1: Vec<_> = dec.collect();
 
-        let x2 = fast_decode(b.clone(),false, &t8);
+        let x2 = fast_decode(&b,false, &t8);
         assert_eq!(x1, x2);
 
-        let r = fast_decode(b.clone(),false, &t16);
-        assert_eq!(x1, x2);
+        let x3 = fast_decode(&b,false, &t16);
+        assert_eq!(x1, x3);
     }
 }
 
@@ -480,14 +467,15 @@ pub fn get_u16_decoder(bistream: &FFBitslice, shifted_by_one: bool) -> FastFibon
 ///
 /// # Example
 /// ```rust,
-/// use fastfibonacci::fibonacci_fast::{FastFibonacciDecoder};
+/// use fastfibonacci::fast::{FastFibonacciDecoder, LookupVec};
 /// use bitvec::prelude as bv;
 /// let bits = bv::bits![u8, bv::Msb0;
 ///     1,0,1,1,0,1,0,1,1,0,1,0,0,1,0,1,
 ///     0,1,1,1,0,0,1,0].to_bitvec();
 /// // second argument allows for automatic shifing the decoded values by -1
 /// // (in case the encoding used +1 to be able to encode 0)
-/// let f = FastFibonacciDecoder::new(&bits, false);
+/// let table: LookupVec<u8> = LookupVec::new();
+/// let f = FastFibonacciDecoder::new(&bits, false, &table);
 ///
 /// let x = f.collect::<Vec<_>>();
 /// assert_eq!(x, vec![4,7, 86]);

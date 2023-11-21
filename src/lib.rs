@@ -32,29 +32,49 @@
 //! 2. The lookup table can then be used to do any amount if decoding.
 //!
 //! ```rust
-//! use fastfibonacci::fibonacci_fast::{fast_decode_u8,fast_decode_u16, LookupU8Vec, LookupU16Vec };
+//! use fastfibonacci::fast::{fast_decode,LookupVec, get_u8_decoder, get_u16_decoder };
 //! use bitvec::prelude as bv;
 //! let bits = bv::bits![u8, bv::Msb0;
 //!     1,0,1,1,0,1,0,1,
 //!     1,0,1,0,0,1,0,1,
 //!     0,1,1,1,0,0,1,0].to_bitvec();
 //! // using a u8 lookup table
-//! let table = LookupU8Vec::new();
-//! let r = fast_decode_u8(bits.clone(), &table);
+//! let table8: LookupVec<u8> = LookupVec::new();
+//! let r = fast_decode(&bits, false, &table8);
 //! assert_eq!(r, vec![4,7, 86]);
 //!
 //! // using a u16 table
-//! let table = LookupU16Vec::new();
-//! let r = fast_decode_u16(bits.clone(), &table);
+//! let table16: LookupVec<u16> = LookupVec::new();
+//! let r = fast_decode(&bits, false, &table16);
 //! assert_eq!(r, vec![4,7, 86]);
+//! 
+//! // Getting an iterator over the decoded values
+//! let dec8 = get_u8_decoder(&bits, false);
+//! assert_eq!(dec8.collect::<Vec<_>>(), vec![4,7, 86]);
+//! 
+//! let dec16 = get_u16_decoder(&bits, false);
+//! assert_eq!(dec16.collect::<Vec<_>>(), vec![4,7, 86]);
 //! ```
+//! # Performance
+//! Regular Fibonacci encoding is up to speed with other rust implementations, e.g. [fibonnaci_codec](https://crates.io/crates/fibonacci_codec) crate (which I took some code from):
+//! - this crate: 75ms/ 1M integers 
+//! - fibonnaci_codec: 88ms / 1M integers
+//! 
+//! Regular fibonacci decoding (iterator based) is up to speed with the [fibonnaci_codec](https://crates.io/crates/fibonacci_codec) crate. 
+//! - regular decoding: 92ms/ 1M integers
+//! - fibonnaci_codec: 108ms / 1M integers
+//! 
+//! The **FastFibonacci** decoding functions are ~2x faster, but have some constant overhead (i.e. only pays of when decoding *many* integers):
+//! - fast decoding (u8 segments): 40ms / 1M integers
+//! - fast decoding (u16 segments): 30ms / 1M integers
+//! - fast decoding (using an iterator): 54ms / 1M integers
+//! 
 pub mod fibonacci;
-pub mod fibonacci_fast;
-pub mod fibonacci_old;
+// pub mod fibonacci_fast;
+// pub mod fibonacci_old;
 mod utils;
 mod fastutils;
-pub use utils::random_fibonacci_stream;
-pub mod fast_fib_generic;
+pub mod fast;
 use bitvec::prelude as bv;
 
 /// The type of bitvector used in the crate.
@@ -63,6 +83,8 @@ pub(crate) type MyBitSlice = bv::BitSlice<u8, bv::Msb0>;
 /// reftype thqt goes with [`MyBitSlice`]
 pub(crate) type MyBitVector = bv::BitVec<u8, bv::Msb0>;
 
+
+pub use utils::{random_fibonacci_stream, bitstream_to_string};
 
 /// Marker trait for Fibonacci decoders.
 /// This is an iterator over u64 (the decoded integers),
