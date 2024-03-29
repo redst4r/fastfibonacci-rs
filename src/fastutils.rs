@@ -5,6 +5,7 @@ use crate::{utils::FIB64, fibonacci::encode};
 // the type of bitstream we expect as input!
 pub(crate) type FFBitorder = Msb0;
 pub(crate) type FFBitslice = BitSlice<u8, FFBitorder>;
+#[allow(dead_code)]
 pub(crate) type FFBitvec = BitVec<u8, FFBitorder>;
 
 
@@ -12,8 +13,9 @@ pub(crate) type FFBitvec = BitVec<u8, FFBitorder>;
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Copy)]
 pub struct State(pub usize);
 
-/// Result of the finite state machine in the paper
-/// for a given (state, input segment), it yields the next state
+/// Result of the finite state machine in the paper.
+/// 
+/// For a given (state, input segment), it yields the next state
 /// and this result structure containing decoded numbers and some info about
 /// the trailing bits not yet decoded.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -361,8 +363,6 @@ pub(crate) fn decode_with_remainder<T: BitStore, O: BitOrder>(
 
 #[cfg(test)]
 mod test_decode_with_remainder {
-    use super::FFBitorder;
-
     use super::*;
     use bitvec::{bits, view::BitView};
     use pretty_assertions::assert_eq;
@@ -469,7 +469,6 @@ mod test_decode_with_remainder {
         );
     }
 }
-
 
 #[cfg(test)]
 mod test {

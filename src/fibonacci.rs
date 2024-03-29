@@ -1,5 +1,5 @@
 //! Regular Fibonacci encoding and decoding of integers, going bit-by-bit.
-//! See [here](https://en.wikipedia.org/wiki/Fibonacci_coding)
+//! See [here](https://en.wikipedia.org/wiki/Fibonacci_coding).
 //!
 //! # Usage
 //! ```rust
@@ -20,26 +20,37 @@ use num::CheckedSub;
 use std::fmt::Debug;
 use crate::utils::FIB64;
 /// note the the entire content of this module is
-/// independent of the choice of BitOrder, i.e.
+/// **independent** of the choice of BitOrder, i.e.
 /// both Lsb0 and Msb0 work the same way!
 use crate::{MyBitSlice, MyBitVector, FbDec};
 
 
-/// Decoder for Fibonacci encoded integer sequences
+/// Decoder for Fibonacci encoded integer sequences (allows to iterate)
 ///
 /// Constructed from a bufffer (a binary sequence) which is gradually processed
-/// when iterating. The buffer remains unchanged, just the pointers into the buffer move
+/// when iterating. The buffer remains unchanged, just the pointers into the buffer move.
 ///
 /// # Example
 /// ```rust
-/// use fastfibonacci::fibonacci::FibonacciDecoder;
+/// use fastfibonacci::{FbDec, fibonacci::FibonacciDecoder};
 /// use bitvec::prelude::{BitVec, Msb0};
-/// let buffer:BitVec<u8, Msb0> = BitVec::from_iter(vec![true, false, true, true, false, true, true]);
+/// let buffer:BitVec<u8, Msb0> = BitVec::from_iter(vec![true, false, true, true, false, true, true, false, true]);
 /// let d = FibonacciDecoder::new(buffer.as_bitslice(), false);
+/// let mut results = vec![];
 /// for decoded in d {
 ///     println!("{}", decoded);
+///     results.push(decoded)
 /// }
+/// // Will print 4, 2
+/// assert_eq!(results, vec![4, 2]);
+/// 
 /// ```
+
+// TODO currently this is not possible, as the iterator gets consumed
+// // Get the remaining bits in the buffer
+// let leftover = d.get_remaining_buffer();
+// let expected_leftover :BitVec<u8, Msb0> = BitVec::from_iter(vec![false, true]);
+// assert_eq!(leftover, expected_leftover);
 #[derive(Debug)]
 pub struct FibonacciDecoder<'a> {
     buffer: &'a MyBitSlice,
@@ -49,7 +60,7 @@ pub struct FibonacciDecoder<'a> {
 
 impl<'a> FibonacciDecoder<'a> {
     /// Creates a new fibonacci decoder for the given buffer.
-    /// This leaves the buffer  unchanged, just moves a pointer (self.current_pos) in the buffer around
+    /// This leaves the buffer  unchanged, just moves a pointer (`self.current_pos`) in the buffer around.
     pub fn new(buffer: &'a MyBitSlice, shifted_by_one: bool) -> Self {
         FibonacciDecoder {
             buffer,
@@ -67,7 +78,7 @@ impl<'a> FbDec<'a> for FibonacciDecoder<'a> {
         &self.buffer[self.current_pos..]
     }
 
-    /// how far did we process into the buffer (pretty much the first bit after a 11).
+    /// How far did we process into the buffer (pretty much the first bit after a `11`).
     fn get_bits_processed(&self) -> usize {
         self.current_pos
     }
@@ -155,6 +166,7 @@ where
     Underflow(T),
 }
 
+/// Error when decoding a fibonacci bitstream into integers
 pub enum DecodeError
 {
     /// Raised when decoding a buffer which does NOT terminate with `11`,

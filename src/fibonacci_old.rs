@@ -1,4 +1,4 @@
-//! Some older, slower code for fibonacci encoding
+//! Some older, slower code for fibonacci encoding.
 //! mostly educational
 use itertools::izip;
 

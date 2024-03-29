@@ -1,10 +1,6 @@
 //! Utility functions
-//!
-use crate::fibonacci::encode;
-use crate::MyBitVector;
 use bitvec::{store::BitStore, order::BitOrder, slice::BitSlice};
 use itertools::Itertools;
-use rand::{distributions::Uniform, prelude::Distribution};
 
 /// Iterative fibonacci. just to get the first N fibonacci numbers
 ///
@@ -34,7 +30,7 @@ fn iterative_fibonacci() -> Fibonacci {
 // let v: Vec<_> = iterative_fibonacci().take(65 - 1).collect();
 // println!("{:?}", v);
 /// All fibonacci numbers up to 64bit
-pub const FIB64: &[u64] = &[
+pub (crate) const FIB64: &[u64] = &[
     1,
     2,
     3,
@@ -101,21 +97,29 @@ pub const FIB64: &[u64] = &[
     17_167_680_177_565,
 ];
 
+#[doc(hidden)]
+#[cfg(test)]
+pub mod test {
+    use crate::MyBitVector;
+    use rand::{distributions::Uniform, prelude::Distribution, thread_rng};
+    use crate::fibonacci::encode;
 
-/// Generates a random stream of interger in `[min,max]` and return the Fibonacci
-/// encoding of thise stream
-pub fn random_fibonacci_stream(n_elements: usize, min: usize, max: usize) -> MyBitVector {
-    let data_dist = Uniform::from(min..max);
-    let mut rng = rand::thread_rng();
-    let mut data: Vec<u64> = Vec::with_capacity(n_elements);
-    for _ in 0..n_elements {
-        data.push(data_dist.sample(&mut rng) as u64);
+    /// Generates a random stream of interger in `[min,max]` and return the Fibonacci
+    /// encoding of thise stream
+    pub fn random_fibonacci_stream(n_elements: usize, min: usize, max: usize) -> MyBitVector {
+        let data_dist = Uniform::from(min..max);
+        let mut rng = thread_rng();
+        let mut data: Vec<u64> = Vec::with_capacity(n_elements);
+        for _ in 0..n_elements {
+            data.push(data_dist.sample(&mut rng) as u64);
+        }
+        encode(&data)
     }
-    encode(&data)
 }
 
+#[allow(dead_code)]
 /// just for debugging purpose
-pub fn bitstream_to_string<T: BitStore, O: BitOrder>(buffer: &BitSlice<T, O>) -> String {
+fn bitstream_to_string<T: BitStore, O: BitOrder>(buffer: &BitSlice<T, O>) -> String {
     let s = buffer.iter().map(|x| if *x { "1" } else { "0" }).join("");
     s
 }

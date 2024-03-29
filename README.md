@@ -5,7 +5,8 @@ Rust library implementing the [FastFibonacci](https://ceur-ws.org/Vol-567/paper1
 ## Introduction
 [Fibonacci encoding](https://en.wikipedia.org/wiki/Fibonacci_coding) is a variable-length encoding of integers, with the special property that any encoding of an interger ends in `1` (binary) and no encoding contains `11`. Hence one can use `11` as a separator in a stream of Fibonacci encoded integers.
 
-Regular Fibonacci decoding works decoding bit by bit, which can be quite slow. [FastFibonacci](https://ceur-ws.org/Vol-567/paper14.pdf) decoding looks at `n` bits at once, decoding this chunk in a single operation which can be faster.
+Regular Fibonacci en/decoding works decoding bit by bit, which can be quite slow. [FastFibonacci encoding](https://ceur-ws.org/Vol-567/paper14.pdf) and [decoding](https://www.semanticscholar.org/paper/Fast-data-Encoding-and-Deconding-Algorithms-Walder/4fbae5afc34dd32e7527fe4b1a1bd19e68794e3d) looks at `n` bits at once, decoding this chunk in a single operation which can be faster.
+
 
 
 ## Performance
@@ -15,7 +16,7 @@ Regular Fibonacci encoding is up to speed with other rust implementations, e.g. 
     - fibonnaci_codec: 88ms / 1M integers
 
 Regular fibonacci decoding (iterator based) is up to speed with the [fibonnaci_codec](https://crates.io/crates/fibonacci_codec) crate. 
-The **FastFibonacci** decoding functions are ~2x faster, but have some constant overhead  (i.e. only pays of when decoding *many* integers):
+The **FastFibonacci** decoding functions are ~2x faster, but have some constant overhead  (i.e. only pays off when decoding *many* integers):
 - Fibonacci decoding: 
     - regular decoding: 92ms/ 1M integers
     - fibonnaci_codec: 108ms / 1M integers
@@ -41,7 +42,7 @@ assert_eq!(f.collect::<Vec<_>>(), vec![34,12])
 
 Fast decoding:
 ```rust
-use fastfibonacci::fast::{fast_decode, LookupU8Vec, LookupU16Vec };
+use fastfibonacci::fast::{fast_decode, LookupU8Vec, LookupU16Vec,get_u8_decoder };
 use bitvec::prelude as bv;
 let bits = bv::bits![u8, bv::Msb0; 
     1,0,1,1,0,1,0,1,
@@ -56,4 +57,8 @@ assert_eq!(r, vec![4,7, 86]);
 let table: LookupVec<u16> = LookupVec::new();
 let r = fast_decode(&bits, &table);
 assert_eq!(r, vec![4,7, 86]);
+
+// using an iterator
+let dec8 = get_u8_decoder(&bits, false);
+assert_eq!(dec8.collect::<Vec<_>>(), vec![4,7, 86]);
 ```

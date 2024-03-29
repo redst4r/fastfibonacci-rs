@@ -1,7 +1,8 @@
+#![allow(missing_docs)]
 use bitvec::slice::BitSlice;
 use bitvec::{prelude::Msb0, vec::BitVec};
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use fastfibonacci::fast::{LookupVec, fast_decode, FastFibonacciDecoder, get_u8_decoder, get_u16_decoder};
+use fastfibonacci::fast::{LookupVec, fast_decode, get_u8_decoder, get_u16_decoder};
 use fastfibonacci::fibonacci::{encode, FibonacciDecoder};
 use fastfibonacci::random_fibonacci_stream;
 use fibonacci_codec::Encode;
@@ -137,5 +138,6 @@ fn fibonacci_decode(c: &mut Criterion) {
 
 // criterion_group!(benches, fibonacci_bitslice);
 // fibonacci benchmarking
+
 criterion_group!(benches, fibonacci_encode, fibonacci_decode);
 criterion_main!(benches);
