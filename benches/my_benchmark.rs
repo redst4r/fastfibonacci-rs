@@ -1,14 +1,28 @@
 #![allow(missing_docs)]
+use bitvec::field::BitField;
 use bitvec::slice::BitSlice;
 use bitvec::{prelude::Msb0, vec::BitVec};
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use fastfibonacci::bare_metal::decode_single_dirty;
 use fastfibonacci::fast::{LookupVec, fast_decode, get_u8_decoder, get_u16_decoder};
 use fastfibonacci::fibonacci::{encode, FibonacciDecoder};
-use fastfibonacci::random_fibonacci_stream;
+use fastfibonacci::nobitvec::BitDec2;
+// use fastfibonacci::random_fibonacci_stream;
 use fibonacci_codec::Encode;
 use rand::distributions::{Distribution, Uniform};
+use rand::thread_rng;
 
 type MyBitVector = BitVec<u8, Msb0>;
+
+pub fn random_fibonacci_stream(n_elements: usize, min: usize, max: usize) -> MyBitVector {
+    let data_dist = Uniform::from(min..max);
+    let mut rng = thread_rng();
+    let mut data: Vec<u64> = Vec::with_capacity(n_elements);
+    for _ in 0..n_elements {
+        data.push(data_dist.sample(&mut rng) as u64);
+    }
+    encode(&data)
+}
 
 fn fibonacci_encode(c: &mut Criterion) {
 
@@ -136,8 +150,59 @@ fn fibonacci_decode(c: &mut Criterion) {
     });
 }
 
+
+
+fn fibonacci_mybitwise(c: &mut Criterion) {
+
+    let data_encoded = random_fibonacci_stream(100_000, 1, 10000);
+    let mut x = Vec::new();
+	for segment in data_encoded.chunks(8){
+		let enc: u8 = segment.load_be();
+		x.push(enc)
+	}
+	// println!("x: {x:?}");
+
+    fn _dummy(data: &[u8]) -> Vec<u64> {
+
+        let mut decoded = Vec::with_capacity(100_000);
+
+        let mut bitpos = 0;
+        let mut bufpos = 0;
+        let mut num = 0;
+        let mut i_fibo = 0;
+
+        for _i in 0..100_000 {
+            decode_single_dirty(data, data.len(), &mut bitpos, &mut bufpos, &mut num, &mut i_fibo).unwrap();
+            decoded.push(num);
+
+            // reset
+            num = 0;
+            i_fibo = 0;
+        }
+
+        decoded
+    }
+    c.bench_function(&format!("Decoding: bare metal"), |b| {
+        b.iter(|| _dummy(black_box(&x)))
+    });
+
+
+
+    fn dummy(bv: &BitSlice<u8, Msb0>) -> Vec<u64> {
+        let dec = FibonacciDecoder::new(bv, false);
+        let x: Vec<_> = dec.collect();
+        x
+    }
+    c.bench_function(&format!("Decoding: normal FibonacciDecoder"), |b| {
+        b.iter(|| dummy(black_box(&data_encoded)))
+    });
+
+
+}
+
 // criterion_group!(benches, fibonacci_bitslice);
 // fibonacci benchmarking
 
-criterion_group!(benches, fibonacci_encode, fibonacci_decode);
+// criterion_group!(benches, fibonacci_encode, fibonacci_decode);
+criterion_group!(benches, fibonacci_mybitwise);
 criterion_main!(benches);

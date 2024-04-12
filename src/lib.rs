@@ -94,6 +94,7 @@ pub mod fibonacci;
 mod utils;
 mod fastutils;
 pub mod fast;
+pub mod bare_metal;
 use bitvec::prelude as bv;
 
 /// The type of bitvector used in the crate.

@@ -119,8 +119,38 @@ pub mod test {
 
 #[allow(dead_code)]
 /// just for debugging purpose
-fn bitstream_to_string<T: BitStore, O: BitOrder>(buffer: &BitSlice<T, O>) -> String {
+pub (crate)fn bitstream_to_string<T: BitStore, O: BitOrder>(buffer: &BitSlice<T, O>) -> String {
     let s = buffer.iter().map(|x| if *x { "1" } else { "0" }).join("");
     s
 }
 
+// #[allow(dead_code)]
+// /// just for debugging purpose
+// pub (crate)fn bitstream_to_string_pretty<T: BitStore, O: BitOrder>(buffer: &BitSlice<T, O>, chunksize: usize) -> String {
+
+//     // assert_eq!(buffer.len() % chunksize, 0);
+
+//     let mut the_strings = vec![];
+//     for i in 0..buffer.len() / chunksize {
+//         let chunk = &buffer[(i*chunksize)..(i+1)*chunksize];
+
+//         let s = chunk.iter().map(|x| if *x { "1" } else { "0" }).join("");
+//         the_strings.push(s);
+//     };
+
+//     if buffer.len() % chunksize != 0 {
+//         println!("might be missing the end");
+//     }
+//     the_strings.iter().join("|")
+// }
+
+/// just for debugging purpose
+pub (crate)fn bitstream_to_string_pretty<T: BitStore, O: BitOrder>(buffer: &BitSlice<T, O>, chunksize: usize) -> String {
+
+    // assert_eq!(buffer.len() % chunksize, 0);
+    let mut the_strings = vec![];
+    for chunk in buffer.chunks(chunksize).map(|c| c.iter().map(|x| if *x { "1" } else { "0" }).join("")) {
+        the_strings.push(chunk);
+    };
+    the_strings.iter().join("|")
+}
