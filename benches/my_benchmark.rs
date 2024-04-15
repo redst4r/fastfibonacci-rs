@@ -4,9 +4,10 @@ use bitvec::slice::BitSlice;
 use bitvec::{prelude::Msb0, vec::BitVec};
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use fastfibonacci::bare_metal::decode_single_dirty;
+use fastfibonacci::bare_metal_64::{bits_to_fibonacci_u64array, decode_single_dirty_64, Dirty64};
 use fastfibonacci::fast::{LookupVec, fast_decode, get_u8_decoder, get_u16_decoder};
 use fastfibonacci::fibonacci::{encode, FibonacciDecoder};
-use fastfibonacci::nobitvec::BitDec2;
+use fastfibonacci::nobitvec::{bits_to_fibonacci_bytes, BitDec2};
 // use fastfibonacci::random_fibonacci_stream;
 use fibonacci_codec::Encode;
 use rand::distributions::{Distribution, Uniform};
@@ -155,12 +156,7 @@ fn fibonacci_decode(c: &mut Criterion) {
 fn fibonacci_mybitwise(c: &mut Criterion) {
 
     let data_encoded = random_fibonacci_stream(100_000, 1, 10000);
-    let mut x = Vec::new();
-	for segment in data_encoded.chunks(8){
-		let enc: u8 = segment.load_be();
-		x.push(enc)
-	}
-	// println!("x: {x:?}");
+    let x = bits_to_fibonacci_bytes(&data_encoded);
 
     fn _dummy(data: &[u8]) -> Vec<u64> {
 
@@ -172,7 +168,15 @@ fn fibonacci_mybitwise(c: &mut Criterion) {
         let mut i_fibo = 0;
 
         for _i in 0..100_000 {
-            decode_single_dirty(data, data.len(), &mut bitpos, &mut bufpos, &mut num, &mut i_fibo).unwrap();
+            match decode_single_dirty(&data, data.len(), &mut bitpos, &mut bufpos, &mut num, &mut i_fibo) {
+                Ok(()) => {/* */},
+                Err(e) => {
+                    // println!("{:?}", e);
+                    // println!("{_i}");
+                    assert_eq!(1,0);
+                }
+            }
+            // decode_single_dirty(data, data.len(), &mut bitpos, &mut bufpos, &mut num, &mut i_fibo).unwrap();
             decoded.push(num);
 
             // reset
@@ -186,6 +190,66 @@ fn fibonacci_mybitwise(c: &mut Criterion) {
         b.iter(|| _dummy(black_box(&x)))
     });
 
+
+    let encoded_bytes64 = bits_to_fibonacci_u64array(&data_encoded);
+
+    fn _dummy64(data: &[u64]) -> Vec<u64> {
+
+        let mut decoded = Vec::with_capacity(100_000);
+
+        let mut bitpos = 0;
+        let mut bufpos = 0;
+        let mut num = 0;
+        let mut i_fibo = 0;
+
+        for _i in 0..100_000 {
+            match decode_single_dirty_64(&data, data.len(), &mut bitpos, &mut bufpos, &mut num, &mut i_fibo) {
+                Ok(()) => {/* */},
+                Err(e) => {
+                    // println!("{:?}", e);
+                    // println!("{_i}");
+                    assert_eq!(1,0);
+                }
+            }
+            // decode_single_dirty_64(data, data.len(), &mut bitpos, &mut bufpos, &mut num, &mut i_fibo).unwrap();
+            decoded.push(num);
+
+            // reset
+            num = 0;
+            i_fibo = 0;
+        }
+
+        decoded
+    }
+    c.bench_function(&format!("Decoding: bare metal 64"), |b| {
+        b.iter(|| _dummy64(black_box(&encoded_bytes64)))
+    });
+
+
+    fn _dummyDirty64(data: &[u64]) -> Vec<u64> {
+
+        let mut decoded = Vec::with_capacity(100_000);
+        let mut D = Dirty64 {buf: &data, buf_size: data.len(), bitpos: 0, bufpos: 0};
+
+        for _i in 0..100_000 {
+            match D.decode() {
+                Ok(n) => {
+                    decoded.push(n);
+                },
+                Err(e) => {
+                    // println!("{:?}", e);
+                    // println!("{_i}");
+                    assert_eq!(1,0);
+                }
+            }
+            // decode_single_dirty_64(data, data.len(), &mut bitpos, &mut bufpos, &mut num, &mut i_fibo).unwrap();
+        }
+
+        decoded
+    }
+    c.bench_function(&format!("Decoding: bare metal 64 struct"), |b| {
+        b.iter(|| _dummyDirty64(black_box(&encoded_bytes64)))
+    });
 
 
     fn dummy(bv: &BitSlice<u8, Msb0>) -> Vec<u64> {

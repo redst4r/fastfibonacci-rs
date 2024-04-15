@@ -5,22 +5,22 @@
 use crate::fibonacci::FibonacciDecoder;
 use crate::nobitvec::{bits_to_fibonacci_bytes, int_to_fibonacci_bytes, DecodeError, PartialDecode};
 use crate::utils::{bitstream_to_string, bitstream_to_string_pretty};
-use std::io::{self, BufRead, BufReader};
-use std::io::{Error, Read};
-use std::ops::{Add, Shr, Sub, BitAnd};
-use bitvec::slice::BitSlice;
-use bitvec::vec::BitVec;
+// use std::io::{self, BufRead, BufReader};
+// use std::io::{Error, Read};
+// use std::ops::{Add, Shr, Sub, BitAnd};
+// use bitvec::slice::BitSlice;
+// use bitvec::vec::BitVec;
 use bitvec::{bits, bitvec, field::BitField, order::{Lsb0, Msb0}};
-use crate::{fastutils::FFBitorder, fibonacci::encode, utils::FIB64};
+use crate::{fibonacci::encode, utils::FIB64};
 
 /// see https://togglebit.io/posts/rust-bitwise/
 /// However, this reads the bits from the left side
 /// i.e. pos=0 will read out the Most significant bit!
 #[inline]
 fn read_bit(x: u8, pos: usize) -> bool {
-	assert!(pos < 8);
-	let wordsize = std::mem::size_of::<u8>() * 8;
-	let shift_op = wordsize - 1 - pos;
+	// assert!(pos < 8);
+	const WORDSIZE:usize = std::mem::size_of::<u8>() * 8;
+	let shift_op = WORDSIZE - 1 - pos;
 	let thebit = (x >> shift_op) & 1;
 	thebit>0
 }
@@ -29,25 +29,70 @@ fn read_bit(x: u8, pos: usize) -> bool {
 fn test_read_bit() {
 	assert_eq!(read_bit(0b0000_0000, 0), false, "0 pos 0");
 	assert_eq!(read_bit(0b0000_0000, 1), false, "0 pos 1");
-	assert_eq!(read_bit(0b1000_0010, 0), true, "2 pos 0");
-	assert_eq!(read_bit(0b1000_0010, 1), false, "2 pos 1");
-	assert_eq!(read_bit(0b0100_0010, 0), false, "2 pos 1");
-	assert_eq!(read_bit(0b0100_0010, 1), true, "2 pos 1");
+	assert_eq!(read_bit(0b1000_0000, 0), true, "2 pos 0");
+	assert_eq!(read_bit(0b1000_0000, 1), false, "2 pos 1");
+	assert_eq!(read_bit(0b0100_0000, 0), false, "2 pos 1");
+	assert_eq!(read_bit(0b0100_0000, 1), true, "2 pos 1");
+}
+
+///
+pub fn decode_single_dirty(buf: &[u8], buf_size: usize, bitpos: &mut usize, bufpos: &mut usize, num: &mut u64, i_fibo: &mut usize) -> Result<(), DecodeError> {
+
+	const WORDSIZE:usize = std::mem::size_of::<u8>() * 8; //sizeof(T) * 8;
+	let buf_offset = *bufpos;
+	let bit_offset = WORDSIZE - *bitpos % WORDSIZE -1;
+
+	let mut bit = read_bit(buf[*bufpos], *bitpos) as u64;
+	let mut last_bit = 0;
+
+	*bitpos = (*bitpos + 1) % WORDSIZE;
+	if *bitpos == 0 {
+		*bufpos += 1;
+	}
+
+	while last_bit + bit < 2 && *bufpos < buf_size {
+		*num += bit * FIB64[*i_fibo];
+		*i_fibo += 1;
+		last_bit = bit;
+		bit = read_bit(buf[*bufpos], *bitpos) as u64;
+
+		*bitpos = (*bitpos +1) % WORDSIZE;
+
+		if *bitpos == 0 {
+			*bufpos += 1;
+		}
+
+		if *bufpos >= buf_size {
+			return Err(DecodeError::PartiallyDecoded( PartialDecode { num: *num, i_fibo: *i_fibo + 1 }))
+		}
+	}
+
+	if last_bit + bit < 2 {
+		Err(DecodeError::PartiallyDecoded( PartialDecode { num: *num, i_fibo: *i_fibo + 1 }))
+	} else {
+		Ok(())
+	}
 }
 
 /// deconding a single (maybe paritalled decoded ) number from the bytes
-pub fn decode_single_dirty(buf: &[u8], buf_size: usize, bitpos: &mut usize, bufpos: &mut usize, num: &mut u64, i_fibo: &mut usize) -> Result<(), DecodeError> {
+pub fn decode_single_dirty3(buf: &[u8], buf_size: usize, bitpos: &mut usize, bufpos: &mut usize, num: &mut u64, i_fibo: &mut usize) -> Result<(), DecodeError> {
 
+	const DEBUG: bool = false;
     // bits per unit
-	let SIZE = std::mem::size_of::<u8>() * 8; //sizeof(T) * 8;
-	assert!(*bufpos < buf_size);
-	assert!(*bitpos < SIZE);
+	const SIZE:usize = std::mem::size_of::<u8>() * 8; //sizeof(T) * 8;
+	// assert!(*bufpos < buf_size);
+	// assert!(*bitpos < SIZE);
 
 	let mut last_bit = 0;
 
 	let mut bit = read_bit(buf[*bufpos], *bitpos) as u64;
-	// println!("INSIDE:\n---------------\ncurrent bitpos {bitpos}\nbufpos {bufpos}\nnum {num}\niFibo {i_fibo} BIT {bit}");
-	// println!("---------------\n");
+
+	if DEBUG{
+		println!("INSIDE:\n---------------\ncurrent bitpos {bitpos}\nbufpos {bufpos}\nnum {num}\niFibo {i_fibo} BIT {bit}");
+		println!("---------------\n");
+	}
+	// *bufpos = *bufpos + (*bitpos + 1) / SIZE;
+	// *bitpos = (*bitpos + 1) % SIZE;
 
 	*bitpos = *bitpos + 1;
 
@@ -58,34 +103,35 @@ pub fn decode_single_dirty(buf: &[u8], buf_size: usize, bitpos: &mut usize, bufp
 	if *bufpos >= buf_size {
 		return Err(DecodeError::PartiallyDecoded( PartialDecode { num: *num, i_fibo: *i_fibo + 1 }))
 	}
-    // println!("INSIDE BEFORE:\n---------------\nbitpos {bitpos}\nbufpos {bufpos}\nnum {num}\niFibo {i_fibo} BIT {bit}");
-	// println!("---------------\n");
+
 
 	while last_bit + bit < 2 && *bufpos < buf_size
 	{
 		last_bit = bit;
-		*num += bit * (FIB64[*i_fibo]);
-
+		*num += bit * FIB64[*i_fibo];
 
 		if *bitpos==SIZE {
 			*bufpos += 1;
 			*bitpos = 0;
 		}
+		// *bufpos = *bufpos + (*bitpos + 1) / SIZE;
+		// *bitpos = dbg!((dbg!(*bitpos) + 1) % SIZE);
 
 		if *bufpos >= buf_size {
 			return Err(DecodeError::PartiallyDecoded( PartialDecode { num: *num, i_fibo: *i_fibo + 1 }))
 		}
 		
 		bit = read_bit(buf[*bufpos], *bitpos) as u64;
-		// println!("LOOP:\n---------------\ncurrent bitpos {bitpos}\nbufpos {bufpos}\nnum {num}\niFibo {i_fibo} BIT {bit}");
-		// println!("---------------\n");
-
+		if DEBUG{
+			println!("LOOP:\n---------------\ncurrent bitpos {bitpos}\nbufpos {bufpos}\nnum {num}\niFibo {i_fibo} BIT {bit}");
+			println!("---------------\n");
+		}
 		// *bitpos+=1;
 		*bitpos = *bitpos + 1;
 		*i_fibo+=1;
 	}
 
-	assert!(last_bit + bit == 2);
+	assert_eq!(last_bit + bit, 2);
 	assert!(*bufpos <= buf_size);
 
 	*bufpos = *bufpos + *bitpos / SIZE;
@@ -121,7 +167,6 @@ fn test_decode_dirty() {
 		Ok(())
 	);
 	assert_eq!(num, 21);
-
 
 	num = 0; // need to reset
 	i_fibo = 0;	
@@ -224,10 +269,10 @@ fn test_decode_dirty_debug() {
 #[test]
 fn test_correctness(){
     use crate::utils::test::random_fibonacci_stream;
-    let N = 100000;
+    let N = 100_000;
     let data_encoded = random_fibonacci_stream(N, 1, 10000);
 	let encoded_bytes = bits_to_fibonacci_bytes(&data_encoded);
-    // println!("{}", bitstream_to_string_pretty(&data_encoded, 8));
+    println!("{}", bitstream_to_string_pretty(&data_encoded, 8));
 
     // 10111011|0110011x
     // let x = vec![3,4,2,3];
@@ -247,8 +292,15 @@ fn test_correctness(){
 
     for _i in 0..N {
         // println!("number: {_i}");
-        decode_single_dirty(&encoded_bytes, encoded_bytes.len(), &mut bitpos, &mut bufpos, &mut num, &mut i_fibo).unwrap();
-        decoded.push(num);
+        match decode_single_dirty(&encoded_bytes, encoded_bytes.len(), &mut bitpos, &mut bufpos, &mut num, &mut i_fibo) {
+			Ok(()) => {/* */},
+			Err(e) => {
+				println!("{:?}", e);
+				println!("{N}");
+				assert_eq!(1,0);
+			},
+		}
+		decoded.push(num);
 
         // reset
         num = 0;
