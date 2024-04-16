@@ -97,6 +97,7 @@ pub mod fast;
 pub mod nobitvec;
 pub mod bare_metal;
 pub mod bare_metal_64;
+pub (crate) mod u64reader;
 
 use bitvec::prelude as bv;
 

@@ -7,7 +7,7 @@ use fastfibonacci::bare_metal::decode_single_dirty;
 use fastfibonacci::bare_metal_64::{bits_to_fibonacci_u64array, decode_single_dirty_64, Dirty64};
 use fastfibonacci::fast::{LookupVec, fast_decode, get_u8_decoder, get_u16_decoder};
 use fastfibonacci::fibonacci::{encode, FibonacciDecoder};
-use fastfibonacci::nobitvec::{bits_to_fibonacci_bytes, BitDec2};
+use fastfibonacci::nobitvec::{bits_to_fibonacci_bytes};
 // use fastfibonacci::random_fibonacci_stream;
 use fibonacci_codec::Encode;
 use rand::distributions::{Distribution, Uniform};
@@ -137,7 +137,6 @@ fn fibonacci_decode(c: &mut Criterion) {
         b.iter(|| dummy_fast_iter_u16(black_box(&data_fast)))
     });
 
-
     // =================================
     // FibonacciDecoder: Iterator
     // =================================
@@ -201,9 +200,9 @@ fn fibonacci_mybitwise(c: &mut Criterion) {
         let mut bufpos = 0;
         let mut num = 0;
         let mut i_fibo = 0;
-
+        let mut last_bit = 0;
         for _i in 0..100_000 {
-            match decode_single_dirty_64(&data, data.len(), &mut bitpos, &mut bufpos, &mut num, &mut i_fibo) {
+            match decode_single_dirty_64(&data, data.len(), &mut bitpos, &mut bufpos, &mut num, &mut i_fibo, &mut last_bit) {
                 Ok(()) => {/* */},
                 Err(e) => {
                     // println!("{:?}", e);
@@ -217,6 +216,7 @@ fn fibonacci_mybitwise(c: &mut Criterion) {
             // reset
             num = 0;
             i_fibo = 0;
+            last_bit = 0;
         }
 
         decoded
@@ -260,8 +260,6 @@ fn fibonacci_mybitwise(c: &mut Criterion) {
     c.bench_function(&format!("Decoding: normal FibonacciDecoder"), |b| {
         b.iter(|| dummy(black_box(&data_encoded)))
     });
-
-
 }
 
 // criterion_group!(benches, fibonacci_bitslice);

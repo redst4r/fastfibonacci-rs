@@ -63,82 +63,82 @@ pub fn decode_single_dirty(buf: &[u8], buf_size: usize, bitpos: &mut usize, bufp
 		}
 
 		if *bufpos >= buf_size {
-			return Err(DecodeError::PartiallyDecoded( PartialDecode { num: *num, i_fibo: *i_fibo + 1 }))
+			return Err(DecodeError::PartiallyDecoded( PartialDecode { num: *num, i_fibo: *i_fibo + 1, last_bit: bit == 1 }))
 		}
 	}
 
 	if last_bit + bit < 2 {
-		Err(DecodeError::PartiallyDecoded( PartialDecode { num: *num, i_fibo: *i_fibo + 1 }))
+		Err(DecodeError::PartiallyDecoded( PartialDecode { num: *num, i_fibo: *i_fibo + 1, last_bit: bit == 1  }))
 	} else {
 		Ok(())
 	}
 }
 
 /// deconding a single (maybe paritalled decoded ) number from the bytes
-pub fn decode_single_dirty3(buf: &[u8], buf_size: usize, bitpos: &mut usize, bufpos: &mut usize, num: &mut u64, i_fibo: &mut usize) -> Result<(), DecodeError> {
+// pub fn decode_single_dirty3(buf: &[u8], buf_size: usize, bitpos: &mut usize, bufpos: &mut usize, num: &mut u64, i_fibo: &mut usize) -> Result<(), DecodeError> {
 
-	const DEBUG: bool = false;
-    // bits per unit
-	const SIZE:usize = std::mem::size_of::<u8>() * 8; //sizeof(T) * 8;
-	// assert!(*bufpos < buf_size);
-	// assert!(*bitpos < SIZE);
+// 	const DEBUG: bool = false;
+//     // bits per unit
+// 	const SIZE:usize = std::mem::size_of::<u8>() * 8; //sizeof(T) * 8;
+// 	// assert!(*bufpos < buf_size);
+// 	// assert!(*bitpos < SIZE);
 
-	let mut last_bit = 0;
+// 	let mut last_bit = 0;
 
-	let mut bit = read_bit(buf[*bufpos], *bitpos) as u64;
+// 	let mut bit = read_bit(buf[*bufpos], *bitpos) as u64;
 
-	if DEBUG{
-		println!("INSIDE:\n---------------\ncurrent bitpos {bitpos}\nbufpos {bufpos}\nnum {num}\niFibo {i_fibo} BIT {bit}");
-		println!("---------------\n");
-	}
-	// *bufpos = *bufpos + (*bitpos + 1) / SIZE;
-	// *bitpos = (*bitpos + 1) % SIZE;
+// 	if DEBUG{
+// 		println!("INSIDE:\n---------------\ncurrent bitpos {bitpos}\nbufpos {bufpos}\nnum {num}\niFibo {i_fibo} BIT {bit}");
+// 		println!("---------------\n");
+// 	}
+// 	// *bufpos = *bufpos + (*bitpos + 1) / SIZE;
+// 	// *bitpos = (*bitpos + 1) % SIZE;
 
-	*bitpos = *bitpos + 1;
+// 	*bitpos = *bitpos + 1;
 
-	if *bitpos==SIZE {
-		*bufpos += 1;
-		*bitpos = 0;
-	}
-	if *bufpos >= buf_size {
-		return Err(DecodeError::PartiallyDecoded( PartialDecode { num: *num, i_fibo: *i_fibo + 1 }))
-	}
+// 	if *bitpos==SIZE {
+// 		*bufpos += 1;
+// 		*bitpos = 0;
+// 	}
+// 	if *bufpos >= buf_size {
+// 		return Err(DecodeError::PartiallyDecoded( PartialDecode { num: *num, i_fibo: *i_fibo + 1, last_bit: bit == 1  }))
+// 	}
 
 
-	while last_bit + bit < 2 && *bufpos < buf_size
-	{
-		last_bit = bit;
-		*num += bit * FIB64[*i_fibo];
+// 	while last_bit + bit < 2 && *bufpos < buf_size
+// 	{
+// 		last_bit = bit;
+// 		*num += bit * FIB64[*i_fibo];
 
-		if *bitpos==SIZE {
-			*bufpos += 1;
-			*bitpos = 0;
-		}
-		// *bufpos = *bufpos + (*bitpos + 1) / SIZE;
-		// *bitpos = dbg!((dbg!(*bitpos) + 1) % SIZE);
+// 		if *bitpos==SIZE {
+// 			*bufpos += 1;
+// 			*bitpos = 0;
+// 		}
+// 		// *bufpos = *bufpos + (*bitpos + 1) / SIZE;
+// 		// *bitpos = dbg!((dbg!(*bitpos) + 1) % SIZE);
 
-		if *bufpos >= buf_size {
-			return Err(DecodeError::PartiallyDecoded( PartialDecode { num: *num, i_fibo: *i_fibo + 1 }))
-		}
+// 		if *bufpos >= buf_size {
+// 			return Err(DecodeError::PartiallyDecoded( PartialDecode { num: *num, i_fibo: *i_fibo + 1, last_bit: bit == 1  }))
+// 		}
 		
-		bit = read_bit(buf[*bufpos], *bitpos) as u64;
-		if DEBUG{
-			println!("LOOP:\n---------------\ncurrent bitpos {bitpos}\nbufpos {bufpos}\nnum {num}\niFibo {i_fibo} BIT {bit}");
-			println!("---------------\n");
-		}
-		// *bitpos+=1;
-		*bitpos = *bitpos + 1;
-		*i_fibo+=1;
-	}
+// 		bit = read_bit(buf[*bufpos], *bitpos) as u64;
+// 		if DEBUG{
+// 			println!("LOOP:\n---------------\ncurrent bitpos {bitpos}\nbufpos {bufpos}\nnum {num}\niFibo {i_fibo} BIT {bit}");
+// 			println!("---------------\n");
+// 		}
+// 		// *bitpos+=1;
+// 		*bitpos = *bitpos + 1;
+// 		*i_fibo+=1;
+// 	}
 
-	assert_eq!(last_bit + bit, 2);
-	assert!(*bufpos <= buf_size);
+// 	assert_eq!(last_bit + bit, 2);
+// 	assert!(*bufpos <= buf_size);
 
-	*bufpos = *bufpos + *bitpos / SIZE;
-	*bitpos = *bitpos % SIZE;
+// 	*bufpos = *bufpos + *bitpos / SIZE;
+// 	*bitpos = *bitpos % SIZE;
 
-	Ok(())
-}
+// 	Ok(())
+// }
 
 #[test]
 fn test_decode_dirty() {
@@ -181,7 +181,7 @@ fn test_decode_dirty() {
 	let  r = decode_single_dirty(&encoded, buf_size, &mut bitpos, &mut bufpos, &mut num, &mut i_fibo);
 	assert_eq!(
 		r, 
-		Err(DecodeError::PartiallyDecoded(PartialDecode { num: 8, i_fibo: 6 })));
+		Err(DecodeError::PartiallyDecoded(PartialDecode { num: 8, i_fibo: 6, last_bit: false })));
 
 }
 
@@ -224,7 +224,7 @@ fn test_decode_dirty_debug() {
 	let  r = decode_single_dirty(&encoded, buf_size, &mut bitpos, &mut bufpos, &mut num, &mut i_fibo);
 	assert_eq!(
 		r, 
-		Err(DecodeError::PartiallyDecoded(PartialDecode { num: 8, i_fibo: 6 })));
+		Err(DecodeError::PartiallyDecoded(PartialDecode { num: 8, i_fibo: 6, last_bit: false})));
 
 	// complete the decoding
 
@@ -313,4 +313,184 @@ fn test_correctness(){
     let decoded_truth: Vec<_> = dec.collect();
     
     assert_eq!(decoded_truth, decoded);
+}
+
+
+
+/// Nicer version of `decode_single_dirty_64` using a struct
+pub struct Dirty8 <'a> {
+	///
+	pub buf: &'a [u8], 
+	///
+	pub buf_size: usize, 
+	///
+	pub bitpos: usize, 
+	///
+	pub bufpos: usize, 
+	// num: u64, 
+	// i_fibo: usize,
+}
+impl <'a> Dirty8 <'a> {
+
+	/// decode a new number from the stream
+	pub fn decode(&mut self) -> Result<u64, DecodeError> {
+		self.decode_from_partial(0, 0, 0)
+	}
+
+	/// Decoding, starting from a previous partial decoding
+	pub fn decode_from_partial(&mut self, mut num: u64, mut i_fibo: usize, mut last_bit: u64) -> Result<u64, DecodeError>{
+		const WORDSIZE:usize = std::mem::size_of::<u8>() * 8; //sizeof(T) * 8;
+
+		let mut bit = read_bit(self.buf[self.bufpos], self.bitpos) as u64;
+		// let mut last_bit = 0;
+
+		self.bitpos = (self.bitpos + 1) % WORDSIZE;
+		if self.bitpos == 0 {
+			self.bufpos += 1;
+		}
+
+		while last_bit + bit < 2 && self.bufpos < self.buf_size {
+			num += bit * FIB64[i_fibo];  // todo: i_fibo cant be bigger than 64!!
+			i_fibo += 1;
+			last_bit = bit;
+			bit = read_bit(self.buf[self.bufpos], self.bitpos) as u64;
+
+			self.bitpos = (self.bitpos +1) % WORDSIZE;
+
+			if self.bitpos == 0 {
+				self.bufpos += 1;
+			}
+
+			// TODO this should not be needed; covered by the loop cond and the after loop code
+			if self.bufpos >= self.buf_size {
+				return Err(DecodeError::PartiallyDecoded( PartialDecode { 
+					num: num + bit * FIB64[i_fibo], // beed to increment, accounting for the 
+					i_fibo: i_fibo + 1, 
+					last_bit: bit == 1  
+				}))
+			}
+		}
+
+		if last_bit + bit < 2 {
+			Err(DecodeError::PartiallyDecoded( PartialDecode { 
+				num: num + bit* FIB64[i_fibo], 
+				i_fibo: i_fibo + 1, 
+				last_bit: bit == 1  
+			}))
+		} else {
+			Ok(num)
+		}
+	}
+}
+
+#[test]
+fn test_correctness_dirty8(){
+    use crate::utils::test::random_fibonacci_stream;
+    let n = 1_000_000;
+    // let N = 1000;
+    let data_encoded = random_fibonacci_stream(n, 1, 10000);
+	let encoded_bytes = bits_to_fibonacci_bytes(&data_encoded);
+
+    let mut decoded = Vec::with_capacity(n);
+    let bitpos = 0;
+    let bufpos = 0;
+
+	let mut D = Dirty8 { buf: &encoded_bytes, buf_size: encoded_bytes.len(), bitpos, bufpos};
+    for _i in 0..n {
+        // println!("number: {_i}");
+        match D.decode() {
+			Ok(n) => {
+				decoded.push(n);
+			},
+			Err(e) => {
+				println!("{:?}", e);
+				println!("{n}");
+				assert_eq!(1,0);
+			},
+		}
+    }
+
+    // ground thruth
+    let dec = FibonacciDecoder::new(&data_encoded, false);
+    let decoded_truth: Vec<_> = dec.collect();
+    
+    assert_eq!(decoded_truth, decoded);
+}
+
+#[test]
+fn test_dirty8overhang2() {
+	// here the last bit is NOT set
+	let bits = bits![u8, Msb0; 
+		0,0,0,0,0,0,0,0, //1 
+		0,0,0,0,0,0,0,0, //2
+		0,0,0,0,0,0,0,0, //3
+		0,0,0,0,0,0,0,0, //4
+		0,0,0,0,0,0,0,0, //5
+		0,0,0,0,0,0,0,0, //6
+		0,0,0,0,0,0,0,0, //7
+		0,0,0,0,1,1,0,0, //8  the u64 ends here! this needs to return a PartialDecode num=0, i_fibo=2, lastbit = 1
+		]
+	.to_bitvec();
+	let encoded = bits_to_fibonacci_bytes(&bits);
+    let bitpos = 0;
+    let bufpos = 0;
+
+	let mut D = Dirty8 { buf: &encoded, buf_size: encoded.len(), bitpos, bufpos};
+	assert_eq!(
+		D.decode(),
+		Ok(4052739537881)
+	);
+
+	assert_eq!(
+		D.decode(),
+		Err(DecodeError::PartiallyDecoded(PartialDecode {num: 0, i_fibo:2 , last_bit: false}))
+	);
+
+}
+
+#[test]
+fn test_dirty8overhang() {
+	let bits = bits![u8, Msb0; 
+		0,0,0,0,0,0,0,0, //1 
+		0,0,0,0,0,0,0,0, //2
+		0,0,0,0,0,0,0,0, //3
+		0,0,0,0,0,0,0,0, //4
+		0,0,0,0,0,0,0,0, //5
+		0,0,0,0,0,0,0,0, //6
+		0,0,0,0,0,0,0,0, //7
+		0,0,0,0,1,1,0,1, //8  the u64 ends here! this needs to return a PartialDecode num=2, i_fibo=2, lastbit = 1
+		]
+	.to_bitvec();
+	let encoded = bits_to_fibonacci_bytes(&bits);
+    let bitpos = 0;
+    let bufpos = 0;
+
+	let mut D = Dirty8 { buf: &encoded, buf_size: encoded.len(), bitpos, bufpos};
+	assert_eq!(
+		D.decode(),
+		Ok(4052739537881)
+	);
+
+	assert_eq!(
+		D.decode(),
+		Err(DecodeError::PartiallyDecoded(PartialDecode {num: 2, i_fibo:2 , last_bit: true}))
+	);
+
+	let bits = bits![u8, Msb0; 
+		1,0,1,1,0,0,0,0, //1 
+		0,0,0,0,0,0,0,0, //2
+		0,0,0,0,0,0,0,0, //3
+		0,0,0,0,0,0,0,0, //4
+		0,0,0,0,0,0,0,0, //5
+		0,0,0,0,0,0,0,0, //6
+		0,0,0,0,0,0,0,0, //7
+		0,0,0,0,0,0,0,0, //8  the u64 ends here! this needs to return a PartialDecode num=2, i_fibo=2, lastbit = 1
+		]
+	.to_bitvec();
+	let encoded = bits_to_fibonacci_bytes(&bits);
+	let mut D = Dirty8 { buf: &encoded, buf_size: encoded.len(), bitpos:0, bufpos:0};
+	assert_eq!(
+		D.decode_from_partial(2, 2, 1),
+		Ok(2)
+	);
 }

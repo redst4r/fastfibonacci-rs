@@ -20,15 +20,15 @@ impl <'a> Dirty64 <'a> {
 
 	/// decode a new number from the stream
 	pub fn decode(&mut self) -> Result<u64, DecodeError> {
-		self.decode_from_partial(0, 0)
+		self.decode_from_partial(0, 0, 0)
 	}
 
 	/// Decoding, starting from a previous partial decoding
-	pub fn decode_from_partial(&mut self, mut num: u64, mut i_fibo: usize) -> Result<u64, DecodeError>{
+	pub fn decode_from_partial(&mut self, mut num: u64, mut i_fibo: usize, mut last_bit: u64) -> Result<u64, DecodeError>{
 		const WORDSIZE:usize = std::mem::size_of::<u64>() * 8; //sizeof(T) * 8;
 
 		let mut bit = read_bit(self.buf[self.bufpos], self.bitpos) as u64;
-		let mut last_bit = 0;
+		// let mut last_bit = 0;
 
 		self.bitpos = (self.bitpos + 1) % WORDSIZE;
 		if self.bitpos == 0 {
@@ -36,7 +36,7 @@ impl <'a> Dirty64 <'a> {
 		}
 
 		while last_bit + bit < 2 && self.bufpos < self.buf_size {
-			num += bit * FIB64[i_fibo];
+			num += bit * FIB64[i_fibo];  // todo: i_fibo cant be bigger than 64!!
 			i_fibo += 1;
 			last_bit = bit;
 			bit = read_bit(self.buf[self.bufpos], self.bitpos) as u64;
@@ -47,13 +47,22 @@ impl <'a> Dirty64 <'a> {
 				self.bufpos += 1;
 			}
 
+			// TODO this should not be needed; covered by the loop cond and the after loop code
 			if self.bufpos >= self.buf_size {
-				return Err(DecodeError::PartiallyDecoded( PartialDecode { num: num, i_fibo: i_fibo + 1 }))
+				return Err(DecodeError::PartiallyDecoded( PartialDecode { 
+					num: num + bit * FIB64[i_fibo], // beed to increment, accounting for the 
+					i_fibo: i_fibo + 1, 
+					last_bit: bit == 1  
+				}))
 			}
 		}
 
 		if last_bit + bit < 2 {
-			Err(DecodeError::PartiallyDecoded( PartialDecode { num: num, i_fibo: i_fibo + 1 }))
+			Err(DecodeError::PartiallyDecoded( PartialDecode { 
+				num: num + bit* FIB64[i_fibo], 
+				i_fibo: i_fibo + 1, 
+				last_bit: bit == 1  
+			}))
 		} else {
 			Ok(num)
 		}
@@ -63,17 +72,17 @@ impl <'a> Dirty64 <'a> {
 #[test]
 fn test_correctness_dirty64(){
     use crate::utils::test::random_fibonacci_stream;
-    let N = 1_000_000;
+    let n = 1_000_000;
     // let N = 1000;
-    let data_encoded = random_fibonacci_stream(N, 1, 10000);
+    let data_encoded = random_fibonacci_stream(n, 1, 10000);
 	let encoded_bytes = bits_to_fibonacci_u64array(&data_encoded);
 
-    let mut decoded = Vec::with_capacity(N);
+    let mut decoded = Vec::with_capacity(n);
     let bitpos = 0;
     let bufpos = 0;
 
 	let mut D = Dirty64 { buf: &encoded_bytes, buf_size: encoded_bytes.len(), bitpos, bufpos};
-    for _i in 0..N {
+    for _i in 0..n {
         // println!("number: {_i}");
         match D.decode() {
 			Ok(n) => {
@@ -81,7 +90,7 @@ fn test_correctness_dirty64(){
 			},
 			Err(e) => {
 				println!("{:?}", e);
-				println!("{N}");
+				println!("{n}");
 				assert_eq!(1,0);
 			},
 		}
@@ -94,66 +103,144 @@ fn test_correctness_dirty64(){
     assert_eq!(decoded_truth, decoded);
 }
 
+#[test]
+fn test_dirty64overhang2() {
+	// here the last bit is NOT set
+	let bits = bits![u8, Msb0; 
+		0,0,0,0,0,0,0,0, //1 
+		0,0,0,0,0,0,0,0, //2
+		0,0,0,0,0,0,0,0, //3
+		0,0,0,0,0,0,0,0, //4
+		0,0,0,0,0,0,0,0, //5
+		0,0,0,0,0,0,0,0, //6
+		0,0,0,0,0,0,0,0, //7
+		0,0,0,0,1,1,0,0, //8  the u64 ends here! this needs to return a PartialDecode num=2, i_fibo=2, lastbit = 1
+		]
+	.to_bitvec();
+	let encoded = bits_to_fibonacci_u64array(&bits);
+    let bitpos = 0;
+    let bufpos = 0;
 
+	let mut D = Dirty64 { buf: &encoded, buf_size: encoded.len(), bitpos, bufpos};
+	assert_eq!(
+		D.decode(),
+		Ok(4052739537881)
+	);
 
+	assert_eq!(
+		D.decode(),
+		Err(DecodeError::PartiallyDecoded(PartialDecode {num: 0, i_fibo:2 , last_bit: false}))
+	);
 
-/// 
-pub struct DirtySingleU64{
-	///
-	pub buf:u64 , 
-	///
-	pub buf_size: usize, 
-	///
-	pub bitpos: usize, 
-	///
-	pub bufpos: usize, 
-	// num: u64, 
-	// i_fibo: usize,
 }
 
-impl DirtySingleU64 {
+#[test]
+fn test_dirty64overhang() {
+	let bits = bits![u8, Msb0; 
+		0,0,0,0,0,0,0,0, //1 
+		0,0,0,0,0,0,0,0, //2
+		0,0,0,0,0,0,0,0, //3
+		0,0,0,0,0,0,0,0, //4
+		0,0,0,0,0,0,0,0, //5
+		0,0,0,0,0,0,0,0, //6
+		0,0,0,0,0,0,0,0, //7
+		0,0,0,0,1,1,0,1, //8  the u64 ends here! this needs to return a PartialDecode num=2, i_fibo=2, lastbit = 1
+		]
+	.to_bitvec();
+	let encoded = bits_to_fibonacci_u64array(&bits);
+    let bitpos = 0;
+    let bufpos = 0;
 
-	/// decode a new number from the stream
-	pub fn decode(&mut self) -> Result<u64, DecodeError> {
-		self.decode_from_partial(0, 0)
-	}
+	let mut D = Dirty64 { buf: &encoded, buf_size: encoded.len(), bitpos, bufpos};
+	assert_eq!(
+		D.decode(),
+		Ok(4052739537881)
+	);
 
-	/// Decoding, starting from a previous partial decoding
-	pub fn decode_from_partial(&mut self, mut num: u64, mut i_fibo: usize) -> Result<u64, DecodeError>{
-		const WORDSIZE:usize = std::mem::size_of::<u64>() * 8; //sizeof(T) * 8;
+	assert_eq!(
+		D.decode(),
+		Err(DecodeError::PartiallyDecoded(PartialDecode {num: 2, i_fibo:2 , last_bit: true}))
+	);
 
-		let mut bit = read_bit(self.buf, self.bitpos) as u64;
-		let mut last_bit = 0;
+	let bits = bits![u8, Msb0; 
+		1,0,1,1,0,0,0,0, //1 
+		0,0,0,0,0,0,0,0, //2
+		0,0,0,0,0,0,0,0, //3
+		0,0,0,0,0,0,0,0, //4
+		0,0,0,0,0,0,0,0, //5
+		0,0,0,0,0,0,0,0, //6
+		0,0,0,0,0,0,0,0, //7
+		0,0,0,0,0,0,0,0, //8  the u64 ends here! this needs to return a PartialDecode num=2, i_fibo=2, lastbit = 1
+		]
+	.to_bitvec();
+	let encoded = bits_to_fibonacci_u64array(&bits);
+	let mut D = Dirty64 { buf: &encoded, buf_size: encoded.len(), bitpos:0, bufpos:0};
+	assert_eq!(
+		D.decode_from_partial(2, 2, 1),
+		Ok(2)
+	);
 
-		self.bitpos = (self.bitpos + 1) % WORDSIZE;
-		if self.bitpos == 0 {
-			self.bufpos += 1;
-		}
-
-		while last_bit + bit < 2 && self.bufpos < self.buf_size {
-			num += bit * FIB64[i_fibo];
-			i_fibo += 1;
-			last_bit = bit;
-			bit = read_bit(self.buf, self.bitpos) as u64;
-
-			self.bitpos = (self.bitpos +1) % WORDSIZE;
-
-			if self.bitpos == 0 {
-				self.bufpos += 1;
-			}
-
-			if self.bufpos >= self.buf_size {
-				return Err(DecodeError::PartiallyDecoded( PartialDecode { num: num, i_fibo: i_fibo + 1 }))
-			}
-		}
-
-		if last_bit + bit < 2 {
-			Err(DecodeError::PartiallyDecoded( PartialDecode { num: num, i_fibo: i_fibo + 1 }))
-		} else {
-			Ok(num)
-		}
-	}
 }
+
+
+
+// /// 
+// pub struct DirtySingleU64{
+// 	///
+// 	pub buf:u64 , 
+// 	///
+// 	pub buf_size: usize, 
+// 	///
+// 	pub bitpos: usize, 
+// 	///
+// 	pub bufpos: usize, 
+// 	// num: u64, 
+// 	// i_fibo: usize,
+// }
+
+// impl DirtySingleU64 {
+
+// 	/// decode a new number from the stream
+// 	pub fn decode(&mut self) -> Result<u64, DecodeError> {
+// 		self.decode_from_partial(0, 0)
+// 	}
+
+// 	/// Decoding, starting from a previous partial decoding
+// 	pub fn decode_from_partial(&mut self, mut num: u64, mut i_fibo: usize) -> Result<u64, DecodeError>{
+// 		const WORDSIZE:usize = std::mem::size_of::<u64>() * 8; //sizeof(T) * 8;
+
+// 		let mut bit = read_bit(self.buf, self.bitpos) as u64;
+// 		let mut last_bit = 0;
+
+// 		self.bitpos = (self.bitpos + 1) % WORDSIZE;
+// 		if self.bitpos == 0 {
+// 			self.bufpos += 1;
+// 		}
+
+// 		while last_bit + bit < 2 && self.bufpos < self.buf_size {
+// 			num += bit * FIB64[i_fibo];
+// 			i_fibo += 1;
+// 			last_bit = bit;
+// 			bit = read_bit(self.buf, self.bitpos) as u64;
+
+// 			self.bitpos = (self.bitpos +1) % WORDSIZE;
+
+// 			if self.bitpos == 0 {
+// 				self.bufpos += 1;
+// 			}
+
+// 			if self.bufpos >= self.buf_size {
+// 				return Err(DecodeError::PartiallyDecoded( PartialDecode { num: num, i_fibo: i_fibo + 1, last_bit: bit == 1  }))
+// 			}
+// 		}
+
+// 		if last_bit + bit < 2 {
+// 			Err(DecodeError::PartiallyDecoded( PartialDecode { num: num, i_fibo: i_fibo + 1, last_bit: bit == 1  }))
+// 		} else {
+// 			Ok(num)
+// 		}
+// 	}
+// }
 
 
 
@@ -190,24 +277,31 @@ fn test_read_bit() {
 }
 
 ///
-pub fn decode_single_dirty_64(buf: &[u64], buf_size: usize, bitpos: &mut usize, bufpos: &mut usize, num: &mut u64, i_fibo: &mut usize) -> Result<(), DecodeError> {
+pub fn decode_single_dirty_64(
+	buf: &[u64], 
+	buf_size: usize, 
+	bitpos: &mut usize, 
+	bufpos: &mut usize, 
+	num: &mut u64, 
+	i_fibo: &mut usize,
+	last_bit: &mut u64,
+) -> Result<(), DecodeError> {
 
 	const WORDSIZE:usize = std::mem::size_of::<u64>() * 8; //sizeof(T) * 8;
 	// let buf_offset = *bufpos;
 	// let bit_offset = WORDSIZE - *bitpos % WORDSIZE -1;
 
 	let mut bit = read_bit(buf[*bufpos], *bitpos) as u64;
-	let mut last_bit = 0;
 
 	*bitpos = (*bitpos + 1) % WORDSIZE;
 	if *bitpos == 0 {
 		*bufpos += 1;
 	}
 
-	while last_bit + bit < 2 && *bufpos < buf_size {
+	while *last_bit + bit < 2 && *bufpos < buf_size {
 		*num += bit * FIB64[*i_fibo];
 		*i_fibo += 1;
-		last_bit = bit;
+		*last_bit = bit;
 		bit = read_bit(buf[*bufpos], *bitpos) as u64;
 
 		*bitpos = (*bitpos +1) % WORDSIZE;
@@ -217,12 +311,18 @@ pub fn decode_single_dirty_64(buf: &[u64], buf_size: usize, bitpos: &mut usize, 
 		}
 
 		if *bufpos >= buf_size {
-			return Err(DecodeError::PartiallyDecoded( PartialDecode { num: *num, i_fibo: *i_fibo + 1 }))
+			return Err(DecodeError::PartiallyDecoded( PartialDecode { 
+				num: *num + bit * FIB64[*i_fibo], 
+				i_fibo: *i_fibo + 1, 
+				last_bit: bit == 1  }))
 		}
 	}
 
-	if last_bit + bit < 2 {
-		Err(DecodeError::PartiallyDecoded( PartialDecode { num: *num, i_fibo: *i_fibo + 1 }))
+	if *last_bit + bit < 2 {
+		Err(DecodeError::PartiallyDecoded( PartialDecode { 
+			num: *num + bit * FIB64[*i_fibo], 
+			i_fibo: *i_fibo + 1, 
+			last_bit: bit == 1  }))
 	} else {
 		Ok(())
 	}
@@ -256,7 +356,7 @@ pub fn bits_to_fibonacci_u64array(b: &BitSlice<u8, Msb0>) -> Vec<u64>{
 #[test]
 fn test_correctness(){
     use crate::utils::test::random_fibonacci_stream;
-    let N = 100_000;
+    let N = 1_0;
     // let N = 1000;
     let data_encoded = random_fibonacci_stream(N, 1, 10000);
 	let encoded_bytes = bits_to_fibonacci_u64array(&data_encoded);
@@ -277,10 +377,12 @@ fn test_correctness(){
     let mut bufpos = 0;
     let mut num = 0;
     let mut i_fibo = 0;
-
+	let mut last_bit = 0;
     for _i in 0..N {
         // println!("number: {_i}");
-        match decode_single_dirty_64(&encoded_bytes, encoded_bytes.len(), &mut bitpos, &mut bufpos, &mut num, &mut i_fibo) {
+        match decode_single_dirty_64(
+			&encoded_bytes, 
+			encoded_bytes.len(), &mut bitpos, &mut bufpos, &mut num, &mut i_fibo, &mut last_bit) {
 			Ok(()) => {/* */},
 			Err(e) => {
 				println!("{:?}", e);
@@ -293,6 +395,7 @@ fn test_correctness(){
         // reset
         num = 0;
         i_fibo = 0;
+		last_bit = 0;
 		// println!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
     }
 
@@ -316,7 +419,6 @@ fn test_decode_overhang() {
 		0,0,0,0,0,0,0,0, //6
 		0,0,0,0,0,0,0,0, //7
 		0,0,0,0,1,1,0,1, //8  the u64 ends here! this needs to return a PartialDecode num=2, i_fibo=2, lastbit = 1
-		1,0,0,0,0,0,0,0, //9
 		]
 	.to_bitvec();
 	let encoded = bits_to_fibonacci_u64array(&bits);
@@ -327,26 +429,133 @@ fn test_decode_overhang() {
 	
 	let mut num = 0 ;
 	let mut i_fibo = 0;
+	let mut last_bit = 0;
 	assert_eq!(
-		decode_single_dirty_64(&encoded, buf_size, &mut bitpos, &mut bufpos, &mut num, &mut i_fibo),
+		decode_single_dirty_64(&encoded, buf_size, &mut bitpos, &mut bufpos, &mut num, &mut i_fibo, &mut last_bit),
 		Ok(())
 	);
+	assert_eq!(last_bit, 1);
 	assert_eq!(num, 4052739537881);
 
-	num = 0; // need to reset
-	i_fibo = 0;	
-	assert_eq!(
-		decode_single_dirty_64(&encoded, buf_size, &mut bitpos, &mut bufpos, &mut num, &mut i_fibo),
-		Ok(())
-	);
-	assert_eq!(num, 1);
-
+	// the trailing piece
 	num = 0; // need to reset
 	i_fibo = 0;
-	let  r = decode_single_dirty_64(&encoded, buf_size, &mut bitpos, &mut bufpos, &mut num, &mut i_fibo);
+	last_bit = 0;
+	let  r = decode_single_dirty_64(&encoded, buf_size, &mut bitpos, &mut bufpos, &mut num, &mut i_fibo, &mut last_bit);
 	assert_eq!(
 		r, 
-		Err(DecodeError::PartiallyDecoded(PartialDecode { num: 8, i_fibo: 6 })));
+		Err(DecodeError::PartiallyDecoded(PartialDecode { num: 2, i_fibo: 2, last_bit: true }))
+	);
+
+	//finishing the encoding
+	let bits = bits![u8, Msb0; 
+		1,0,0,0,0,0,0,0, //1 
+		0,0,0,0,0,0,0,0, //2
+		0,0,0,0,0,0,0,0, //3
+		0,0,0,0,0,0,0,0, //4
+		0,0,0,0,0,0,0,0, //5
+		0,0,0,0,0,0,0,0, //6
+		0,0,0,0,0,0,0,0, //7
+		0,0,0,0,0,0,0,0, //8 
+		]
+	.to_bitvec();
+	let encoded = bits_to_fibonacci_u64array(&bits);
+
+	num = 2; // need to reset
+	i_fibo = 2;
+	last_bit = 1;
+	bufpos = 0;
+	bitpos=0;
+	let  r = decode_single_dirty_64(
+		&encoded, 
+		encoded.len(), 
+		&mut bitpos, 
+		&mut bufpos, 
+		&mut num, 
+		&mut i_fibo, 
+		&mut last_bit
+	);
+	assert_eq!(
+		r, 
+		Ok(())
+	);
+	assert_eq!(num, 2);
+
 
 }
 
+
+// pub struct FullDecoder {
+// 	stream: u64
+// }
+
+
+
+
+// Nicer version of `decode_single_dirty_64` using a struct
+// pub struct Dirty64_iter <'a> {
+// 	///
+// 	pub u64stream: u32,
+// 	///
+// 	pub buf: u64, 
+// 	///
+// 	pub buf_size: usize, 
+// 	///
+// 	pub bitpos: usize, 
+// 	///
+// 	pub bufpos: usize, 
+// 	// num: u64, 
+// 	// i_fibo: usize,
+// }
+// impl <'a> Dirty64_iter <'a> {
+
+// 	/// decode a new number from the stream
+// 	pub fn decode(&mut self) -> Result<u64, DecodeError> {
+// 		self.decode_from_partial(0, 0, 0)
+// 	}
+
+// 	/// Decoding, starting from a previous partial decoding
+// 	pub fn decode_from_partial(&mut self, mut num: u64, mut i_fibo: usize, mut last_bit: u64) -> Result<u64, DecodeError>{
+// 		const WORDSIZE:usize = std::mem::size_of::<u64>() * 8; //sizeof(T) * 8;
+
+// 		let mut bit = read_bit(self.buf[self.bufpos], self.bitpos) as u64;
+// 		// let mut last_bit = 0;
+
+// 		self.bitpos = (self.bitpos + 1) % WORDSIZE;
+// 		if self.bitpos == 0 {
+// 			self.bufpos += 1;
+// 		}
+
+// 		while last_bit + bit < 2 && self.bufpos < self.buf_size {
+// 			num += bit * FIB64[i_fibo];  // todo: i_fibo cant be bigger than 64!!
+// 			i_fibo += 1;
+// 			last_bit = bit;
+// 			bit = read_bit(self.buf[self.bufpos], self.bitpos) as u64;
+
+// 			self.bitpos = (self.bitpos +1) % WORDSIZE;
+
+// 			if self.bitpos == 0 {
+// 				self.bufpos += 1;
+// 			}
+
+// 			// TODO this should not be needed; covered by the loop cond and the after loop code
+// 			if self.bufpos >= self.buf_size {
+// 				return Err(DecodeError::PartiallyDecoded( PartialDecode { 
+// 					num: num + bit * FIB64[i_fibo], // beed to increment, accounting for the 
+// 					i_fibo: i_fibo + 1, 
+// 					last_bit: bit == 1  
+// 				}))
+// 			}
+// 		}
+
+// 		if last_bit + bit < 2 {
+// 			Err(DecodeError::PartiallyDecoded( PartialDecode { 
+// 				num: num + bit* FIB64[i_fibo], 
+// 				i_fibo: i_fibo + 1, 
+// 				last_bit: bit == 1  
+// 			}))
+// 		} else {
+// 			Ok(num)
+// 		}
+// 	}
+// }
