@@ -168,3 +168,18 @@ pub fn random_fibonacci_stream(n_elements: usize, min: usize, max: usize) -> MyB
     }
     encode(&data)
 }
+
+
+/// a "wrapper" of the `bits!` macro except that we pin the BitStore and BitOrder  types
+/// which somehow doesnt work for the macro
+pub fn create_bitvector(bits: Vec<usize>) -> MyBitVector {
+
+    // simpler:
+    // let b: MyBitVector  = BitVec::from_iter(v.into_iter());
+
+    let mut bitvector = MyBitVector::new();
+    for b in bits {
+        bitvector.push(b == 1);
+    }
+    bitvector
+}

@@ -21,7 +21,7 @@ use std::fmt::Debug;
 use crate::utils::FIB64;
 /// note the the entire content of this module is
 /// **independent** of the choice of BitOrder, i.e.
-/// both Lsb0 and MyBitOrder work the same way!
+/// both Lsb0 and Msb0 work the same way!
 use crate::{MyBitSlice, MyBitVector, FbDec};
 
 
@@ -221,7 +221,7 @@ where
 
 #[cfg(test)]
 mod test {
-    use crate::{fibonacci::{encode, FibonacciDecoder}, MyBitOrder};
+    use crate::{fibonacci::{encode, FibonacciDecoder}, utils::create_bitvector, MyBitOrder};
     use bitvec::prelude::*;
 
     mod test_table {
@@ -307,13 +307,14 @@ mod test {
 
     #[test]
     fn test_myfib_decoder() {
+        use crate::utils::create_bitvector;
         // let v: Vec<bool> = vec![0,0,1,1].iter().map(|x|*x==1).collect();
         // let b: MyBitVector  = BitVec::from_iter(v.into_iter());
-        let b = bits![u8, MyBitOrder; 0,0,1,1];
+        let b = create_bitvector(vec![0,0,1,1]);
 
         // println!("full : {:?}", b);
         let mut my = FibonacciDecoder {
-            buffer: b,
+            buffer: b.as_bitslice(),
             current_pos: 0,
             shifted_by_one: false,
         };
@@ -324,11 +325,11 @@ mod test {
 
     #[test]
     fn test_myfib_decoder_consecutive_ones() {
-        let b = bits![u8, MyBitOrder; 0,0,1,1,1,1];
+        let b = create_bitvector(vec![0,0,1,1,1,1]);
 
         println!("full : {:?}", b);
         let mut my = FibonacciDecoder {
-            buffer: b,
+            buffer: b.as_bitslice(),
             current_pos: 0,
             shifted_by_one: false,
         };
@@ -340,10 +341,10 @@ mod test {
 
     #[test]
     fn test_myfib_decoder_nothing() {
-        let b = bits![u8, MyBitOrder; 0,0,1,0,1,0,1];
+        let b = create_bitvector(vec![0,0,1,0,1,0,1]);
 
         let mut my = FibonacciDecoder {
-            buffer: b,
+            buffer: &b,
             current_pos: 0,
             shifted_by_one: false,
         };
@@ -351,7 +352,7 @@ mod test {
 
         // shift
         let mut my = FibonacciDecoder {
-            buffer: b,
+            buffer: &b,
             current_pos: 0,
             shifted_by_one: true,
         };
@@ -359,13 +360,11 @@ mod test {
     }
     #[test]
     fn test_myfib_decoder_shifted() {
-        // let v: Vec<bool> = vec![0,0,1,1].iter().map(|x|*x==1).collect();
-        // let b: MyBitVector  = BitVec::from_iter(v.into_iter());
-        let b = bits![u8, MyBitOrder; 0,0,1,1,1,1];
+        let b = create_bitvector(vec![0,0,1,1,1,1]);
 
         // println!("full : {:?}", b);
         let mut my = FibonacciDecoder {
-            buffer: b,
+            buffer: &b,
             current_pos: 0,
             shifted_by_one: true,
         };

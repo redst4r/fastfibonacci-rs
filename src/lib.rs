@@ -91,7 +91,7 @@
 //! - fast decoding (using an iterator): 54ms / 1M integers
 //! 
 pub mod fibonacci;
-mod utils;
+pub mod utils;
 mod fastutils;
 pub mod fast;
 pub mod nobitvec;
@@ -103,9 +103,12 @@ use bitvec::prelude as bv;
 
 /// The type of bitvector used in the crate.
 /// Importantly, some code *relies* on `Msb0`
-pub(crate) type MyBitSlice = bv::BitSlice<u8, bv::Msb0>;
+pub(crate) type MyStore = u8;
+pub (crate) type MyBitOrder = bv::Msb0;
+///
+pub type MyBitSlice = bv::BitSlice<MyStore,MyBitOrder>;
 /// reftype that goes with [`MyBitSlice`]
-pub(crate) type MyBitVector = bv::BitVec<u8, bv::Msb0>;
+pub type MyBitVector = bv::BitVec<MyStore, MyBitOrder>;
 
 
 /// Marker trait for Fibonacci decoders.

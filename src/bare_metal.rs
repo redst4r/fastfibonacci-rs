@@ -4,7 +4,7 @@
 //! 
 use crate::fibonacci::FibonacciDecoder;
 use crate::nobitvec::{bits_to_fibonacci_bytes, int_to_fibonacci_bytes, DecodeError, PartialDecode};
-use crate::utils::{bitstream_to_string, bitstream_to_string_pretty};
+use crate::utils::{bitstream_to_string, bitstream_to_string_pretty, create_bitvector};
 // use std::io::{self, BufRead, BufReader};
 // use std::io::{Error, Read};
 // use std::ops::{Add, Shr, Sub, BitAnd};
@@ -142,7 +142,7 @@ pub fn decode_single_dirty(buf: &[u8], buf_size: usize, bitpos: &mut usize, bufp
 
 #[test]
 fn test_decode_dirty() {
-	let bits = bits![u8, Msb0; 
+	let bits = create_bitvector(vec![ 
 		0,0,0,0,0,0,1,1, //1 :: 21
 		1,1,0,0,0,0,1,0, //2 :: 1, 8
 		// 0,0,0,0,0,0,1,1, //3
@@ -152,7 +152,7 @@ fn test_decode_dirty() {
 		// 0,0,0,0,0,0,0,0, //7
 		// 1,1,0,0,0,0,1,1, //8
 		// 0,0,0,0,0,0,1,0, //9
-		]
+		])
 	.to_bitvec();
 	let encoded = bits_to_fibonacci_bytes(&bits);
 
@@ -187,7 +187,7 @@ fn test_decode_dirty() {
 
 #[test]
 fn test_decode_dirty_debug() {
-	let bits = bits![u8, Msb0; 
+	let bits = create_bitvector(vec![
 		0,0,0,0,0,0,1,1, //1 :: 21
 		1,1,0,0,0,0,1,0, //2 :: 1, 8
 		// 0,0,0,0,0,0,1,1, //3
@@ -197,7 +197,7 @@ fn test_decode_dirty_debug() {
 		// 0,0,0,0,0,0,0,0, //7
 		// 1,1,0,0,0,0,1,1, //8
 		// 0,0,0,0,0,0,1,0, //9
-		]
+		])
 	.to_bitvec();
 	let encoded = bits_to_fibonacci_bytes(&bits);
     println!("{}", bitstream_to_string(&bits));
@@ -228,13 +228,13 @@ fn test_decode_dirty_debug() {
 
 	// complete the decoding
 
-	let bits = bits![u8, Msb0; 
+	let bits = create_bitvector(vec![
 		// 0,0,0,0,0,0,1,1, //1 :: 21
 		// 1,1,0,0,0,0,1,0, //2 :: 1, 8
 		0,1,1,0,0,0,1,1, //3
-		]
+		])
 	.to_bitvec();
-	let encoded = bits_to_fibonacci_bytes(&bits);
+	let encoded = bits_to_fibonacci_bytes(bits.as_bitslice());
 	let buf_size = encoded.len();
 	// let num = r.err().unwrap();
 	let mut num=8;
@@ -427,7 +427,7 @@ fn test_correctness_dirty8(){
 #[test]
 fn test_dirty8overhang2() {
 	// here the last bit is NOT set
-	let bits = bits![u8, Msb0; 
+	let bits = create_bitvector(vec![
 		0,0,0,0,0,0,0,0, //1 
 		0,0,0,0,0,0,0,0, //2
 		0,0,0,0,0,0,0,0, //3
@@ -436,7 +436,7 @@ fn test_dirty8overhang2() {
 		0,0,0,0,0,0,0,0, //6
 		0,0,0,0,0,0,0,0, //7
 		0,0,0,0,1,1,0,0, //8  the u64 ends here! this needs to return a PartialDecode num=0, i_fibo=2, lastbit = 1
-		]
+		])
 	.to_bitvec();
 	let encoded = bits_to_fibonacci_bytes(&bits);
     let bitpos = 0;
@@ -457,7 +457,7 @@ fn test_dirty8overhang2() {
 
 #[test]
 fn test_dirty8overhang() {
-	let bits = bits![u8, Msb0; 
+	let bits = create_bitvector(vec![ 
 		0,0,0,0,0,0,0,0, //1 
 		0,0,0,0,0,0,0,0, //2
 		0,0,0,0,0,0,0,0, //3
@@ -466,7 +466,7 @@ fn test_dirty8overhang() {
 		0,0,0,0,0,0,0,0, //6
 		0,0,0,0,0,0,0,0, //7
 		0,0,0,0,1,1,0,1, //8  the u64 ends here! this needs to return a PartialDecode num=2, i_fibo=2, lastbit = 1
-		]
+		])
 	.to_bitvec();
 	let encoded = bits_to_fibonacci_bytes(&bits);
     let bitpos = 0;
@@ -483,7 +483,7 @@ fn test_dirty8overhang() {
 		Err(DecodeError::PartiallyDecoded(PartialDecode {num: 2, i_fibo:2 , last_bit: true}))
 	);
 
-	let bits = bits![u8, Msb0; 
+	let bits = create_bitvector(vec![ 
 		1,0,1,1,0,0,0,0, //1 
 		0,0,0,0,0,0,0,0, //2
 		0,0,0,0,0,0,0,0, //3
@@ -492,7 +492,7 @@ fn test_dirty8overhang() {
 		0,0,0,0,0,0,0,0, //6
 		0,0,0,0,0,0,0,0, //7
 		0,0,0,0,0,0,0,0, //8  the u64 ends here! this needs to return a PartialDecode num=2, i_fibo=2, lastbit = 1
-		]
+		])
 	.to_bitvec();
 	let encoded = bits_to_fibonacci_bytes(&bits);
 	let mut D = Dirty8 { buf: &encoded, buf_size: encoded.len(), bitpos:0, bufpos:0};

@@ -1,7 +1,7 @@
 //!
 use bitvec::{bits, field::BitField, slice::BitSlice};
 
-use crate::{fibonacci::FibonacciDecoder, nobitvec::{DecodeError, PartialDecode}, utils::{bitstream_to_string_pretty, FIB64}, MyBitOrder, MyBitSlice};
+use crate::{fibonacci::FibonacciDecoder, nobitvec::{DecodeError, PartialDecode}, utils::{bitstream_to_string_pretty, create_bitvector, FIB64}, MyBitOrder, MyBitSlice};
 
 /// Nicer version of `decode_single_dirty_64` using a struct
 pub struct Dirty64 <'a> {
@@ -106,7 +106,7 @@ fn test_correctness_dirty64(){
 #[test]
 fn test_dirty64overhang2() {
 	// here the last bit is NOT set
-	let bits = bits![u8, MyBitOrder; 
+	let bits = create_bitvector(vec![ 
 		0,0,0,0,0,0,0,0, //1 
 		0,0,0,0,0,0,0,0, //2
 		0,0,0,0,0,0,0,0, //3
@@ -115,7 +115,7 @@ fn test_dirty64overhang2() {
 		0,0,0,0,0,0,0,0, //6
 		0,0,0,0,0,0,0,0, //7
 		0,0,0,0,1,1,0,0, //8  the u64 ends here! this needs to return a PartialDecode num=2, i_fibo=2, lastbit = 1
-		]
+		])
 	.to_bitvec();
 	let encoded = bits_to_fibonacci_u64array(&bits);
     let bitpos = 0;
@@ -136,7 +136,7 @@ fn test_dirty64overhang2() {
 
 #[test]
 fn test_dirty64overhang() {
-	let bits = bits![u8, MyBitOrder; 
+	let bits = create_bitvector(vec![ 
 		0,0,0,0,0,0,0,0, //1 
 		0,0,0,0,0,0,0,0, //2
 		0,0,0,0,0,0,0,0, //3
@@ -145,7 +145,7 @@ fn test_dirty64overhang() {
 		0,0,0,0,0,0,0,0, //6
 		0,0,0,0,0,0,0,0, //7
 		0,0,0,0,1,1,0,1, //8  the u64 ends here! this needs to return a PartialDecode num=2, i_fibo=2, lastbit = 1
-		]
+		])
 	.to_bitvec();
 	let encoded = bits_to_fibonacci_u64array(&bits);
     let bitpos = 0;
@@ -162,7 +162,7 @@ fn test_dirty64overhang() {
 		Err(DecodeError::PartiallyDecoded(PartialDecode {num: 2, i_fibo:2 , last_bit: true}))
 	);
 
-	let bits = bits![u8, MyBitOrder; 
+	let bits = create_bitvector(vec![
 		1,0,1,1,0,0,0,0, //1 
 		0,0,0,0,0,0,0,0, //2
 		0,0,0,0,0,0,0,0, //3
@@ -171,7 +171,7 @@ fn test_dirty64overhang() {
 		0,0,0,0,0,0,0,0, //6
 		0,0,0,0,0,0,0,0, //7
 		0,0,0,0,0,0,0,0, //8  the u64 ends here! this needs to return a PartialDecode num=2, i_fibo=2, lastbit = 1
-		]
+		])
 	.to_bitvec();
 	let encoded = bits_to_fibonacci_u64array(&bits);
 	let mut D = Dirty64 { buf: &encoded, buf_size: encoded.len(), bitpos:0, bufpos:0};
@@ -410,7 +410,7 @@ fn test_correctness(){
 
 #[test]
 fn test_decode_overhang() {
-	let bits = bits![u8, MyBitOrder; 
+	let bits = create_bitvector(vec![ 
 		0,0,0,0,0,0,0,0, //1 
 		0,0,0,0,0,0,0,0, //2
 		0,0,0,0,0,0,0,0, //3
@@ -419,7 +419,7 @@ fn test_decode_overhang() {
 		0,0,0,0,0,0,0,0, //6
 		0,0,0,0,0,0,0,0, //7
 		0,0,0,0,1,1,0,1, //8  the u64 ends here! this needs to return a PartialDecode num=2, i_fibo=2, lastbit = 1
-		]
+		])
 	.to_bitvec();
 	let encoded = bits_to_fibonacci_u64array(&bits);
 
@@ -448,7 +448,7 @@ fn test_decode_overhang() {
 	);
 
 	//finishing the encoding
-	let bits = bits![u8, MyBitOrder; 
+	let bits = create_bitvector(vec![ 
 		1,0,0,0,0,0,0,0, //1 
 		0,0,0,0,0,0,0,0, //2
 		0,0,0,0,0,0,0,0, //3
@@ -457,7 +457,7 @@ fn test_decode_overhang() {
 		0,0,0,0,0,0,0,0, //6
 		0,0,0,0,0,0,0,0, //7
 		0,0,0,0,0,0,0,0, //8 
-		]
+		])
 	.to_bitvec();
 	let encoded = bits_to_fibonacci_u64array(&bits);
 

@@ -1,29 +1,16 @@
 #![allow(missing_docs)]
-use bitvec::field::BitField;
-use bitvec::slice::BitSlice;
-use bitvec::{prelude::Msb0, vec::BitVec};
+use bitvec::vec::BitVec;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use fastfibonacci::bare_metal::decode_single_dirty;
 use fastfibonacci::bare_metal_64::{bits_to_fibonacci_u64array, decode_single_dirty_64, Dirty64};
 use fastfibonacci::fast::{LookupVec, fast_decode, get_u8_decoder, get_u16_decoder};
 use fastfibonacci::fibonacci::{encode, FibonacciDecoder};
 use fastfibonacci::nobitvec::{bits_to_fibonacci_bytes};
+use fastfibonacci::utils::random_fibonacci_stream;
+use fastfibonacci::{MyBitSlice, MyBitVector};
 // use fastfibonacci::random_fibonacci_stream;
 use fibonacci_codec::Encode;
 use rand::distributions::{Distribution, Uniform};
-use rand::thread_rng;
-
-type MyBitVector = BitVec<u8, Msb0>;
-
-pub fn random_fibonacci_stream(n_elements: usize, min: usize, max: usize) -> MyBitVector {
-    let data_dist = Uniform::from(min..max);
-    let mut rng = thread_rng();
-    let mut data: Vec<u64> = Vec::with_capacity(n_elements);
-    for _ in 0..n_elements {
-        data.push(data_dist.sample(&mut rng) as u64);
-    }
-    encode(&data)
-}
 
 fn fibonacci_encode(c: &mut Criterion) {
 
@@ -118,7 +105,7 @@ fn fibonacci_decode(c: &mut Criterion) {
     // =================================
     // FastFibonacci: Iteratir
     // =================================
-    fn dummy_fast_iter_u8(data_fast: &BitSlice<u8, Msb0>) -> Vec<u64> {
+    fn dummy_fast_iter_u8(data_fast: &MyBitSlice) -> Vec<u64> {
         let f = get_u8_decoder(data_fast, false);
         let x: Vec<_> = f.collect();
         x
@@ -128,7 +115,7 @@ fn fibonacci_decode(c: &mut Criterion) {
     });
 
 
-    fn dummy_fast_iter_u16(data_fast: &BitSlice<u8, Msb0>) -> Vec<u64> {
+    fn dummy_fast_iter_u16(data_fast: &MyBitSlice) -> Vec<u64> {
         let f = get_u16_decoder(data_fast, false);
         let x: Vec<_> = f.collect();
         x
@@ -252,7 +239,7 @@ fn fibonacci_mybitwise(c: &mut Criterion) {
     });
 
 
-    fn dummy(bv: &BitSlice<u8, Msb0>) -> Vec<u64> {
+    fn dummy(bv: &MyBitSlice) -> Vec<u64> {
         let dec = FibonacciDecoder::new(bv, false);
         let x: Vec<_> = dec.collect();
         x
