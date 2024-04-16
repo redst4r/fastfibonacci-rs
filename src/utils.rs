@@ -1,6 +1,9 @@
 //! Utility functions
 use bitvec::{store::BitStore, order::BitOrder, slice::BitSlice};
 use itertools::Itertools;
+use rand::{distributions::{Distribution, Uniform}, thread_rng};
+
+use crate::{fibonacci::encode, MyBitVector};
 
 /// Iterative fibonacci. just to get the first N fibonacci numbers
 ///
@@ -153,4 +156,15 @@ pub (crate)fn bitstream_to_string_pretty<T: BitStore, O: BitOrder>(buffer: &BitS
         the_strings.push(chunk);
     };
     the_strings.iter().join("|")
+}
+
+///
+pub fn random_fibonacci_stream(n_elements: usize, min: usize, max: usize) -> MyBitVector {
+    let data_dist = Uniform::from(min..max);
+    let mut rng = thread_rng();
+    let mut data: Vec<u64> = Vec::with_capacity(n_elements);
+    for _ in 0..n_elements {
+        data.push(data_dist.sample(&mut rng) as u64);
+    }
+    encode(&data)
 }

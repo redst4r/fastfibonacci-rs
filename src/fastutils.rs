@@ -2,11 +2,12 @@ use std::collections::HashMap;
 use bitvec::{store::BitStore, order::{BitOrder, Msb0}, slice::BitSlice, vec::BitVec};
 use crate::{utils::FIB64, fibonacci::encode};
 
-// the type of bitstream we expect as input!
-pub(crate) type FFBitorder = Msb0;
-pub(crate) type FFBitslice = BitSlice<u8, FFBitorder>;
-#[allow(dead_code)]
-pub(crate) type FFBitvec = BitVec<u8, FFBitorder>;
+// // the type of bitstream we expect as input!
+// pub(crate) type MyBitOrder = Msb0;
+// pub(crate) type FFStore = u8;
+// pub(crate) type FFBitslice = BitSlice<FFStore, MyBitOrder>;
+// #[allow(dead_code)]
+// pub(crate) type FFBitvec = BitVec<FFStore, MyBitOrder>;
 
 
 /// `State` is used to remember the position in the bitvector and the partically decoded number.
@@ -363,13 +364,15 @@ pub(crate) fn decode_with_remainder<T: BitStore, O: BitOrder>(
 
 #[cfg(test)]
 mod test_decode_with_remainder {
+    use crate::MyBitOrder;
+
     use super::*;
     use bitvec::{bits, view::BitView};
     use pretty_assertions::assert_eq;
     #[test]
     fn test_decode_with_remainder_edge_case_delimiters() {
         // the exampel from the paper, Fig 9.4
-        let bits = bits![u8, FFBitorder; 0,1,1,1,1];
+        let bits = bits![u8, MyBitOrder; 0,1,1,1,1];
         let r = decode_with_remainder(bits, false);
         assert_eq!(
             r,
@@ -385,7 +388,7 @@ mod test_decode_with_remainder {
     #[test]
     fn test_decode_with_remainder_edge_case_delimiters2() {
         // the exampel from the paper, Fig 9.4
-        let bits = bits![u8, FFBitorder; 0,0,0,0,0,0,1,1,1,0,0,0,0,0,1,1].to_bitvec();
+        let bits = bits![u8, MyBitOrder; 0,0,0,0,0,0,1,1,1,0,0,0,0,0,1,1].to_bitvec();
         let r = decode_with_remainder(&bits, false);
         assert_eq!(
             r,
@@ -401,24 +404,24 @@ mod test_decode_with_remainder {
     #[test]
     fn test_decode_with_remainder_from_table94() {
         // the exampel from the paper, Fig 9.4
-        let bits = &181_u8.view_bits::<FFBitorder>()[..8];
+        let bits = &181_u8.view_bits::<MyBitOrder>()[..8];
         // bits.reverse();
 
-        // let bits = bits![u8, FFBitorder; 0,1,1,1,1];
+        // let bits = bits![u8, MyBitOrder; 0,1,1,1,1];
         let r = decode_with_remainder(bits, false);
         assert_eq!(r.numbers, vec![4]);
         assert_eq!(r.u, 7);
         assert_eq!(r.lu, 4);
 
         // the exampel from the paper, Fig 9.4
-        let bits = &165_u8.view_bits::<FFBitorder>()[..8];
+        let bits = &165_u8.view_bits::<MyBitOrder>()[..8];
         let r = decode_with_remainder(&bits, true);
         assert_eq!(r.numbers, vec![0]);
         assert_eq!(r.u, 31);
         assert_eq!(r.lu, 7);
 
         // the exampel from the paper, Fig 9.4
-        let bits = &114_u8.view_bits::<FFBitorder>()[..8];
+        let bits = &114_u8.view_bits::<MyBitOrder>()[..8];
         let r = decode_with_remainder(&bits, true);
         assert_eq!(r.numbers, vec![2]);
         assert_eq!(r.u, 6);
@@ -428,7 +431,7 @@ mod test_decode_with_remainder {
     #[test]
     fn test_decode_with_remainder() {
         // the exampel from the paper, Fig 9.4
-        let bits = bits![u8, FFBitorder; 1,0,1,1,0,1,0,1,1,0,1,0,0,1,0,1];
+        let bits = bits![u8, MyBitOrder; 1,0,1,1,0,1,0,1,1,0,1,0,0,1,0,1];
         let r = decode_with_remainder(bits, false);
         assert_eq!(
             r,
@@ -442,7 +445,7 @@ mod test_decode_with_remainder {
 
         // the exampel from the paper, Fig 9.4
         // no remainder this time
-        let bits = bits![u8, FFBitorder; 1,0,1,1,0,1,0,1,1];
+        let bits = bits![u8, MyBitOrder; 1,0,1,1,0,1,0,1,1];
         let r = decode_with_remainder(bits, false);
         assert_eq!(
             r,
@@ -456,7 +459,7 @@ mod test_decode_with_remainder {
     }
     #[test]
     fn test_decode_with_remainder_starts() {
-        let bits = bits![u8, FFBitorder; 1,0,1,1,0,1,0,1,1, 0,1,1,0,0,0];
+        let bits = bits![u8, MyBitOrder; 1,0,1,1,0,1,0,1,1, 0,1,1,0,0,0];
         let r = decode_with_remainder(bits, false);
         assert_eq!(
             r,

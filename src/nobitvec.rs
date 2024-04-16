@@ -5,7 +5,8 @@ use std::io::{Error, Read};
 use bitvec::slice::BitSlice;
 use bitvec::vec::BitVec;
 use bitvec::{bits, bitvec, field::BitField, order::{Lsb0, Msb0}};
-use crate::{fastutils::FFBitorder, fibonacci::encode, utils::FIB64};
+use crate::MyBitSlice;
+use crate::{fibonacci::encode, utils::FIB64};
 
 
 fn read_bit(x: u8, pos: usize, wordsize: usize) -> bool {
@@ -113,7 +114,7 @@ use crate::utils::bitstream_to_string;
 
 /// turns a bitstream into chunks of u8
 /// Note: the last byte will be right-padded if the encoding doesnt fill the netire byte
-pub fn bits_to_fibonacci_bytes(b: &BitSlice<u8, Msb0>) -> Vec<u8>{
+pub fn bits_to_fibonacci_bytes(b: &MyBitSlice) -> Vec<u8>{
 
 	let mut x = Vec::new();
 	for segment in b.chunks(8){

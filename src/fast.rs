@@ -70,8 +70,8 @@ use std::cmp;
 use once_cell::sync::Lazy;
 use bitvec::{view::BitView, field::BitField, store::BitStore};
 use funty::Integral;
-use crate::FbDec;
-use crate::fastutils::{FFBitorder, FFBitslice, DecodingResult, State, DecodingState, decode_with_remainder};
+use crate::{FbDec, MyBitOrder, MyBitSlice};
+use crate::fastutils::{DecodingResult, State, DecodingState, decode_with_remainder};
 
 /// Fast Fibonacci decoding lookup table for u8/u16/... segment sizes.
 /// Note: u32 technically possible, but the table GETS HUGE (2**32 entries)
@@ -106,7 +106,7 @@ impl <T:Integral+BitStore>LookupVec<T> {
                     Ok(i) => i,
                     Err(_) => panic!("cant convert segment to proper u8/u16.."),
                 };
-                let bitstream = t.view_bits::<FFBitorder>().to_owned();
+                let bitstream = t.view_bits::<MyBitOrder>().to_owned();
                 assert_eq!(bitstream.len(), segment_size);
                 // determining the new state is a bit more tricky than just looking
                 // at the last bit of the segment:
@@ -174,7 +174,7 @@ impl <T:Integral> LookupTable<T> for LookupVec<T> {
 /// 
 /// Fibonacci decoding cannot handle zeros, and often during the encoding, every value is incremented by one (to encode zero as 1).
 /// If `shifted_by_one` is `true`, we decrement each decoded value by 1, assuming that the encoder artificially incremented each value before encoding. 
-pub fn fast_decode<T:Integral>(stream: &FFBitslice, shifted_by_one: bool, table: &impl LookupTable<T>) -> Vec<u64> {
+pub fn fast_decode<T:Integral>(stream: &MyBitSlice, shifted_by_one: bool, table: &impl LookupTable<T>) -> Vec<u64> {
 
     // println!("Total stream {}", bitstream_to_string(&stream));
     let segment_size = T::BITS as usize;
@@ -241,14 +241,14 @@ mod testing_lookups {
     fn test_vec8_lookup() {
         // u8
         let t: LookupVec<u8> = LookupVec::new();
-        let i = bits![u8, FFBitorder; 1,0,1,1,0,1,0,1].load_be::<u8>();
+        let i = bits![u8, MyBitOrder; 1,0,1,1,0,1,0,1].load_be::<u8>();
 
         assert_eq!(
             t.lookup(State(0), i), 
             (State(1), &DecodingResult {numbers: vec![4], u:7, lu: 4, number_end_in_segment: vec![3]})
         );
 
-        let i = bits![u8, FFBitorder; 1,0,1,1,0,1,0,1].load_be::<u8>();
+        let i = bits![u8, MyBitOrder; 1,0,1,1,0,1,0,1].load_be::<u8>();
         assert_eq!(
             t.lookup(State(1), i), 
             (State(1), &DecodingResult {numbers: vec![0, 2], u:7, lu: 4, number_end_in_segment: vec![0, 3]})
@@ -258,14 +258,14 @@ mod testing_lookups {
     fn test_vec16_lookup() {
         // u16
         let t: LookupVec<u16> = LookupVec::new();
-        let i = bits![u8, FFBitorder; 1,0,1,1,0,1,0,1, 0,0,1,1,0,0,0,1].load_be::<u16>();
+        let i = bits![u8, MyBitOrder; 1,0,1,1,0,1,0,1, 0,0,1,1,0,0,0,1].load_be::<u16>();
 
         assert_eq!(
             t.lookup(State(0), i), 
             (State(1), &DecodingResult {numbers: vec![4, 28], u:5, lu: 4, number_end_in_segment: vec![3, 11]})
         );
 
-        let i = bits![u8, FFBitorder; 1,0,1,1,0,1,0,1, 0,0,1,1,0,0,0,1].load_be::<u16>();
+        let i = bits![u8, MyBitOrder; 1,0,1,1,0,1,0,1, 0,0,1,1,0,0,0,1].load_be::<u16>();
         assert_eq!(
             t.lookup(State(1), i), 
             (State(1), &DecodingResult {numbers: vec![0, 2, 28], u:5, lu: 4, number_end_in_segment: vec![0,3,11]})
@@ -275,7 +275,7 @@ mod testing_lookups {
     #[test]
     fn test_decode_vec() {
         let t: LookupVec<u8> = LookupVec::new();
-        let bits = bits![u8, FFBitorder; 1,0,1,1,0,1,0,1,   0, 1, 0, 0, 0, 1, 1, 0].to_bitvec();
+        let bits = bits![u8, MyBitOrder; 1,0,1,1,0,1,0,1,   0, 1, 0, 0, 0, 1, 1, 0].to_bitvec();
 
         assert_eq!(
             fast_decode(&bits, false, &t),
@@ -288,14 +288,14 @@ mod testing_lookups {
 mod testing_fast_decode {
     use bitvec::prelude::*;
     use super::*;
-    use crate::utils::test::random_fibonacci_stream;
+    use crate::{utils::test::random_fibonacci_stream, MyBitVector};
 
     #[test]
     fn test_fast_decode_correct_padding() {
         // if the chunk is smaller than the segmentsize, it becomes important how we pad it back to 
         // sgementsize
         // the exampel from the paper, Fig 9.4
-        let bits = bits![u8, FFBitorder; 
+        let bits = bits![u8, MyBitOrder; 
             1,0,1,1].to_bitvec();
 
         let t: LookupVec<u8> = LookupVec::new();
@@ -311,7 +311,7 @@ mod testing_fast_decode {
     fn test_fast_decode() {
 
         // the exampel from the paper, Fig 9.4
-        let bits = bits![u8, FFBitorder; 
+        let bits = bits![u8, MyBitOrder; 
             1,0,1,1,0,1,0,1,
             1,0,1,0,0,1,0,1,
             0,1,1,1,0,0,1,0].to_bitvec();
@@ -328,7 +328,7 @@ mod testing_fast_decode {
     #[test]
     fn test_fast_decode_shift() {
 
-        let bits = bits![u8, FFBitorder; 
+        let bits = bits![u8, MyBitOrder; 
             1,1,   // 0
             0,1,1, // 1
             0,0,1,1// 2
@@ -343,7 +343,7 @@ mod testing_fast_decode {
     fn test_fast_decode_111_at_segment_border() {
         // edge case when the delimitator is algined with the segment and the next segment starts with 1
         // make sure to no double count 
-        let bits = bits![u8, FFBitorder; 0,0,0,0,0,0,1,1,1,0,0,0,0,0,1,1].to_bitvec();
+        let bits = bits![u8, MyBitOrder; 0,0,0,0,0,0,1,1,1,0,0,0,0,0,1,1].to_bitvec();
         let t: LookupVec<u8> = LookupVec::new();
         let r = fast_decode(&bits,false, &t);        
         assert_eq!(r, vec![21, 22]);
@@ -357,7 +357,7 @@ mod testing_fast_decode {
         // edge case when theres a bunch of 1111 at the end of the segment
         // we need to make sure that we dervie the new state correctly
 
-        let bits = bits![u8, FFBitorder; 
+        let bits = bits![u8, MyBitOrder; 
             0,1,1,1,0,1,1,1,
             1].to_bitvec();
         let expected = vec![2, 4, 1];
@@ -367,7 +367,7 @@ mod testing_fast_decode {
         assert_eq!(r, expected);
 
         // fr the u16, we need a much longer segment
-        let bits = bits![u8, FFBitorder; 
+        let bits = bits![u8, MyBitOrder; 
             1,1,1,1,1,1,1,1,
             0,1,1,1,0,1,1,1,
             1].to_bitvec();
@@ -381,11 +381,11 @@ mod testing_fast_decode {
     #[test]
     fn test_correctness_fast_decode_u8() {
         use crate::fibonacci::FibonacciDecoder;
-        use crate::fastutils::FFBitvec;
+        // use crate::fastutils::FFBitvec;
         let b = random_fibonacci_stream(100000, 1, 1000);
         // let b = dummy_encode(vec![64, 11, 88]);
         // make a copy for fast decoder
-        let mut b_fast: FFBitvec = BitVec::new();
+        let mut b_fast: MyBitVector = BitVec::new();
         for bit in b.iter().by_vals() {
             b_fast.push(bit);
         }
@@ -406,7 +406,7 @@ mod testing_fast_decode {
     fn test_fast_speed() {
         let b = random_fibonacci_stream(10_000_000, 100000, 1000000);
         // make a copy for fast decoder
-        let mut b_fast: BitVec<u8, FFBitorder> = BitVec::new();
+        let mut b_fast: BitVec<u8, MyBitOrder> = BitVec::new();
         for bit in b.iter().by_vals() {
             b_fast.push(bit);
         }
@@ -426,7 +426,7 @@ mod testing_fast_decode {
         use crate::fibonacci::FibonacciDecoder;
         let b = random_fibonacci_stream(100000, 1, 1000);
         // make a copy for fast decoder
-        let mut b_fast: BitVec<u8, FFBitorder> = BitVec::new();
+        let mut b_fast: BitVec<u8, MyBitOrder> = BitVec::new();
         for bit in b.iter().by_vals() {
             b_fast.push(bit);
         }
@@ -463,7 +463,7 @@ pub static FB_LOOKUP_U16: Lazy<LookupVec<u16>> = Lazy::new(|| {
 /// 
 /// Fibonacci decoding cannot handle zeros, and often during the encoding, every value is incremented by one (to encode zero as 1).
 /// If `shifted_by_one` is `true`, we decrement each decoded value by 1, assuming that the encoder artificially incremented each value before encoding. 
-pub fn get_u8_decoder(bistream: & FFBitslice, shifted_by_one: bool) -> FastFibonacciDecoder<'_, u8> {
+pub fn get_u8_decoder(bistream: & MyBitSlice, shifted_by_one: bool) -> FastFibonacciDecoder<'_, u8> {
     FastFibonacciDecoder::new(bistream, shifted_by_one, &FB_LOOKUP_U8)
 }
 
@@ -471,7 +471,7 @@ pub fn get_u8_decoder(bistream: & FFBitslice, shifted_by_one: bool) -> FastFibon
 /// 
 /// Fibonacci decoding cannot handle zeros, and often during the encoding, every value is incremented by one (to encode zero as 1).
 /// If `shifted_by_one` is `true`, we decrement each decoded value by 1, assuming that the encoder artificially incremented each value before encoding. 
-pub fn get_u16_decoder(bistream: &FFBitslice, shifted_by_one: bool) -> FastFibonacciDecoder<'_, u16> {
+pub fn get_u16_decoder(bistream: &MyBitSlice, shifted_by_one: bool) -> FastFibonacciDecoder<'_, u16> {
     FastFibonacciDecoder::new(bistream, shifted_by_one, &FB_LOOKUP_U16)
 }
 
@@ -501,7 +501,7 @@ pub fn get_u16_decoder(bistream: &FFBitslice, shifted_by_one: bool) -> FastFibon
 /// // assert_eq!(r, &bits[19..]);        
 /// ```
 pub struct FastFibonacciDecoder<'a, T> {
-    bistream: &'a FFBitslice, // bitstream to decode
+    bistream: &'a MyBitSlice, // bitstream to decode
     position: usize,
     lookup_table: &'a LookupVec<T>,
     segment_size: usize,
@@ -522,7 +522,7 @@ impl<'a, T:Integral> FastFibonacciDecoder<'a, T> {
     /// # Parameters
     /// - `bitstream`: (possibly infinite) sequence of bits containing fibonacci encoded u64s
     /// - `shifted_by_one`: if True, values are decremented by one (in case the encoding used a +1 shift to encode 0)
-    pub fn new(bistream: &'a FFBitslice, shifted_by_one: bool, lookup_table: &'a LookupVec<T>) -> Self {
+    pub fn new(bistream: &'a MyBitSlice, shifted_by_one: bool, lookup_table: &'a LookupVec<T>) -> Self {
         FastFibonacciDecoder {
             bistream,
             position: 0,
@@ -537,6 +537,7 @@ impl<'a, T:Integral> FastFibonacciDecoder<'a, T> {
         }
     }
 
+    /// !!perf critical code!!
     /// decodes the next segment, adding to `current_buffer` and `current_backtrack`
     /// if theres nothgin to any more load (emtpy buffer, or partial buffer with some elements, but no terminator)
     /// it adds a None to `current_buffer` and `current_backtrack`, indicating the end of the iterator
@@ -612,7 +613,7 @@ impl<'a, T:Integral> FastFibonacciDecoder<'a, T> {
 impl<'a, T:Integral> FbDec<'a> for FastFibonacciDecoder<'a, T> {
     /// return the remaining bitstream after the last yielded number.
     /// If the bitstream is fully exhausted (i.e. no remainder), returns an empty bitslice.
-    fn get_remaining_buffer(&self) -> &'a FFBitslice {
+    fn get_remaining_buffer(&self) -> &'a MyBitSlice {
         match self.last_emission_last_position {
             Some(pos) => &self.bistream[pos + 1..],
             None => self.bistream, // no single element was emitted, hence no bits of the stream affected
@@ -641,6 +642,7 @@ impl<'a, T:Integral> FbDec<'a> for FastFibonacciDecoder<'a, T> {
 impl<'a, T:Integral> Iterator for FastFibonacciDecoder<'a, T> {
     type Item = u64;
 
+    #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         while self.current_buffer.is_empty() {
             // could be that we need to load multiple segments until we gind a terminator!
@@ -680,7 +682,7 @@ mod test_iter {
     #[test]
     fn test_iter() {
         // just a 3number stream, trailing stuff
-        let bits = bits![u8, FFBitorder; 
+        let bits = bits![u8, MyBitOrder; 
             1,0,1,1,0,1,0,1,1,0,1,0,0,1,0,1,
             0,1,1,1,0,0,1,0]
         .to_bitvec();
@@ -696,7 +698,7 @@ mod test_iter {
     #[test]
     fn test_fast_decode_shift() {
 
-        let bits = bits![u8, FFBitorder; 
+        let bits = bits![u8, MyBitOrder; 
             1,1,   // 0
             0,1,1, // 1
             0,0,1,1// 2
@@ -709,7 +711,7 @@ mod test_iter {
     #[test]
     fn test_iter_multiple_segments() {
         // what if not a single number is decoded per segment
-        let bits = bits![u8, FFBitorder; 
+        let bits = bits![u8, MyBitOrder; 
             0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
             0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0]
         .to_bitvec();
@@ -722,7 +724,7 @@ mod test_iter {
         assert_eq!(f.next(), Some(4181));
         assert_eq!(f.get_remaining_buffer(), &bits[19..]);
 
-        let bits = bits![u8, FFBitorder; 
+        let bits = bits![u8, MyBitOrder; 
             0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
             1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0]
         .to_bitvec();
@@ -738,7 +740,7 @@ mod test_iter {
     #[test]
     fn test_iter_exact_borders() {
         // just a 3number stream, no trailing
-        let bits = bits![u8, FFBitorder;
+        let bits = bits![u8, MyBitOrder;
             1,0,1,1,0,1,0,1,1,0,1,0,0,1,0,1,  // 4, 7, 86
             0,1,1,1,0,0,1,1,0,1,1,1,0,0,1,1  // 3, 2, 4
         ]
@@ -755,7 +757,7 @@ mod test_iter {
     #[test]
     fn test_iter_remaining_stream() {
         // just a 3number stream, no trailing
-        let bits = bits![u8, FFBitorder; 
+        let bits = bits![u8, MyBitOrder; 
             1,0,1,1,0,1,0,1,1,0,1,0,0,1,0,1,
             0,1,1,1,0,0,1,0]
         .to_bitvec();
@@ -798,7 +800,7 @@ mod test_iter {
     #[test]
     fn test_iter_remaining_stream_nobits_processed() {
         // no terminator anywhere
-        let bits = bits![u8, FFBitorder; 
+        let bits = bits![u8, MyBitOrder; 
         1,0,0,1,0,1,0,0,1,0,1,0,0,1,0,1,
         0,1,0,1,0,0,1,0]
         .to_bitvec();
@@ -819,7 +821,7 @@ mod test_iter {
         use crate::utils::test::random_fibonacci_stream;
         let b = random_fibonacci_stream(100000, 1, 1000);
         // make a copy for fast decoder
-        let mut b_fast: BitVec<u8, FFBitorder> = BitVec::new();
+        let mut b_fast: BitVec<u8, MyBitOrder> = BitVec::new();
         for bit in b.iter().by_vals() {
             b_fast.push(bit);
         }

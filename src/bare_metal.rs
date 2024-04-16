@@ -292,7 +292,14 @@ fn test_correctness(){
 
     for _i in 0..N {
         // println!("number: {_i}");
-        match decode_single_dirty(&encoded_bytes, encoded_bytes.len(), &mut bitpos, &mut bufpos, &mut num, &mut i_fibo) {
+        match decode_single_dirty(
+			&encoded_bytes, 
+			encoded_bytes.len(), 
+			&mut bitpos, 
+			&mut bufpos, 
+			&mut num, 
+			&mut i_fibo
+		) {
 			Ok(()) => {/* */},
 			Err(e) => {
 				println!("{:?}", e);

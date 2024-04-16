@@ -1,7 +1,7 @@
 //!
-use bitvec::{bits, field::BitField, order::Msb0, slice::BitSlice};
+use bitvec::{bits, field::BitField, slice::BitSlice};
 
-use crate::{fibonacci::FibonacciDecoder, nobitvec::{DecodeError, PartialDecode}, utils::{bitstream_to_string_pretty, FIB64}};
+use crate::{fibonacci::FibonacciDecoder, nobitvec::{DecodeError, PartialDecode}, utils::{bitstream_to_string_pretty, FIB64}, MyBitOrder, MyBitSlice};
 
 /// Nicer version of `decode_single_dirty_64` using a struct
 pub struct Dirty64 <'a> {
@@ -106,7 +106,7 @@ fn test_correctness_dirty64(){
 #[test]
 fn test_dirty64overhang2() {
 	// here the last bit is NOT set
-	let bits = bits![u8, Msb0; 
+	let bits = bits![u8, MyBitOrder; 
 		0,0,0,0,0,0,0,0, //1 
 		0,0,0,0,0,0,0,0, //2
 		0,0,0,0,0,0,0,0, //3
@@ -136,7 +136,7 @@ fn test_dirty64overhang2() {
 
 #[test]
 fn test_dirty64overhang() {
-	let bits = bits![u8, Msb0; 
+	let bits = bits![u8, MyBitOrder; 
 		0,0,0,0,0,0,0,0, //1 
 		0,0,0,0,0,0,0,0, //2
 		0,0,0,0,0,0,0,0, //3
@@ -162,7 +162,7 @@ fn test_dirty64overhang() {
 		Err(DecodeError::PartiallyDecoded(PartialDecode {num: 2, i_fibo:2 , last_bit: true}))
 	);
 
-	let bits = bits![u8, Msb0; 
+	let bits = bits![u8, MyBitOrder; 
 		1,0,1,1,0,0,0,0, //1 
 		0,0,0,0,0,0,0,0, //2
 		0,0,0,0,0,0,0,0, //3
@@ -330,7 +330,7 @@ pub fn decode_single_dirty_64(
 
 /// turns a bitstream into chunks of u8
 /// Note: the last byte will be right-padded if the encoding doesnt fill the netire byte
-pub fn bits_to_fibonacci_u64array(b: &BitSlice<u8, Msb0>) -> Vec<u64>{
+pub fn bits_to_fibonacci_u64array(b: &MyBitSlice) -> Vec<u64>{
 
     const WORDSIZE: usize = std::mem::size_of::<u64>() * 8; // inbits
 	let mut x: Vec<u64> = Vec::new();
@@ -356,7 +356,7 @@ pub fn bits_to_fibonacci_u64array(b: &BitSlice<u8, Msb0>) -> Vec<u64>{
 #[test]
 fn test_correctness(){
     use crate::utils::test::random_fibonacci_stream;
-    let N = 1_0;
+    let N = 100000;
     // let N = 1000;
     let data_encoded = random_fibonacci_stream(N, 1, 10000);
 	let encoded_bytes = bits_to_fibonacci_u64array(&data_encoded);
@@ -410,7 +410,7 @@ fn test_correctness(){
 
 #[test]
 fn test_decode_overhang() {
-	let bits = bits![u8, Msb0; 
+	let bits = bits![u8, MyBitOrder; 
 		0,0,0,0,0,0,0,0, //1 
 		0,0,0,0,0,0,0,0, //2
 		0,0,0,0,0,0,0,0, //3
@@ -448,7 +448,7 @@ fn test_decode_overhang() {
 	);
 
 	//finishing the encoding
-	let bits = bits![u8, Msb0; 
+	let bits = bits![u8, MyBitOrder; 
 		1,0,0,0,0,0,0,0, //1 
 		0,0,0,0,0,0,0,0, //2
 		0,0,0,0,0,0,0,0, //3

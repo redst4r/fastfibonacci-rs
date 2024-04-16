@@ -21,7 +21,7 @@ use std::fmt::Debug;
 use crate::utils::FIB64;
 /// note the the entire content of this module is
 /// **independent** of the choice of BitOrder, i.e.
-/// both Lsb0 and Msb0 work the same way!
+/// both Lsb0 and MyBitOrder work the same way!
 use crate::{MyBitSlice, MyBitVector, FbDec};
 
 
@@ -33,8 +33,8 @@ use crate::{MyBitSlice, MyBitVector, FbDec};
 /// # Example
 /// ```rust
 /// use fastfibonacci::{FbDec, fibonacci::FibonacciDecoder};
-/// use bitvec::prelude::{BitVec, Msb0};
-/// let buffer:BitVec<u8, Msb0> = BitVec::from_iter(vec![true, false, true, true, false, true, true, false, true]);
+/// use bitvec::prelude::{BitVec, MyBitOrder};
+/// let buffer:BitVec<u8, MyBitOrder> = BitVec::from_iter(vec![true, false, true, true, false, true, true, false, true]);
 /// let d = FibonacciDecoder::new(buffer.as_bitslice(), false);
 /// let mut results = vec![];
 /// for decoded in d {
@@ -49,7 +49,7 @@ use crate::{MyBitSlice, MyBitVector, FbDec};
 // TODO currently this is not possible, as the iterator gets consumed
 // // Get the remaining bits in the buffer
 // let leftover = d.get_remaining_buffer();
-// let expected_leftover :BitVec<u8, Msb0> = BitVec::from_iter(vec![false, true]);
+// let expected_leftover :BitVec<u8, MyBitOrder> = BitVec::from_iter(vec![false, true]);
 // assert_eq!(leftover, expected_leftover);
 #[derive(Debug)]
 pub struct FibonacciDecoder<'a> {
@@ -87,6 +87,7 @@ impl<'a> FbDec<'a> for FibonacciDecoder<'a> {
 impl<'a> Iterator for FibonacciDecoder<'a> {
     type Item = u64;
 
+    // #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         let mut prev_bit = false;
         let mut accumulator = 0;
@@ -220,7 +221,7 @@ where
 
 #[cfg(test)]
 mod test {
-    use crate::fibonacci::{encode, FibonacciDecoder};
+    use crate::{fibonacci::{encode, FibonacciDecoder}, MyBitOrder};
     use bitvec::prelude::*;
 
     mod test_table {
@@ -308,7 +309,7 @@ mod test {
     fn test_myfib_decoder() {
         // let v: Vec<bool> = vec![0,0,1,1].iter().map(|x|*x==1).collect();
         // let b: MyBitVector  = BitVec::from_iter(v.into_iter());
-        let b = bits![u8, Msb0; 0,0,1,1];
+        let b = bits![u8, MyBitOrder; 0,0,1,1];
 
         // println!("full : {:?}", b);
         let mut my = FibonacciDecoder {
@@ -323,7 +324,7 @@ mod test {
 
     #[test]
     fn test_myfib_decoder_consecutive_ones() {
-        let b = bits![u8, Msb0; 0,0,1,1,1,1];
+        let b = bits![u8, MyBitOrder; 0,0,1,1,1,1];
 
         println!("full : {:?}", b);
         let mut my = FibonacciDecoder {
@@ -339,7 +340,7 @@ mod test {
 
     #[test]
     fn test_myfib_decoder_nothing() {
-        let b = bits![u8, Msb0; 0,0,1,0,1,0,1];
+        let b = bits![u8, MyBitOrder; 0,0,1,0,1,0,1];
 
         let mut my = FibonacciDecoder {
             buffer: b,
@@ -360,7 +361,7 @@ mod test {
     fn test_myfib_decoder_shifted() {
         // let v: Vec<bool> = vec![0,0,1,1].iter().map(|x|*x==1).collect();
         // let b: MyBitVector  = BitVec::from_iter(v.into_iter());
-        let b = bits![u8, Msb0; 0,0,1,1,1,1];
+        let b = bits![u8, MyBitOrder; 0,0,1,1,1,1];
 
         // println!("full : {:?}", b);
         let mut my = FibonacciDecoder {
