@@ -19,9 +19,9 @@ itertools="0.12"
 num = "0.4"
 once_cell = "1.18.0"
 funty = "2"
+rand = "0.8"
 
 [dev-dependencies]
-rand = "0.8"
 fibonacci_codec="0.2" # TODO: remove this old depenency
 bit-vec="0.6"  # TODO: remove this old depenency
 criterion = "0.5"

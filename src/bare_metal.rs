@@ -39,9 +39,6 @@ fn test_read_bit() {
 pub fn decode_single_dirty(buf: &[u8], buf_size: usize, bitpos: &mut usize, bufpos: &mut usize, num: &mut u64, i_fibo: &mut usize) -> Result<(), DecodeError> {
 
 	const WORDSIZE:usize = std::mem::size_of::<u8>() * 8; //sizeof(T) * 8;
-	let buf_offset = *bufpos;
-	let bit_offset = WORDSIZE - *bitpos % WORDSIZE -1;
-
 	let mut bit = read_bit(buf[*bufpos], *bitpos) as u64;
 	let mut last_bit = 0;
 
@@ -338,6 +335,15 @@ pub struct Dirty8 <'a> {
 	// i_fibo: usize,
 }
 impl <'a> Dirty8 <'a> {
+	///
+	pub fn new(buf: &'a [u8]) -> Self {
+		Self {
+			buf,
+			buf_size: buf.len(),
+			bitpos: 0,
+			bufpos: 0
+		}
+	}
 
 	/// decode a new number from the stream
 	pub fn decode(&mut self) -> Result<u64, DecodeError> {

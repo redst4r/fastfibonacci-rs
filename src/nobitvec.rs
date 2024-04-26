@@ -1,12 +1,9 @@
 //! 
 //! 
-use std::io::{self, BufRead, BufReader};
-use std::io::{Error, Read};
-use bitvec::slice::BitSlice;
-use bitvec::vec::BitVec;
-use bitvec::{bits, bitvec, field::BitField, order::{Lsb0, Msb0}};
+use std::io::Read;
+use bitvec::field::BitField;
 use crate::MyBitSlice;
-use crate::{fibonacci::encode, utils::FIB64};
+use crate::fibonacci::encode;
 
 
 fn read_bit(x: u8, pos: usize, wordsize: usize) -> bool {
@@ -73,7 +70,7 @@ fn load_into_u64buffer(stream: &mut impl Read, buffer: &mut[u64]) -> Result<usiz
 			Err(_) => todo!(),
 		}
 	};
-	return Ok(bsize);
+	Ok(bsize)
 }
 
 
@@ -133,11 +130,11 @@ pub fn bits_to_fibonacci_bytes(b: &MyBitSlice) -> Vec<u8>{
 
 		x.push(enc)
 	}
-	return x
+	x
 }
 ///
 pub fn int_to_fibonacci_bytes(the_ints: &[u64])  -> Vec<u8>{
-	let b = encode(&the_ints);
+	let b = encode(the_ints);
 	dbg!(&b);
 	bits_to_fibonacci_bytes(b.as_bitslice())
 }

@@ -221,8 +221,7 @@ where
 
 #[cfg(test)]
 mod test {
-    use crate::{fibonacci::{encode, FibonacciDecoder}, utils::create_bitvector, MyBitOrder};
-    use bitvec::prelude::*;
+    use crate::{fibonacci::{encode, FibonacciDecoder}, utils::create_bitvector};
 
     mod test_table {
         use crate::fibonacci::{bits_from_table_internal, encode, MyBitVector, FIB64};

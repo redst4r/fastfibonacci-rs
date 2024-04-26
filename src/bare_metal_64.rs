@@ -30,7 +30,7 @@ impl <'a> Dirty64 <'a> {
 		let mut bit = read_bit(self.buf[self.bufpos], self.bitpos) as u64;
 		// let mut last_bit = 0;
 
-		self.bitpos = (self.bitpos + 1) % WORDSIZE;
+		self.bitpos = (self.bitpos + 1) % WORDSIZE; // this is inly fast if WORDSIZE  is a power of 2, = 2^n ; however this IS the case
 		if self.bitpos == 0 {
 			self.bufpos += 1;
 		}
@@ -258,7 +258,7 @@ fn test_dirty64overhang() {
 /// However, this reads the bits from the left side
 /// i.e. pos=0 will read out the Most significant bit!
 #[inline]
-fn read_bit(x: u64, pos: usize) -> bool {
+pub (crate) fn read_bit(x: u64, pos: usize) -> bool {
 	// assert!(pos < 64);
 	const WORDSIZE:usize = std::mem::size_of::<u64>() * 8;
 	let shift_op = WORDSIZE - 1 - pos;
@@ -350,7 +350,7 @@ pub fn bits_to_fibonacci_u64array(b: &MyBitSlice) -> Vec<u64>{
 
 		x.push(enc)
 	}
-	return x
+	x
 }
 
 #[test]

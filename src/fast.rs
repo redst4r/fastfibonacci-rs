@@ -221,7 +221,6 @@ pub fn fast_decode<T:Integral>(stream: &MyBitSlice, shifted_by_one: bool, table:
         // add completely decoded numbers, deal with partially decoded numbers        
         decoding_state.update(result);
         // println!("Updated state: {:?}", decoding_state);
-
     }
 
     if shifted_by_one{
@@ -684,7 +683,7 @@ mod test_iter {
     use crate::{utils::create_bitvector, MyBitVector};
 
     use super::*;
-    use bitvec::{bits, vec::BitVec};
+    use bitvec::vec::BitVec;
     use pretty_assertions::assert_eq;
 
     #[test]
