@@ -148,7 +148,7 @@ pub (crate)fn bitstream_to_string<T: BitStore, O: BitOrder>(buffer: &BitSlice<T,
 // }
 
 /// just for debugging purpose
-pub (crate)fn bitstream_to_string_pretty<T: BitStore, O: BitOrder>(buffer: &BitSlice<T, O>, chunksize: usize) -> String {
+pub fn bitstream_to_string_pretty<T: BitStore, O: BitOrder>(buffer: &BitSlice<T, O>, chunksize: usize) -> String {
 
     // assert_eq!(buffer.len() % chunksize, 0);
     let mut the_strings = vec![];

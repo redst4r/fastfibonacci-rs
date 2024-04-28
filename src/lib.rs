@@ -97,7 +97,10 @@ pub mod fast;
 pub mod nobitvec;
 pub mod bare_metal;
 pub mod bare_metal_64;
+pub mod bare_metal_64single;
+pub mod u64Fibdecoder;
 pub (crate) mod u64reader;
+pub (crate) mod chunker;
 
 use bitvec::prelude as bv;
 
