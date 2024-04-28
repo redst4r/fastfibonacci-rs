@@ -2,13 +2,13 @@
 use bitvec::order::Msb0;
 use bitvec::slice::BitSlice;
 use bitvec::vec::BitVec;
-use bitvec::view::BitView;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use fastfibonacci::bare_metal::decode_single_dirty;
+// use fastfibonacci::bare_metal::decode_single_dirty;
 use fastfibonacci::bare_metal_64::{bits_to_fibonacci_u64array, read_bit_u64, Dirty64};
 use fastfibonacci::fast::{LookupVec, fast_decode, get_u8_decoder, get_u16_decoder};
 use fastfibonacci::fibonacci::{encode, FibonacciDecoder};
-use fastfibonacci::nobitvec::{bits_to_fibonacci_bytes};
+use fastfibonacci::u64Fibdecoder::U64Decoder;
+use fastfibonacci::utils::bits_to_fibonacci_bytes;
 use fastfibonacci::utils::random_fibonacci_stream;
 use fastfibonacci::{MyBitSlice, MyBitVector};
 // use fastfibonacci::random_fibonacci_stream;
@@ -140,43 +140,27 @@ fn fibonacci_decode(c: &mut Criterion) {
     });
 }
 
+pub (crate) fn swap_endian(bytes: &[u8], wordsize: usize) -> Vec<u8>{
+    let mut swapped_endian: Vec<u8> = Vec::with_capacity(bytes.len());
+    for bytes in bytes.chunks(wordsize){
+        swapped_endian.extend(bytes.iter().rev());
+    }
+    swapped_endian
+}
+
+
 fn fibonacci_mybitwise(c: &mut Criterion) {
 
     let data_encoded = random_fibonacci_stream(100_000, 1, 10000);
-    let x = bits_to_fibonacci_bytes(&data_encoded);
-
-    fn _dummy(data: &[u8]) -> Vec<u64> {
-
-        let mut decoded = Vec::with_capacity(100_000);
-
-        let mut bitpos = 0;
-        let mut bufpos = 0;
-        let mut num = 0;
-        let mut i_fibo = 0;
-
-        for _i in 0..100_000 {
-            match decode_single_dirty(&data, data.len(), &mut bitpos, &mut bufpos, &mut num, &mut i_fibo) {
-                Ok(()) => {/* */},
-                Err(e) => {
-                    // println!("{:?}", e);
-                    // println!("{_i}");
-                    assert_eq!(1,0);
-                }
-            }
-            // decode_single_dirty(data, data.len(), &mut bitpos, &mut bufpos, &mut num, &mut i_fibo).unwrap();
-            decoded.push(num);
-
-            // reset
-            num = 0;
-            i_fibo = 0;
-        }
-
-        decoded
+    let mut x = bits_to_fibonacci_bytes(&data_encoded);
+    // this needs to have a multiiple of 8 bytes
+    println!("{}", x.len());
+    let bytse_to_add = 8 - (x.len() % 8);
+    for _i in 0..bytse_to_add {
+        x.push(0)
     }
-    c.bench_function(&format!("Decoding: bare metal"), |b| {
-        b.iter(|| _dummy(black_box(&x)))
-    });
-
+    assert_eq!(x.len() % 8, 0);
+    x = swap_endian(&x, 8);
 
     let encoded_bytes64 = bits_to_fibonacci_u64array(&data_encoded);
 
@@ -213,30 +197,37 @@ fn fibonacci_mybitwise(c: &mut Criterion) {
     //     b.iter(|| _dummy64(black_box(&encoded_bytes64)))
     // });
 
-    fn _dummyDirty64(data: &[u64]) -> Vec<u64> {
+    fn _dummy_dirty64(data: &[u64]) -> Vec<u64> {
 
         let mut decoded = Vec::with_capacity(100_000);
-        let mut D = Dirty64 {buf: &data, buf_size: data.len(), bitpos: 0, bufpos: 0};
+        let mut dd = Dirty64 {buf: &data, buf_size: data.len(), bitpos: 0, bufpos: 0};
 
         for _i in 0..100_000 {
-            match D.decode() {
-                Ok(n) => {
-                    decoded.push(n);
-                },
-                Err(_e) => {
-                    // println!("{:?}", e);
-                    // println!("{_i}");
-                    assert_eq!(1,0);
-                }
+            match dd.decode() {
+                Ok(n) => { decoded.push(n); },
+                Err(_e) => { assert_eq!(1,0); }
             }
-            // decode_single_dirty_64(data, data.len(), &mut bitpos, &mut bufpos, &mut num, &mut i_fibo).unwrap();
         }
-
         decoded
     }
     c.bench_function(&format!("Decoding: bare metal 64 struct"), |b| {
-        b.iter(|| _dummyDirty64(black_box(&encoded_bytes64)))
+        b.iter(|| _dummy_dirty64(black_box(&encoded_bytes64)))
     });
+
+
+    fn dummy_u64_iter(data: &[u8]) -> Vec<u64>{
+        let dd = U64Decoder::new(data);
+        let mut decoded: Vec<_> = Vec::with_capacity(100_000);
+
+        for el in dd.take(100_000) {
+            decoded.push(el)
+        }
+        decoded
+    }
+    c.bench_function(&format!("Decoding: U64 ITer"), |b| {
+        b.iter(|| dummy_u64_iter(black_box(&x)))
+    });
+
 
     fn dummy(bv: &MyBitSlice) -> Vec<u64> {
         let dec = FibonacciDecoder::new(bv, false);
@@ -323,6 +314,6 @@ fn bitstore(c: &mut Criterion) {
 
 // criterion_group!(benches, fibonacci_encode, fibonacci_decode);
 // criterion_group!(benches, fibonacci_decode);
-// criterion_group!(benches, fibonacci_mybitwise);
-criterion_group!(benches, bitstore);
+criterion_group!(benches, fibonacci_mybitwise);
+// criterion_group!(benches, bitstore);
 criterion_main!(benches);

@@ -1,9 +1,9 @@
 //! Utility functions
-use bitvec::{store::BitStore, order::BitOrder, slice::BitSlice};
+use bitvec::{field::BitField, order::BitOrder, slice::BitSlice, store::BitStore};
 use itertools::Itertools;
 use rand::{distributions::{Distribution, Uniform}, thread_rng};
 
-use crate::{fibonacci::encode, MyBitVector};
+use crate::{fibonacci::encode, MyBitSlice, MyBitVector};
 
 /// Iterative fibonacci. just to get the first N fibonacci numbers
 ///
@@ -182,4 +182,29 @@ pub fn create_bitvector(bits: Vec<usize>) -> MyBitVector {
         bitvector.push(b == 1);
     }
     bitvector
+}
+
+
+/// turns a bitstream into chunks of u8
+/// Note: the last byte will be right-padded if the encoding doesnt fill the netire byte
+pub fn bits_to_fibonacci_bytes(b: &MyBitSlice) -> Vec<u8>{
+
+	let mut x = Vec::new();
+	for segment in b.chunks(8){
+		// warning: the last chunk might be shortert than 8
+		// and load_be would pad it with zeros ON THE LEFT!!
+		// but we need RIGHT PADDING
+		let enc = if segment.len() <8 {
+			let mut topad = segment.to_owned();
+			for _i in 0..8-segment.len(){
+				topad.push(false);
+			}
+			topad.load_be()
+		} else {
+			segment.load_be()
+		};
+
+		x.push(enc)
+	}
+	x
 }

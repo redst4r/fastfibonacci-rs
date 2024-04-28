@@ -1,8 +1,41 @@
 //!
 //! 
 //! 
-use std::io::{Error, ErrorKind, Read};
-use crate::{bare_metal_64::read_bit_u64, bare_metal_64single::Dirty64Single, chunker::Chunks, nobitvec::{bits_to_fibonacci_bytes, DecodeError, PartialDecode}, utils::{bitstream_to_string_pretty, create_bitvector, FIB64}, MyBitOrder, MyBitSlice};
+use std::io::Read;
+use crate::{bare_metal_64single::Dirty64Single, chunker::Chunks};
+
+#[derive(Debug, Eq, PartialEq, Clone)]
+/// 
+pub struct PartialDecode{
+	///
+	pub (crate) num: u64,
+	///
+	pub (crate) i_fibo: usize,
+	/// 
+	pub (crate) last_bit: bool,
+}
+
+impl PartialDecode {
+	///
+	pub fn new(num: u64, i_fibo: usize, last_bit: bool) -> Self {
+		Self {num, i_fibo, last_bit}
+	}
+}
+impl Default for PartialDecode {
+	fn default() -> Self {
+		Self { num: 0, i_fibo: 0, last_bit: false }
+	}
+}
+
+///
+#[derive(Debug, Eq, PartialEq)]
+pub enum DecodeError {
+	/// the stream terminated, but not in `11` (the fibonacci terminator)
+	PartiallyDecoded(PartialDecode),
+	
+	//
+	// NoMoreU64(PartialDecode)
+}
 
 
 fn load_u64_from_bytes(bytes: &[u8]) -> u64 {
@@ -30,7 +63,12 @@ impl <R:Read> U64Decoder<R> {
 		let bytes = it.next().unwrap().unwrap();
 		let el = load_u64_from_bytes(&bytes);
 		let u64dec = Dirty64Single::new(el);
-		U64Decoder {u64stream: it, decoder: u64dec, dec_status: PartialDecode {num: 0, i_fibo:0, last_bit: false}, n_u64s_consumed: 1}
+		U64Decoder {
+			u64stream: it, 
+			decoder: u64dec, 
+			dec_status: Default::default(), 
+			n_u64s_consumed: 1
+		}
 	}
 
 	/// get the original byte-stream.
@@ -54,30 +92,12 @@ impl <R:Read> U64Decoder<R> {
 	/// is all zero-bits
 	pub fn is_clean(&self) -> bool {
 		// cant be in the middle of a decoding
-		let empty_dec = PartialDecode {num: 0, i_fibo:0, last_bit: false};
+		let empty_dec = Default::default();
 		if self.dec_status !=  empty_dec {
-			return false
+			false
 		} else {
-			// // we've looked at all the bits in u64 and no partial decoding
-			// if self.decoder.bitpos == 64 {
-			// 	return true
-			// } else {
-			// 	// if there's more bits, make sure they're all zero
-			// 	let mut all_zero = true;
-			// 	for p in self.decoder.bitpos..64 {
-			// 		if read_bit_u64(self.decoder.buf, p) {
-			// 			all_zero = false;
-			// 		}
-			// 	}
-			// 	if all_zero {
-			// 		true
-			// 	}
-			// 	else {
-			// 		return false
-			// 	}
-			// }
 			if self.decoder.all_trailing_zeros() {
-				return true
+				true
 			} else {
 				false
 			}
@@ -95,7 +115,6 @@ impl <R:Read> U64Decoder<R> {
 	fn pull_in_next_u64(&mut self, partial: PartialDecode) -> Result<(), String> {
 
 		assert!(self.decoder.is_finished());
-
 
 		match self.u64stream.next() {
 			// managed to pull in another u64
@@ -136,13 +155,12 @@ impl<R:Read> Iterator for U64Decoder<R> {
 		// 1. we sucessfulled decoded a number (someweher inside the current u64)
 		// 2a. we came to the end of the u64 without decoding, but we can load more u64s
 		// 2b. we came to the end of the u64, but we're also at the end of the u64 stream
-
 		loop {
-
 			// in case the decoder is finished (the last number decoded exaclty flush withthe u64 border)
 			// try to pull in a new number
 			if self.decoder.is_finished() {
-				match self.pull_in_next_u64(PartialDecode {num: 0, i_fibo:0, last_bit: false}) {
+				let fresh_partial = Default::default();
+				match self.pull_in_next_u64(fresh_partial) {
 					Ok(()) => { /* nothing, just continue the loop */},
 					Err(s) => {
 						if s == "End of Decoding".to_string() {
@@ -154,11 +172,11 @@ impl<R:Read> Iterator for U64Decoder<R> {
 
 			// println!("{:?}", self.dec_status);
 			// try decoiding
-			match self.decoder.decode_from_partial(self.dec_status.num, self.dec_status.i_fibo, self.dec_status.last_bit as u64) {
+			match self.decoder.decode_from_partial(self.dec_status.clone()) {
 				Ok(n) => {
 					// println!("Success {n}");
 					// sucessfully decoded a number, initialize clean for the next round
-					self.dec_status = PartialDecode {num: 0, i_fibo:0, last_bit: false};
+					self.dec_status = Default::default();
 					return Some(n)
 				},
 				// ran into the end of the current u64
@@ -179,297 +197,301 @@ impl<R:Read> Iterator for U64Decoder<R> {
 }
 
 
-pub (crate) fn swap_endian(bytes: &[u8], wordsize: usize) -> Vec<u8>{
-    let mut swapped_endian: Vec<u8> = Vec::with_capacity(bytes.len());
-    for bytes in bytes.chunks(wordsize){
-        swapped_endian.extend(bytes.iter().rev());
-    }
-    swapped_endian
-}
+#[cfg(test)]
+mod testing {
+    use crate::{utils::bits_to_fibonacci_bytes, u64Fibdecoder::U64Decoder, utils::create_bitvector};
+	
+	pub (crate) fn swap_endian(bytes: &[u8], wordsize: usize) -> Vec<u8>{
+		let mut swapped_endian: Vec<u8> = Vec::with_capacity(bytes.len());
+		for bytes in bytes.chunks(wordsize){
+			swapped_endian.extend(bytes.iter().rev());
+		}
+		swapped_endian
+	}
+
+	#[test]
+	fn test_get_inner(){
+		let bits = create_bitvector(vec![ 
+			0,0,0,0,0,0,0,0, //1 
+			0,0,0,0,0,0,0,0, //2
+			0,0,0,0,0,0,0,0, //3
+			0,0,0,0,0,0,0,0, //4
+			0,0,0,0,0,0,0,0, //5
+			0,0,0,0,0,0,0,0, //6
+			0,0,0,0,0,0,0,0, //7
+			0,0,0,0,1,1,0,0, //8  the u64 ends here!
+			1,1,0,0,0,0,0,0, //1 
+			0,0,0,0,0,0,0,0, //2
+			0,0,0,0,0,0,0,0, //3
+			0,0,0,0,0,0,0,0, //4
+			0,0,0,0,0,0,0,0, //5
+			0,0,0,0,0,0,0,0, //6
+			0,0,0,0,0,0,0,0, //7
+			0,0,0,0,0,0,0,0, //8  the u64 ends here!
+			]).to_bitvec();
+		let mut encoded = bits_to_fibonacci_bytes(&bits);
+		encoded=swap_endian(&encoded, 8);
+
+		let mut dd = U64Decoder::new(encoded.as_slice());
+		assert_eq!(
+			dd.next(),
+			Some(4052739537881)
+		);
+		let x = dd.get_inner().unwrap();
+		assert_eq!(x, vec![0,0,0,0,0,0,0,192])
+	}
+	#[test]
+	fn tset_get_inner_flush_with_border(){
+		let bits = create_bitvector(vec![ 
+			0,0,0,0,0,0,0,0, //1 
+			0,0,0,0,0,0,0,0, //2
+			0,0,0,0,0,0,0,0, //3
+			0,0,0,0,0,0,0,0, //4
+			0,0,0,0,0,0,0,0, //5
+			0,0,0,0,0,0,0,0, //6
+			0,0,0,0,0,0,0,0, //7
+			0,0,0,0,1,1,1,1, //8  the u64 ends here!
+			1,1,0,0,0,0,0,0, //1 
+			0,0,0,0,0,0,0,0, //2
+			0,0,0,0,0,0,0,0, //3
+			0,0,0,0,0,0,0,0, //4
+			0,0,0,0,0,0,0,0, //5
+			0,0,0,0,0,0,0,0, //6
+			0,0,0,0,0,0,0,0, //7
+			0,0,0,0,0,0,0,0, //8  the u64 ends here!
+			]).to_bitvec();
+		let mut encoded = bits_to_fibonacci_bytes(&bits);
+		encoded=swap_endian(&encoded, 8);
+
+		let mut dd = U64Decoder::new(encoded.as_slice());
+		assert_eq!(
+			dd.next(),
+			Some(4052739537881)
+		);
+		assert_eq!(
+			dd.next(),
+			Some(1)
+		);
+		// essentialyl the next u64
+		let x = dd.get_inner().unwrap();
+		assert_eq!(x, vec![0,0,0,0,0,0,0,192])
+	}
+
+	#[test]
+	fn tset_get_inner_flush_with_border2(){
+		let bits = create_bitvector(vec![ 
+			0,0,0,0,0,0,0,0, //1 
+			0,0,0,0,0,0,0,0, //2
+			0,0,0,0,0,0,0,0, //3
+			0,0,0,0,0,0,0,0, //4
+			0,0,0,0,0,0,0,0, //5
+			0,0,0,0,0,0,0,0, //6
+			0,0,0,0,0,0,0,0, //7
+			0,0,0,0,0,0,1,1, //8  the u64 ends here!
+
+			0,0,1,1,0,0,0,0, //1 
+			0,0,0,0,0,0,0,0, //2
+			0,0,0,0,0,0,0,0, //3
+			0,0,0,0,0,0,0,0, //4
+			0,0,0,0,0,0,0,0, //5
+			0,0,0,0,0,0,0,0, //6
+			0,0,0,0,0,0,0,0, //7
+			0,0,0,0,0,0,0,0, //8  the u64 ends here!
+			]).to_bitvec();
+		let mut encoded = bits_to_fibonacci_bytes(&bits);
+		encoded=swap_endian(&encoded, 8);
+
+		let mut dd = U64Decoder::new(encoded.as_slice());
+		assert_eq!(
+			dd.next(),
+			Some(10610209857723)
+		);
+		assert_eq!(
+			dd.next(),
+			Some(3)
+		);
+		assert_eq!(
+			dd.next(),
+			None
+		)
+	}
 
 
-#[test]
-fn test_get_inner(){
-	let bits = create_bitvector(vec![ 
-		0,0,0,0,0,0,0,0, //1 
-		0,0,0,0,0,0,0,0, //2
-		0,0,0,0,0,0,0,0, //3
-		0,0,0,0,0,0,0,0, //4
-		0,0,0,0,0,0,0,0, //5
-		0,0,0,0,0,0,0,0, //6
-		0,0,0,0,0,0,0,0, //7
-		0,0,0,0,1,1,0,0, //8  the u64 ends here!
-		1,1,0,0,0,0,0,0, //1 
-		0,0,0,0,0,0,0,0, //2
-		0,0,0,0,0,0,0,0, //3
-		0,0,0,0,0,0,0,0, //4
-		0,0,0,0,0,0,0,0, //5
-		0,0,0,0,0,0,0,0, //6
-		0,0,0,0,0,0,0,0, //7
-		0,0,0,0,0,0,0,0, //8  the u64 ends here!
-		]).to_bitvec();
-	let mut encoded = bits_to_fibonacci_bytes(&bits);
-	encoded=swap_endian(&encoded, 8);
 
-	let mut dd = U64Decoder::new(encoded.as_slice());
-	assert_eq!(
-		dd.next(),
-		Some(4052739537881)
-	);
-	let x = dd.get_inner().unwrap();
-	assert_eq!(x, vec![0,0,0,0,0,0,0,192])
-}
-#[test]
-fn tset_get_inner_flush_with_border(){
-	let bits = create_bitvector(vec![ 
-		0,0,0,0,0,0,0,0, //1 
-		0,0,0,0,0,0,0,0, //2
-		0,0,0,0,0,0,0,0, //3
-		0,0,0,0,0,0,0,0, //4
-		0,0,0,0,0,0,0,0, //5
-		0,0,0,0,0,0,0,0, //6
-		0,0,0,0,0,0,0,0, //7
-		0,0,0,0,1,1,1,1, //8  the u64 ends here!
-		1,1,0,0,0,0,0,0, //1 
-		0,0,0,0,0,0,0,0, //2
-		0,0,0,0,0,0,0,0, //3
-		0,0,0,0,0,0,0,0, //4
-		0,0,0,0,0,0,0,0, //5
-		0,0,0,0,0,0,0,0, //6
-		0,0,0,0,0,0,0,0, //7
-		0,0,0,0,0,0,0,0, //8  the u64 ends here!
-		]).to_bitvec();
-	let mut encoded = bits_to_fibonacci_bytes(&bits);
-	encoded=swap_endian(&encoded, 8);
+	#[test]
+	#[should_panic(expected = "unprocessed bits left")]
+	fn tset_get_inner_fail(){
+		let bits = create_bitvector(vec![ 
+			0,0,0,0,0,0,0,0, //1 
+			0,0,0,0,0,0,0,0, //2
+			0,0,0,0,0,0,0,0, //3
+			0,0,0,0,0,0,0,0, //4
+			0,0,0,0,0,0,0,0, //5
+			0,0,0,0,0,0,0,0, //6
+			0,0,0,0,0,0,0,0, //7
+			0,0,0,0,1,1,0,1, //8  the u64 ends here!
+			1,1,0,0,0,0,0,0, //1 
+			0,0,0,0,0,0,0,0, //2
+			0,0,0,0,0,0,0,0, //3
+			0,0,0,0,0,0,0,0, //4
+			0,0,0,0,0,0,0,0, //5
+			0,0,0,0,0,0,0,0, //6
+			0,0,0,0,0,0,0,0, //7
+			0,0,0,0,0,0,0,0, //8  the u64 ends here!
+			]).to_bitvec();
+		let mut encoded = bits_to_fibonacci_bytes(&bits);
+		encoded=swap_endian(&encoded, 8);
 
-	let mut dd = U64Decoder::new(encoded.as_slice());
-	assert_eq!(
-		dd.next(),
-		Some(4052739537881)
-	);
-	assert_eq!(
-		dd.next(),
-		Some(1)
-	);
-	// essentialyl the next u64
-	let x = dd.get_inner().unwrap();
-	assert_eq!(x, vec![0,0,0,0,0,0,0,192])
-}
-
-#[test]
-fn tset_get_inner_flush_with_border2(){
-	let bits = create_bitvector(vec![ 
-		0,0,0,0,0,0,0,0, //1 
-		0,0,0,0,0,0,0,0, //2
-		0,0,0,0,0,0,0,0, //3
-		0,0,0,0,0,0,0,0, //4
-		0,0,0,0,0,0,0,0, //5
-		0,0,0,0,0,0,0,0, //6
-		0,0,0,0,0,0,0,0, //7
-		0,0,0,0,0,0,1,1, //8  the u64 ends here!
-
-		0,0,1,1,0,0,0,0, //1 
-		0,0,0,0,0,0,0,0, //2
-		0,0,0,0,0,0,0,0, //3
-		0,0,0,0,0,0,0,0, //4
-		0,0,0,0,0,0,0,0, //5
-		0,0,0,0,0,0,0,0, //6
-		0,0,0,0,0,0,0,0, //7
-		0,0,0,0,0,0,0,0, //8  the u64 ends here!
-		]).to_bitvec();
-	let mut encoded = bits_to_fibonacci_bytes(&bits);
-	encoded=swap_endian(&encoded, 8);
-
-	let mut dd = U64Decoder::new(encoded.as_slice());
-	assert_eq!(
-		dd.next(),
-		Some(10610209857723)
-	);
-	assert_eq!(
-		dd.next(),
-		Some(3)
-	);
-	assert_eq!(
-		dd.next(),
-		None
-	)
-}
+		let mut dd = U64Decoder::new(encoded.as_slice());
+		assert_eq!(
+			dd.next(),
+			Some(4052739537881)
+		);
+		let x = dd.get_inner().unwrap();
+		assert_eq!(x, vec![0,0,0,0,0,0,0, 192])
+	}
 
 
+	#[test]
+	fn test_dirty64_iter_decode_zero_pad() {
+		// here the last bit is NOT set
+		let bits = create_bitvector(vec![ 
+			0,0,0,0,0,0,0,0, //1 
+			0,0,0,0,0,0,0,0, //2
+			0,0,0,0,0,0,0,0, //3
+			0,0,0,0,0,0,0,0, //4
+			0,0,0,0,0,0,0,0, //5
+			0,0,0,0,0,0,0,0, //6
+			0,0,0,0,0,0,0,0, //7
+			0,0,0,0,1,1,0,0, //8  the u64 ends here!
+			// this would be fine; the buffer is just zero padded!
+			]).to_bitvec();
+		let mut encoded = bits_to_fibonacci_bytes(&bits);
+		encoded=swap_endian(&encoded, 8);
 
-#[test]
-#[should_panic(expected = "unprocessed bits left")]
-fn tset_get_inner_fail(){
-	let bits = create_bitvector(vec![ 
-		0,0,0,0,0,0,0,0, //1 
-		0,0,0,0,0,0,0,0, //2
-		0,0,0,0,0,0,0,0, //3
-		0,0,0,0,0,0,0,0, //4
-		0,0,0,0,0,0,0,0, //5
-		0,0,0,0,0,0,0,0, //6
-		0,0,0,0,0,0,0,0, //7
-		0,0,0,0,1,1,0,1, //8  the u64 ends here!
-		1,1,0,0,0,0,0,0, //1 
-		0,0,0,0,0,0,0,0, //2
-		0,0,0,0,0,0,0,0, //3
-		0,0,0,0,0,0,0,0, //4
-		0,0,0,0,0,0,0,0, //5
-		0,0,0,0,0,0,0,0, //6
-		0,0,0,0,0,0,0,0, //7
-		0,0,0,0,0,0,0,0, //8  the u64 ends here!
-		]).to_bitvec();
-	let mut encoded = bits_to_fibonacci_bytes(&bits);
-	encoded=swap_endian(&encoded, 8);
+		let mut dd = U64Decoder::new(encoded.as_slice());
+		assert_eq!(
+			dd.next(),
+			Some(4052739537881)
+		);
 
-	let mut dd = U64Decoder::new(encoded.as_slice());
-	assert_eq!(
-		dd.next(),
-		Some(4052739537881)
-	);
-	let x = dd.get_inner().unwrap();
-	assert_eq!(x, vec![0,0,0,0,0,0,0, 192])
-}
+		assert_eq!(
+			dd.next(),
+			None
+		);
+	}
 
+	#[test]
+	#[should_panic(expected = "ran out of u64s to decode, but still have incomplete decoding PartialDecode { num: 1, i_fibo: 2, last_bit: false }")]
+	fn test_dirty64_iter_leftover_bits() {
 
-#[test]
-fn test_dirty64_iter_decode_zero_pad() {
-	// here the last bit is NOT set
-	let bits = create_bitvector(vec![ 
-		0,0,0,0,0,0,0,0, //1 
-		0,0,0,0,0,0,0,0, //2
-		0,0,0,0,0,0,0,0, //3
-		0,0,0,0,0,0,0,0, //4
-		0,0,0,0,0,0,0,0, //5
-		0,0,0,0,0,0,0,0, //6
-		0,0,0,0,0,0,0,0, //7
-		0,0,0,0,1,1,0,0, //8  the u64 ends here!
-		// this would be fine; the buffer is just zero padded!
-		]).to_bitvec();
-	let mut encoded = bits_to_fibonacci_bytes(&bits);
-	encoded=swap_endian(&encoded, 8);
+		// on the other hand, if there's trailing stuff
+		// here the last bit is NOT set
+		let bits = create_bitvector(vec![ 
+			0,0,0,0,0,0,0,0, //1 
+			0,0,0,0,0,0,0,0, //2
+			0,0,0,0,0,0,0,0, //3
+			0,0,0,0,0,0,0,0, //4
+			0,0,0,0,0,0,0,0, //5
+			0,0,0,0,0,0,0,0, //6
+			0,0,0,0,0,0,0,0, //7
+			0,0,0,0,1,1,1,0, //8  the u64 ends here!
+			// NOTE THE remaining bit in there
+			]).to_bitvec();
+		let mut encoded = bits_to_fibonacci_bytes(&bits);
+		encoded=swap_endian(&encoded, 8);
 
-	let mut dd = U64Decoder::new(encoded.as_slice());
-	assert_eq!(
-		dd.next(),
-		Some(4052739537881)
-	);
+		let mut dd = U64Decoder::new(encoded.as_slice());
+		assert_eq!(
+			dd.next(),
+			Some(4052739537881)
+		);
+		assert_eq!(
+			dd.next(),
+			None
+		);
+	}
 
-	assert_eq!(
-		dd.next(),
-		None
-	);
-}
+	#[test]
+	fn test_dirty64_iter_2u64s() {
 
-#[test]
-#[should_panic(expected = "ran out of u64s to decode, but still have incomplete decoding PartialDecode { num: 1, i_fibo: 2, last_bit: false }")]
-fn test_dirty64_iter_leftover_bits() {
+		// on the other hand, if there's trailing stuff
+		// here the last bit is NOT set
+		let bits = create_bitvector(vec![ 
+			0,0,0,0,0,0,0,0, //1 
+			0,0,0,0,0,0,0,0, //2
+			0,0,0,0,0,0,0,0, //3
+			0,0,0,0,0,0,0,0, //4
+			0,0,0,0,0,0,0,0, //5
+			0,0,0,0,0,0,0,0, //6
+			0,0,0,0,0,0,0,0, //7
+			0,0,0,0,1,1,0,0, //8  the u64 ends here!
+			1,1,0,0,0,0,0,0, //1 
+			0,0,0,0,0,0,0,0, //2
+			0,0,0,0,0,0,0,0, //3
+			0,0,0,0,0,0,0,0, //4
+			0,0,0,0,0,0,0,0, //5
+			0,0,0,0,0,0,0,0, //6
+			0,0,0,0,0,0,0,0, //7
+			0,0,0,0,0,0,0,0, //8  the u64 ends here!
+			]).to_bitvec();
+		let mut encoded = bits_to_fibonacci_bytes(&bits);
+		encoded=swap_endian(&encoded, 8);
 
-	// on the other hand, if there's trailing stuff
-	// here the last bit is NOT set
-	let bits = create_bitvector(vec![ 
-		0,0,0,0,0,0,0,0, //1 
-		0,0,0,0,0,0,0,0, //2
-		0,0,0,0,0,0,0,0, //3
-		0,0,0,0,0,0,0,0, //4
-		0,0,0,0,0,0,0,0, //5
-		0,0,0,0,0,0,0,0, //6
-		0,0,0,0,0,0,0,0, //7
-		0,0,0,0,1,1,1,0, //8  the u64 ends here!
-		// NOTE THE remaining bit in there
-		]).to_bitvec();
-	let mut encoded = bits_to_fibonacci_bytes(&bits);
-	encoded=swap_endian(&encoded, 8);
+		let mut dd = U64Decoder::new(encoded.as_slice());
+		assert_eq!(
+			dd.next(),
+			Some(4052739537881)
+		);
+		assert_eq!(
+			dd.next(),
+			Some(3)
+		);
+		assert_eq!(
+			dd.next(),
+			None
+		);
+	}
 
-	let mut dd = U64Decoder::new(encoded.as_slice());
-	assert_eq!(
-		dd.next(),
-		Some(4052739537881)
-	);
-	assert_eq!(
-		dd.next(),
-		None
-	);
-}
+	#[test]
+	fn test_dirty64_iter_2u64s_2() {
 
-#[test]
-fn test_dirty64_iter_2u64s() {
+		// on the other hand, if there's trailing stuff
+		// here the last bit is NOT set
+		let bits = create_bitvector(vec![ 
+			0,0,0,0,0,0,0,0, //1 
+			0,0,0,0,0,0,0,0, //2
+			0,0,0,0,0,0,0,0, //3
+			0,0,0,0,0,0,0,0, //4
+			0,0,0,0,0,0,0,0, //5
+			0,0,0,0,0,0,0,0, //6
+			0,0,0,0,0,0,0,0, //7
+			0,0,0,0,1,1,0,0, //8  the u64 ends here!
 
-	// on the other hand, if there's trailing stuff
-	// here the last bit is NOT set
-	let bits = create_bitvector(vec![ 
-		0,0,0,0,0,0,0,0, //1 
-		0,0,0,0,0,0,0,0, //2
-		0,0,0,0,0,0,0,0, //3
-		0,0,0,0,0,0,0,0, //4
-		0,0,0,0,0,0,0,0, //5
-		0,0,0,0,0,0,0,0, //6
-		0,0,0,0,0,0,0,0, //7
-		0,0,0,0,1,1,0,0, //8  the u64 ends here!
-		1,1,0,0,0,0,0,0, //1 
-		0,0,0,0,0,0,0,0, //2
-		0,0,0,0,0,0,0,0, //3
-		0,0,0,0,0,0,0,0, //4
-		0,0,0,0,0,0,0,0, //5
-		0,0,0,0,0,0,0,0, //6
-		0,0,0,0,0,0,0,0, //7
-		0,0,0,0,0,0,0,0, //8  the u64 ends here!
-		]).to_bitvec();
-	let mut encoded = bits_to_fibonacci_bytes(&bits);
-	encoded=swap_endian(&encoded, 8);
+			1,1,0,0,0,0,0,0, //1 
+			0,0,0,0,0,0,0,0, //2
+			0,0,0,0,0,0,0,0, //3
+			0,0,0,0,0,0,0,0, //4
+			0,0,0,0,0,0,0,0, //5
+			0,0,0,0,0,0,0,0, //6
+			0,0,0,0,0,0,0,0, //7
+			0,0,0,0,0,0,0,0, //8  the u64 ends here!
+			]).to_bitvec();
+		let mut encoded = bits_to_fibonacci_bytes(&bits);
+		encoded=swap_endian(&encoded, 8);
 
-	let mut dd = U64Decoder::new(encoded.as_slice());
-	assert_eq!(
-		dd.next(),
-		Some(4052739537881)
-	);
-	assert_eq!(
-		dd.next(),
-		Some(3)
-	);
-	assert_eq!(
-		dd.next(),
-		None
-	);
-}
-
-#[test]
-fn test_dirty64_iter_2u64s_2() {
-
-	// on the other hand, if there's trailing stuff
-	// here the last bit is NOT set
-	let bits = create_bitvector(vec![ 
-		0,0,0,0,0,0,0,0, //1 
-		0,0,0,0,0,0,0,0, //2
-		0,0,0,0,0,0,0,0, //3
-		0,0,0,0,0,0,0,0, //4
-		0,0,0,0,0,0,0,0, //5
-		0,0,0,0,0,0,0,0, //6
-		0,0,0,0,0,0,0,0, //7
-		0,0,0,0,1,1,0,0, //8  the u64 ends here!
-
-		1,1,0,0,0,0,0,0, //1 
-		0,0,0,0,0,0,0,0, //2
-		0,0,0,0,0,0,0,0, //3
-		0,0,0,0,0,0,0,0, //4
-		0,0,0,0,0,0,0,0, //5
-		0,0,0,0,0,0,0,0, //6
-		0,0,0,0,0,0,0,0, //7
-		0,0,0,0,0,0,0,0, //8  the u64 ends here!
-		]).to_bitvec();
-	let mut encoded = bits_to_fibonacci_bytes(&bits);
-	encoded=swap_endian(&encoded, 8);
-
-	let mut dd = U64Decoder::new(encoded.as_slice());
-	assert_eq!(
-		dd.next(),
-		Some(4052739537881)
-	);
-	assert_eq!(
-		dd.next(),
-		Some(3)
-	);
-	assert_eq!(
-		dd.next(),
-		None
-	);
+		let mut dd = U64Decoder::new(encoded.as_slice());
+		assert_eq!(
+			dd.next(),
+			Some(4052739537881)
+		);
+		assert_eq!(
+			dd.next(),
+			Some(3)
+		);
+		assert_eq!(
+			dd.next(),
+			None
+		);
+	}
 }

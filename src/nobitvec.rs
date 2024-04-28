@@ -73,10 +73,6 @@ fn load_into_u64buffer(stream: &mut impl Read, buffer: &mut[u64]) -> Result<usiz
 	Ok(bsize)
 }
 
-
-///
-
-
 #[derive(Debug)]
 ///
 pub enum MyErrorType3 {
@@ -84,54 +80,8 @@ pub enum MyErrorType3 {
     TruncatedU64,
 }
 
-#[derive(Debug, Eq, PartialEq)]
-/// 
-pub struct PartialDecode{
-	///
-	pub num: u64,
-	///
-	pub i_fibo: usize,
-	/// 
-	pub last_bit: bool,
-}
-///
-#[derive(Debug, Eq, PartialEq)]
-pub enum DecodeError {
-	/// the stream terminated, but not in `11` (the fibonacci terminator)
-	PartiallyDecoded(PartialDecode),
-	
-	//
-	// NoMoreU64(PartialDecode)
-}
-///
-
-
-
 use crate::utils::bitstream_to_string;
 
-/// turns a bitstream into chunks of u8
-/// Note: the last byte will be right-padded if the encoding doesnt fill the netire byte
-pub fn bits_to_fibonacci_bytes(b: &MyBitSlice) -> Vec<u8>{
-
-	let mut x = Vec::new();
-	for segment in b.chunks(8){
-		// warning: the last chunk might be shortert than 8
-		// and load_be would pad it with zeros ON THE LEFT!!
-		// but we need RIGHT PADDING
-		let enc = if segment.len() <8 {
-			let mut topad = segment.to_owned();
-			for _i in 0..8-segment.len(){
-				topad.push(false);
-			}
-			topad.load_be()
-		} else {
-			segment.load_be()
-		};
-
-		x.push(enc)
-	}
-	x
-}
 ///
 pub fn int_to_fibonacci_bytes(the_ints: &[u64])  -> Vec<u8>{
 	let b = encode(the_ints);

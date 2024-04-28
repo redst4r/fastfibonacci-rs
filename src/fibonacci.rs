@@ -33,8 +33,8 @@ use crate::{MyBitSlice, MyBitVector, FbDec};
 /// # Example
 /// ```rust
 /// use fastfibonacci::{FbDec, fibonacci::FibonacciDecoder};
-/// use bitvec::prelude::{BitVec, MyBitOrder};
-/// let buffer:BitVec<u8, MyBitOrder> = BitVec::from_iter(vec![true, false, true, true, false, true, true, false, true]);
+/// use bitvec::prelude::{BitVec, Msb0};
+/// let buffer:BitVec<u8, Msb0> = BitVec::from_iter(vec![true, false, true, true, false, true, true, false, true]);
 /// let d = FibonacciDecoder::new(buffer.as_bitslice(), false);
 /// let mut results = vec![];
 /// for decoded in d {
