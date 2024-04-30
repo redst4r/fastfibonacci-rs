@@ -1,5 +1,5 @@
 //!
-use crate::{bare_metal_64::read_bit_u64, u64Fibdecoder::{DecodeError, PartialDecode}, utils::FIB64};
+use crate::{bare_metal_64::read_bit_u64, u64_fibdecoder::{DecodeError, PartialDecode}, utils::FIB64};
 
 const WORDSIZE_IN_BITS:usize = std::mem::size_of::<u64>() * 8; //sizeof(T) * 8;
 

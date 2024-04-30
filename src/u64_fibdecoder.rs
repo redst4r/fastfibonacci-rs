@@ -80,7 +80,7 @@ impl <R:Read> U64Decoder<R> {
 	pub fn get_inner(self) -> Result<R, DecodeError>  {
 
 		if self.is_clean() {
-			return Ok(self.u64stream.into_inner())
+			Ok(self.u64stream.into_inner())
 		} else {
 			panic!("unprocessed bits left");
 			// return Err(DecodeError::PartiallyDecoded(self.dec_status))
@@ -96,11 +96,7 @@ impl <R:Read> U64Decoder<R> {
 		if self.dec_status !=  empty_dec {
 			false
 		} else {
-			if self.decoder.all_trailing_zeros() {
-				true
-			} else {
-				false
-			}
+			self.decoder.all_trailing_zeros()
 		}
 	}
 
@@ -137,7 +133,7 @@ impl <R:Read> U64Decoder<R> {
 				println!("\tRan out of u64, dec: {:?}", partial);
 				// if the partial decoding is just zeros; thats the padding which can be ignored/
 				// If we see this, we're truely done with decoding
-				if partial.last_bit == false && partial.num == 0 {
+				if !partial.last_bit && partial.num == 0 {
 					return Err("End of Decoding".to_string());
 				} else {
 					panic!("ran out of u64s to decode, but still have incomplete decoding {:?}", partial);
@@ -163,7 +159,7 @@ impl<R:Read> Iterator for U64Decoder<R> {
 				match self.pull_in_next_u64(fresh_partial) {
 					Ok(()) => { /* nothing, just continue the loop */},
 					Err(s) => {
-						if s == "End of Decoding".to_string() {
+						if s == *"End of Decoding" {
 							return None
 						}
 					},
@@ -185,7 +181,7 @@ impl<R:Read> Iterator for U64Decoder<R> {
 					match self.pull_in_next_u64(partial) {
 						Ok(()) => { /* nothing, just continue the loop */},
 						Err(s) => {
-							if s == "End of Decoding".to_string() {
+							if s == *"End of Decoding" {
 								return None
 							}
 						},
@@ -199,7 +195,7 @@ impl<R:Read> Iterator for U64Decoder<R> {
 
 #[cfg(test)]
 mod testing {
-    use crate::{utils::bits_to_fibonacci_bytes, u64Fibdecoder::U64Decoder, utils::create_bitvector};
+    use crate::{utils::bits_to_fibonacci_bytes, u64_fibdecoder::U64Decoder, utils::create_bitvector};
 	
 	pub (crate) fn swap_endian(bytes: &[u8], wordsize: usize) -> Vec<u8>{
 		let mut swapped_endian: Vec<u8> = Vec::with_capacity(bytes.len());

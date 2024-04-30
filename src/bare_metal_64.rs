@@ -26,7 +26,7 @@
 
 use bitvec::field::BitField;
 
-use crate::{fibonacci::FibonacciDecoder, u64Fibdecoder::{DecodeError, PartialDecode}, utils::{create_bitvector, FIB64}, MyBitSlice};
+use crate::{fibonacci::FibonacciDecoder, u64_fibdecoder::{DecodeError, PartialDecode}, utils::{create_bitvector, FIB64}, MyBitSlice};
 
 /// Nicer version of `decode_single_dirty_64` using a struct
 pub struct Dirty32 <'a> {

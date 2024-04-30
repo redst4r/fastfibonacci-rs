@@ -1,7 +1,7 @@
 //! Utility functions
 use bitvec::{field::BitField, order::BitOrder, slice::BitSlice, store::BitStore};
 use itertools::Itertools;
-use rand::{distributions::{Distribution, Uniform}, thread_rng};
+use rand::{distributions::{Distribution, Uniform}, rngs::StdRng, thread_rng, SeedableRng};
 
 use crate::{fibonacci::encode, MyBitSlice, MyBitVector};
 
@@ -159,9 +159,11 @@ pub fn bitstream_to_string_pretty<T: BitStore, O: BitOrder>(buffer: &BitSlice<T,
 }
 
 ///
-pub fn random_fibonacci_stream(n_elements: usize, min: usize, max: usize) -> MyBitVector {
+pub fn random_fibonacci_stream(n_elements: usize, min: usize, max: usize, seed: u64) -> MyBitVector {
+    
     let data_dist = Uniform::from(min..max);
-    let mut rng = thread_rng();
+    // let mut rng = thread_rng();
+    let mut rng = StdRng::seed_from_u64(seed);
     let mut data: Vec<u64> = Vec::with_capacity(n_elements);
     for _ in 0..n_elements {
         data.push(data_dist.sample(&mut rng) as u64);

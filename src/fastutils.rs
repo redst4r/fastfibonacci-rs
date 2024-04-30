@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use bitvec::{store::BitStore, order::{BitOrder, Msb0}, slice::BitSlice, vec::BitVec};
+use bitvec::{store::BitStore, order::{BitOrder}, slice::BitSlice};
 use crate::{utils::FIB64, fibonacci::encode};
 
 // // the type of bitstream we expect as input!
