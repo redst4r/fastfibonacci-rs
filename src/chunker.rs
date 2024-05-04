@@ -1,5 +1,7 @@
-use std::io::{self, Read, Seek, SeekFrom};
+use std::io::{self, Read};
 
+/// Turns a bytestream (R:Read) into chunks of `size`,
+///  each iteratation yielding a Vec<u8>. The last chunk can be shorter than `size`
 pub struct Chunks<R> {
     read: R,
     size: usize,
@@ -7,6 +9,8 @@ pub struct Chunks<R> {
 }
 
 impl<R> Chunks<R> {
+
+    /// Create a new Chunker, splitting the stream `read` into chunks of `size`
     pub fn new(read: R, size: usize) -> Self {
         Self {
             read,
@@ -15,6 +19,7 @@ impl<R> Chunks<R> {
         }
     }
 
+    /*
     pub fn from_seek(mut read: R, size: usize) -> io::Result<Self>
     where
         R: Seek,
@@ -34,6 +39,7 @@ impl<R> Chunks<R> {
             hint: (min, None), // this could be wrong I'm unsure
         })
     }
+    */
 
     // This could be useful if you want to try to recover from an error
     pub fn into_inner(self) -> R {
@@ -71,6 +77,8 @@ where
     }
 }
 
+/// Extending the `Read` trait whith chunking,
+/// enabling it for anything that impleements `Read`
 trait ReadPlus: Read {
     fn chunks(self, size: usize) -> Chunks<Self>
     where
@@ -82,14 +90,14 @@ trait ReadPlus: Read {
 
 impl<T: ?Sized> ReadPlus for T where T: Read {}
 
-fn main() -> io::Result<()> {
-    let file = std::fs::File::open("src/main.rs")?;
-    let iter = Chunks::from_seek(file, 0xFF)?; // replace with anything 0xFF was to test
+// fn main() -> io::Result<()> {
+//     let file = std::fs::File::open("src/main.rs")?;
+//     let iter = Chunks::from_seek(file, 0xFF)?; // replace with anything 0xFF was to test
 
-    println!("{:?}", iter.size_hint());
-    // This iterator could return Err forever be careful collect it into an Result
-    let chunks = iter.collect::<Result<Vec<_>, _>>()?;
-    println!("{:?}, {:?}", chunks.len(), chunks.capacity());
+//     println!("{:?}", iter.size_hint());
+//     // This iterator could return Err forever be careful collect it into an Result
+//     let chunks = iter.collect::<Result<Vec<_>, _>>()?;
+//     println!("{:?}, {:?}", chunks.len(), chunks.capacity());
 
-    Ok(())
-}
+//     Ok(())
+// }

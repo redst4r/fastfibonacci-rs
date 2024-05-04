@@ -1,14 +1,14 @@
 //!
-use crate::{bare_metal_64::read_bit_u64, u64_fibdecoder::{DecodeError, PartialDecode}, utils::FIB64};
+use crate::{bare_metal_64::read_bit_u64, partial::Partial, u64_fibdecoder::{DecodeError, PartialDecode}, utils::FIB64};
 
 const WORDSIZE_IN_BITS:usize = std::mem::size_of::<u64>() * 8; //sizeof(T) * 8;
 
 ///
 #[derive(Debug)]
 pub struct Dirty64Single {
-	///
+	/// the current bits to decode, stored as a u64
 	buf: u64, 
-	///
+	/// which bit (of the 64) we have to decode next
 	bitpos: usize, 
 }
 impl Dirty64Single {
@@ -24,7 +24,6 @@ impl Dirty64Single {
 	}
 
 	/// Decoding, starting from a previous partial decoding
-	// pub fn decode_from_partial(&mut self, mut num: u64, mut i_fibo: usize, mut last_bit: u64) -> Result<u64, DecodeError>{
 	pub fn decode_from_partial(&mut self, partial: PartialDecode) -> Result<u64, DecodeError>{
  
 		let mut num = partial.num;
@@ -81,6 +80,29 @@ impl Dirty64Single {
 		} else {
 			Ok(num)
 		}
+	}
+
+	/// just a nicer version of decode_from_partial (moved the bitreading logic into `Partial`)
+	fn decode_from_partial2(&mut self, mut partial: Partial) -> Result<u64, Partial>{
+ 
+		if self.bitpos > 63 {
+			println!("{:?}", self);
+			println!("{:?}", partial);
+			panic!("overflow!!")
+		}
+
+		while self.bitpos < WORDSIZE_IN_BITS {
+			let bit = read_bit_u64(self.buf, self.bitpos) as u64;
+			self.bitpos += 1;
+			// println!("{bit}");
+			match partial.update(bit) {
+				crate::partial::DecResult::Incomplete => {  /*println!("{:?}", partial) */},
+				crate::partial::DecResult::Complete(n) => {
+					return Ok(n)
+				},
+			};
+		}
+		return Err(partial)
 	}
 
 	/// checks if all trailing bits (including bits[self.bitpos]) are zero
@@ -247,6 +269,120 @@ mod testing {
 			dd.decode_from_partial(PartialDecode::new(2, 2, true)),
 			Ok(2)
 		);
+	}
+
+	#[test]
+	fn test_decode_from_partial() {
+		let bits = create_bitvector(vec![ 
+			0,1,1,0,0,1,1,0, //1 
+			0,0,0,0,0,0,0,0, //2
+			0,0,0,0,0,0,0,0, //3
+			0,0,0,0,0,0,0,0, //4
+			0,0,0,0,0,0,0,0, //5
+			0,0,0,0,0,0,0,0, //6
+			0,0,0,0,0,0,0,0, //7
+			0,0,1,1,0,0,0,1, //8 
+			])
+		.to_bitvec();
+		let u = bits_to_fibonacci_u64array(&bits)[0];
+		let mut d = Dirty64Single {buf:u, bitpos: 0};
+		assert_eq!(
+			d.decode_from_partial(Default::default()),
+			Ok(2)
+		);
+		assert_eq!(d.bitpos, 3);
+
+		assert_eq!(
+			d.decode_from_partial(Default::default()),
+			Ok(3)
+		);
+		assert_eq!(d.bitpos, 7);
+
+		assert_eq!(
+			d.decode_from_partial(Default::default()),
+			Ok(53316291173)
+		);
+		assert_eq!(d.bitpos, 60);
+
+		assert_eq!(
+			d.decode_from_partial(Default::default()),
+			Err(DecodeError::PartiallyDecoded(PartialDecode::new(5, 4, true)))
+		);
+		assert_eq!(d.bitpos, 64);
+
+	}
+
+	#[test]
+	fn test_decode_from_partial2() {
+		let bits = create_bitvector(vec![ 
+			0,1,1,0,0,1,1,0, //1 
+			0,0,0,0,0,0,0,0, //2
+			0,0,0,0,0,0,0,0, //3
+			0,0,0,0,0,0,0,0, //4
+			0,0,0,0,0,0,0,0, //5
+			0,0,0,0,0,0,0,0, //6
+			0,0,0,0,0,0,0,0, //7
+			0,0,1,1,0,0,0,1, //8 
+			])
+		.to_bitvec();
+		let u = bits_to_fibonacci_u64array(&bits)[0];
+		let mut d = Dirty64Single {buf:u, bitpos: 0};
+		assert_eq!(
+			d.decode_from_partial2(Default::default()),
+			Ok(2)
+		);
+		assert_eq!(d.bitpos, 3);
+
+		assert_eq!(
+			d.decode_from_partial2(Default::default()),
+			Ok(3)
+		);
+		assert_eq!(d.bitpos, 7);
+
+		assert_eq!(
+			d.decode_from_partial2(Default::default()),
+			Ok(53316291173)
+		);
+		assert_eq!(d.bitpos, 60);
+
+		assert_eq!(
+			d.decode_from_partial2(Default::default()),
+			Err(Partial::new(5, 4, 1))
+		);
+		assert_eq!(d.bitpos, 64);
+	}
+
+	/// ensuring that `decode_from_partial` and `decode_from_partial2` do the same thing.
+	/// randlomly create a u64 and decode both ways
+	#[test]
+	fn test_partial2_randomly() {
+		for _ in 0..10_000{
+			let mut x: u64 = rand::random();
+			if x > FIB64[FIB64.len()-1] {
+				x = FIB64[FIB64.len()-1];
+			}
+			let mut d1 = Dirty64Single {buf:x, bitpos: 0};
+			let mut d2 = Dirty64Single {buf:x, bitpos: 0};
+
+			loop {
+				let r1 = d1.decode_from_partial(Default::default());
+				let r2 = d2.decode_from_partial2(Default::default());
+
+				match (r1, r2) {
+						(Ok(n), Ok(m)) => {assert_eq!(n,m)}, // same value decoded
+						(Ok(_), Err(_)) => {assert_eq!(1,0)},
+						(Err(_), Ok(_)) => {assert_eq!(1,0)},
+						(Err(DecodeError::PartiallyDecoded(partde)), Err(partial)) => {
+							assert_eq!(partde.num, partial.num);
+							assert_eq!(partde.i_fibo, partial.i_fibo);
+							assert_eq!(partde.last_bit, partial.last_bit == 1);
+							break;
+						},
+					}
+			}
+
+		}
+
 	}
 }
 
