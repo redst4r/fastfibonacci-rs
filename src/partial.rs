@@ -2,10 +2,10 @@
 //! Each step will create/update a Partial decoding result
 //! and finally, once 11 is encountered will result in a decoded number
 
-use std::marker::PhantomData;
+// use std::marker::PhantomData;
 
 use crate::utils::FIB64;
-
+/*
 enum DecState {
     Partial {
         num: u64,
@@ -52,7 +52,7 @@ fn test_de() {
             },
         }
     }
-}
+}*/
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Partial {

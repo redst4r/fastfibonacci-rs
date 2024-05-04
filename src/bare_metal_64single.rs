@@ -24,7 +24,9 @@ impl Dirty64Single {
 	}
 
 	/// Decoding, starting from a previous partial decoding
-	pub fn decode_from_partial(&mut self, partial: Partial) -> Result<u64, Partial>{
+	/// pretty ugly function, seems to be slighty faster than `decode_from_partial2`
+	/// so i'll keep it around for now
+	pub fn decode_from_partial2(&mut self, partial: Partial) -> Result<u64, Partial>{
  
 		let mut num = partial.num;
 		let mut i_fibo = partial.i_fibo;
@@ -83,7 +85,7 @@ impl Dirty64Single {
 	}
 
 	/// just a nicer version of decode_from_partial (moved the bitreading logic into `Partial`)
-	fn decode_from_partial2(&mut self, mut partial: Partial) -> Result<u64, Partial>{
+	pub fn decode_from_partial(&mut self, mut partial: Partial) -> Result<u64, Partial>{
  
 		if self.bitpos > 63 {
 			println!("{:?}", self);
