@@ -26,7 +26,7 @@
 
 use bitvec::field::BitField;
 
-use crate::{fibonacci::FibonacciDecoder, u64_fibdecoder::{DecodeError, PartialDecode}, utils::{create_bitvector, FIB64}, MyBitSlice};
+use crate::{fibonacci::FibonacciDecoder, partial::Partial, utils::{create_bitvector, FIB64}, MyBitSlice};
 
 /// Nicer version of `decode_single_dirty_64` using a struct
 pub struct Dirty32 <'a> {
@@ -44,12 +44,12 @@ pub struct Dirty32 <'a> {
 impl <'a> Dirty32 <'a> {
 
 	/// decode a new number from the stream
-	pub fn decode(&mut self) -> Result<u64, DecodeError> {
+	pub fn decode(&mut self) -> Result<u64, Partial> {
 		self.decode_from_partial(0, 0, 0)
 	}
 
 	/// Decoding, starting from a previous partial decoding
-	pub fn decode_from_partial(&mut self, mut num: u64, mut i_fibo: usize, mut last_bit: u64) -> Result<u64, DecodeError>{
+	pub fn decode_from_partial(&mut self, mut num: u64, mut i_fibo: usize, mut last_bit: u64) -> Result<u64, Partial>{
 		const WORDSIZE:usize = std::mem::size_of::<u32>() * 8; //sizeof(T) * 8;
 
 		let mut bit = read_bit_u32(self.buf[self.bufpos], self.bitpos) as u64;
@@ -74,20 +74,20 @@ impl <'a> Dirty32 <'a> {
 
 			// TODO this should not be needed; covered by the loop cond and the after loop code
 			if self.bufpos >= self.buf_size {
-				return Err(DecodeError::PartiallyDecoded( PartialDecode { 
+				return Err(Partial { 
 					num: num + bit * FIB64[i_fibo], // beed to increment, accounting for the 
 					i_fibo: i_fibo + 1, 
-					last_bit: bit == 1  
-				}))
+					last_bit: bit 
+				})
 			}
 		}
 
 		if last_bit + bit < 2 {
-			Err(DecodeError::PartiallyDecoded( PartialDecode { 
+			Err(Partial { 
 				num: num + bit* FIB64[i_fibo], 
 				i_fibo: i_fibo + 1, 
-				last_bit: bit == 1  
-			}))
+				last_bit: bit  
+			})
 		} else {
 			Ok(num)
 		}
@@ -111,12 +111,12 @@ pub struct Dirty64 <'a> {
 impl <'a> Dirty64 <'a> {
 
 	/// decode a new number from the stream
-	pub fn decode(&mut self) -> Result<u64, DecodeError> {
+	pub fn decode(&mut self) -> Result<u64, Partial> {
 		self.decode_from_partial(0, 0, 0)
 	}
 
 	/// Decoding, starting from a previous partial decoding
-	pub fn decode_from_partial(&mut self, mut num: u64, mut i_fibo: usize, mut last_bit: u64) -> Result<u64, DecodeError>{
+	pub fn decode_from_partial(&mut self, mut num: u64, mut i_fibo: usize, mut last_bit: u64) -> Result<u64, Partial>{
 		const WORDSIZE:usize = std::mem::size_of::<u64>() * 8; //sizeof(T) * 8;
 
 		let mut bit = read_bit_u64(self.buf[self.bufpos], self.bitpos) as u64;
@@ -141,20 +141,20 @@ impl <'a> Dirty64 <'a> {
 
 			// TODO this should not be needed; covered by the loop cond and the after loop code
 			if self.bufpos >= self.buf_size {
-				return Err(DecodeError::PartiallyDecoded( PartialDecode { 
+				return Err(Partial { 
 					num: num + bit * FIB64[i_fibo], // beed to increment, accounting for the 
 					i_fibo: i_fibo + 1, 
-					last_bit: bit == 1  
-				}))
+					last_bit: bit 
+				})
 			}
 		}
 
 		if last_bit + bit < 2 {
-			Err(DecodeError::PartiallyDecoded( PartialDecode { 
+			Err(Partial { 
 				num: num + bit* FIB64[i_fibo], 
 				i_fibo: i_fibo + 1, 
-				last_bit: bit == 1  
-			}))
+				last_bit: bit
+			})
 		} else {
 			Ok(num)
 		}
@@ -221,7 +221,7 @@ fn test_dirty64overhang2() {
 
 	assert_eq!(
 		dd.decode(),
-		Err(DecodeError::PartiallyDecoded(PartialDecode {num: 0, i_fibo:2 , last_bit: false}))
+		Err(Partial {num: 0, i_fibo:2 , last_bit: 0})
 	);
 
 }
@@ -251,7 +251,7 @@ fn test_dirty64overhang() {
 
 	assert_eq!(
 		dd.decode(),
-		Err(DecodeError::PartiallyDecoded(PartialDecode {num: 2, i_fibo:2 , last_bit: true}))
+		Err(Partial {num: 2, i_fibo:2 , last_bit: 1})
 	);
 
 	let bits = create_bitvector(vec![

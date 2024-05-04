@@ -1,5 +1,5 @@
 //!
-use crate::{bare_metal_64::read_bit_u64, partial::Partial, u64_fibdecoder::{DecodeError, PartialDecode}, utils::FIB64};
+use crate::{bare_metal_64::read_bit_u64, partial::Partial, utils::FIB64};
 
 const WORDSIZE_IN_BITS:usize = std::mem::size_of::<u64>() * 8; //sizeof(T) * 8;
 
@@ -18,13 +18,13 @@ impl Dirty64Single {
 	}
 
 	/// decode a new number from the stream
-	pub fn decode(&mut self) -> Result<u64, DecodeError> {
+	pub fn decode(&mut self) -> Result<u64, Partial> {
 		let fresh_dec = Default::default();
 		self.decode_from_partial(fresh_dec)
 	}
 
 	/// Decoding, starting from a previous partial decoding
-	pub fn decode_from_partial(&mut self, partial: PartialDecode) -> Result<u64, DecodeError>{
+	pub fn decode_from_partial(&mut self, partial: Partial) -> Result<u64, Partial>{
  
 		let mut num = partial.num;
 		let mut i_fibo = partial.i_fibo;
@@ -40,11 +40,11 @@ impl Dirty64Single {
 		self.bitpos += 1;
 		if self.bitpos >= WORDSIZE_IN_BITS {
             if last_bit + bit < 2 {
-                return Err(DecodeError::PartiallyDecoded( PartialDecode::new( 
+                return Err(Partial::new( 
                     num + bit* FIB64[i_fibo], 
                      i_fibo + 1, 
-                     bit == 1  
-				)))
+                     bit 
+				))
             } else {
                 return Ok(num)
             }
@@ -60,11 +60,11 @@ impl Dirty64Single {
 
 			if self.bitpos >= WORDSIZE_IN_BITS {
                 if last_bit + bit < 2 {
-                    return Err(DecodeError::PartiallyDecoded( PartialDecode::new( 
+                    return Err(Partial::new( 
                         num + bit* FIB64[i_fibo], 
                         i_fibo + 1, 
-                        bit == 1  
-					)))
+                        bit  
+					))
                 } else {
                     return Ok(num)
                 }	
@@ -72,11 +72,11 @@ impl Dirty64Single {
 		}
 
 		if last_bit + bit < 2 {
-			Err(DecodeError::PartiallyDecoded( PartialDecode::new( 
+			Err(Partial::new( 
 				num + bit* FIB64[i_fibo], 
 				i_fibo + 1, 
-				bit == 1  
-			)))
+				bit  
+			))
 		} else {
 			Ok(num)
 		}
@@ -152,7 +152,7 @@ mod testing {
 						decoded.push(n);
 						last_partial = Default::default();
 					},
-					Err(DecodeError::PartiallyDecoded(partial)) => {
+					Err(partial) => {
 						last_partial = partial;
 						break;
 					},
@@ -220,7 +220,7 @@ mod testing {
 
 		assert_eq!(
 			dd.decode(),
-			Err(DecodeError::PartiallyDecoded(PartialDecode::new(0, 2 , false)))
+			Err(Partial::new(0, 2 , 0))
 		);
 
 	}
@@ -248,7 +248,7 @@ mod testing {
 
 		assert_eq!(
 			dd.decode(),
-			Err(DecodeError::PartiallyDecoded(PartialDecode ::new(2,2,true)))
+			Err(Partial::new(2,2,1))
 		);
 
 		let bits = create_bitvector(vec![
@@ -266,7 +266,7 @@ mod testing {
 		let mut dd = Dirty64Single { buf: encoded[0], bitpos:0};
 
 		assert_eq!(
-			dd.decode_from_partial(PartialDecode::new(2, 2, true)),
+			dd.decode_from_partial(Partial::new(2, 2, 1)),
 			Ok(2)
 		);
 	}
@@ -306,7 +306,7 @@ mod testing {
 
 		assert_eq!(
 			d.decode_from_partial(Default::default()),
-			Err(DecodeError::PartiallyDecoded(PartialDecode::new(5, 4, true)))
+			Err(Partial::new(5, 4, 1))
 		);
 		assert_eq!(d.bitpos, 64);
 
@@ -372,10 +372,10 @@ mod testing {
 						(Ok(n), Ok(m)) => {assert_eq!(n,m)}, // same value decoded
 						(Ok(_), Err(_)) => {assert_eq!(1,0)},
 						(Err(_), Ok(_)) => {assert_eq!(1,0)},
-						(Err(DecodeError::PartiallyDecoded(partde)), Err(partial)) => {
+						(Err(partde), Err(partial)) => {
 							assert_eq!(partde.num, partial.num);
 							assert_eq!(partde.i_fibo, partial.i_fibo);
-							assert_eq!(partde.last_bit, partial.last_bit == 1);
+							assert_eq!(partde.last_bit, partial.last_bit);
 							break;
 						},
 					}

@@ -2,40 +2,7 @@
 //! 
 //! 
 use std::io::Read;
-use crate::{bare_metal_64single::Dirty64Single, chunker::Chunks};
-
-#[derive(Debug, Eq, PartialEq, Clone)]
-/// 
-pub struct PartialDecode{
-	///
-	pub (crate) num: u64,
-	///
-	pub (crate) i_fibo: usize,
-	/// 
-	pub (crate) last_bit: bool,
-}
-
-impl PartialDecode {
-	///
-	pub fn new(num: u64, i_fibo: usize, last_bit: bool) -> Self {
-		Self {num, i_fibo, last_bit}
-	}
-}
-impl Default for PartialDecode {
-	fn default() -> Self {
-		Self { num: 0, i_fibo: 0, last_bit: false }
-	}
-}
-
-///
-#[derive(Debug, Eq, PartialEq)]
-pub enum DecodeError {
-	/// the stream terminated, but not in `11` (the fibonacci terminator)
-	PartiallyDecoded(PartialDecode),
-	
-	//
-	// NoMoreU64(PartialDecode)
-}
+use crate::{bare_metal_64single::Dirty64Single, chunker::Chunks, partial::Partial};
 
 
 fn load_u64_from_bytes(bytes: &[u8]) -> u64 {
@@ -51,7 +18,7 @@ fn load_u64_from_bytes(bytes: &[u8]) -> u64 {
 pub struct U64Decoder <R:Read> {
 	u64stream: Chunks<R>,  /// a stream of u64s
 	decoder: Dirty64Single, /// each u64 gets loaded into here for decoding
-	dec_status: PartialDecode,
+	dec_status: Partial,
 	n_u64s_consumed: usize // keep track of how many u64 we consumed
 }
 
@@ -77,7 +44,7 @@ impl <R:Read> U64Decoder<R> {
 	/// (making sure every single bit has been processed).
 	/// Basically we must be at the end of the current u64 (or there's only 0 left)
 	/// and dec_status is empty too
-	pub fn get_inner(self) -> Result<R, DecodeError>  {
+	pub fn get_inner(self) -> Result<R, Partial>  {
 
 		if self.is_clean() {
 			Ok(self.u64stream.into_inner())
@@ -108,7 +75,7 @@ impl <R:Read> U64Decoder<R> {
 	/// tries to pull in a new u64 number
 	/// SHOULD ONLY BE DONE WHEN finished with the current u64 in self.decoder
 	/// `partial` lets us carry over the decoding state from the pervious u64
-	fn pull_in_next_u64(&mut self, partial: PartialDecode) -> Result<(), String> {
+	fn pull_in_next_u64(&mut self, partial: Partial) -> Result<(), String> {
 
 		assert!(self.decoder.is_finished());
 
@@ -133,7 +100,7 @@ impl <R:Read> U64Decoder<R> {
 				println!("\tRan out of u64, dec: {:?}", partial);
 				// if the partial decoding is just zeros; thats the padding which can be ignored/
 				// If we see this, we're truely done with decoding
-				if !partial.last_bit && partial.num == 0 {
+				if partial.last_bit == 0 && partial.num == 0 {
 					return Err("End of Decoding".to_string());
 				} else {
 					panic!("ran out of u64s to decode, but still have incomplete decoding {:?}", partial);
@@ -176,7 +143,7 @@ impl<R:Read> Iterator for U64Decoder<R> {
 					return Some(n)
 				},
 				// ran into the end of the current u64
-				Err(DecodeError::PartiallyDecoded(partial)) => {
+				Err(partial) => {
 					// println!("Partial {:?}", partial);
 					match self.pull_in_next_u64(partial) {
 						Ok(()) => { /* nothing, just continue the loop */},
@@ -378,7 +345,7 @@ mod testing {
 	}
 
 	#[test]
-	#[should_panic(expected = "ran out of u64s to decode, but still have incomplete decoding PartialDecode { num: 1, i_fibo: 2, last_bit: false }")]
+	#[should_panic(expected = "ran out of u64s to decode, but still have incomplete decoding Partial { num: 1, i_fibo: 2, last_bit: 0 }")]
 	fn test_dirty64_iter_leftover_bits() {
 
 		// on the other hand, if there's trailing stuff

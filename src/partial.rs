@@ -54,8 +54,8 @@ fn test_de() {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub (crate) struct Partial {
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct Partial {
     pub (crate) num: u64,
     pub (crate)i_fibo: usize,
     pub (crate)last_bit: u64
