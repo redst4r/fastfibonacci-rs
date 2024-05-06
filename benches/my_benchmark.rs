@@ -4,8 +4,9 @@ use bitvec::slice::BitSlice;
 use bitvec::vec::BitVec;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 // use fastfibonacci::bare_metal::decode_single_dirty;
-use fastfibonacci::bare_metal_64::{bits_to_fibonacci_u64array, read_bit_u64, Dirty64};
+use fastfibonacci::bare_metal_64::{bits_to_fibonacci_generic_array, bits_to_fibonacci_u64array, read_bit_u64, Dirty64};
 use fastfibonacci::fast::{LookupVec, fast_decode, get_u8_decoder, get_u16_decoder};
+use fastfibonacci::faster::{fast_decode_new, LookupVecNew};
 use fastfibonacci::fibonacci::{encode, FibonacciDecoder};
 use fastfibonacci::u64_fibdecoder::U64Decoder;
 use fastfibonacci::utils::bits_to_fibonacci_bytes;
@@ -198,6 +199,20 @@ fn fibonacci_mybitwise(c: &mut Criterion) {
     });
 
 
+    // new fast
+    let table8: LookupVecNew<u8> = LookupVecNew::new();
+    let x_u8 = bits_to_fibonacci_generic_array::<u8>(&data_encoded);
+    c.bench_function(&format!("Decoding: NEW generic fast vec u8-decode"), |b| {
+        b.iter(|| fast_decode_new(black_box(&x_u8),false, &table8))
+    });
+
+    let table16: LookupVecNew<u16> = LookupVecNew::new();
+    let x_u16 = bits_to_fibonacci_generic_array::<u16>(&data_encoded);
+    c.bench_function(&format!("Decoding: NEW  generic fast vec u16-decode"), |b| {
+        b.iter(|| fast_decode_new(black_box(&x_u16),false, &table16))
+    });
+
+
     fn dummy(bv: &MyBitSlice) -> Vec<u64> {
         let dec = FibonacciDecoder::new(bv, false);
         let x: Vec<_> = dec.collect();
@@ -205,6 +220,22 @@ fn fibonacci_mybitwise(c: &mut Criterion) {
     }
     c.bench_function(&format!("Decoding: normal FibonacciDecoder"), |b| {
         b.iter(|| dummy(black_box(&data_encoded)))
+    });
+
+    // make a copy for fast decoder
+    let mut data_fast: MyBitVector = BitVec::new();
+    for bit in data_encoded.iter().by_vals() {
+        data_fast.push(bit);
+    }
+
+    let table8: LookupVec<u8> = LookupVec::new();
+    c.bench_function(&format!("Decoding: generic fast vec u8-decode"), |b| {
+        b.iter(|| fast_decode(black_box(&data_fast),false, &table8))
+    });
+
+    let table16: LookupVec<u16> = LookupVec::new();
+    c.bench_function(&format!("Decoding: generic fast vec u16-decode"), |b| {
+        b.iter(|| fast_decode(black_box(&data_fast),false, &table16))
     });
 }
 

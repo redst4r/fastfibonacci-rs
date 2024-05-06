@@ -25,6 +25,7 @@
 // }
 
 use bitvec::field::BitField;
+use funty::Integral;
 
 use crate::{fibonacci::FibonacciDecoder, partial::Partial, utils::{create_bitvector, FIB64}, MyBitSlice};
 
@@ -346,6 +347,33 @@ pub fn bits_to_fibonacci_u32array(b: &MyBitSlice) -> Vec<u32>{
 		let enc = if segment.len() < WORDSIZE {
 			let mut topad = segment.to_owned();
 			for _i in 0..WORDSIZE-segment.len(){
+				topad.push(false);
+			}
+			topad.load_be()
+		} else {
+			segment.load_be()
+		};
+
+		x.push(enc)
+	}
+	x
+}
+
+/// turns a bitstream into chunks of u8/u16/u32/u64
+/// Note: the last byte will be right-padded if the encoding doesnt fill the netire byte
+pub fn bits_to_fibonacci_generic_array<T:Integral>(b: &MyBitSlice) -> Vec<T>{
+
+    // const WORDSIZE: usize = std::mem::size_of::<u32>() * 8; // inbits
+    let wordsize = T::BITS as usize; // inbits
+
+	let mut x: Vec<T> = Vec::new();
+	for segment in b.chunks(wordsize){
+		// warning: the last chunk might be shortert than 8
+		// and load_be would pad it with zeros ON THE LEFT!!
+		// but we need RIGHT PADDING
+		let enc = if segment.len() < wordsize {
+			let mut topad = segment.to_owned();
+			for _i in 0..wordsize-segment.len(){
 				topad.push(false);
 			}
 			topad.load_be()

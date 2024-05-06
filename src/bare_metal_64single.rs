@@ -30,7 +30,7 @@ impl Dirty64Single {
  
 		let mut num = partial.num;
 		let mut i_fibo = partial.i_fibo;
-		let mut last_bit = partial.last_bit as u64;
+		let mut last_bit = partial.last_bit;
 
 		if self.bitpos > 63 {
 			println!("{:?}", self);
@@ -104,7 +104,7 @@ impl Dirty64Single {
 				},
 			};
 		}
-		return Err(partial)
+		Err(partial)
 	}
 
 	/// checks if all trailing bits (including bits[self.bitpos]) are zero
@@ -122,6 +122,35 @@ impl Dirty64Single {
 	pub fn is_finished(&self) -> bool {
 		self.bitpos >= WORDSIZE_IN_BITS
 	}
+
+	/// decodes as many numbers from the buffer as possible, returning the fully decoded numbers
+	/// and the partially decoded result
+	/// 
+	/// Basically loops, rtying to decode a number until we hit a partial decoding
+	pub fn decode_all_from_partial(&mut self, partial: Partial) -> (Vec<u64>, Partial) {
+		let mut fully_decoded = Vec::new();
+		let mut last_partial = partial;
+
+		loop {
+			// println!("number: {_i}");
+			match self.decode_from_partial(last_partial) {
+				Ok(n) => {
+					fully_decoded.push(n);
+					last_partial = Default::default();
+				},
+				Err(p) => {
+					last_partial = p;
+					break;
+				},
+			}
+			if self.is_finished() {
+				break
+			}
+		}
+
+		(fully_decoded,last_partial )
+	}
+
 }
 
 #[cfg(test)]
@@ -129,6 +158,28 @@ mod testing {
 	use crate::{bare_metal_64::bits_to_fibonacci_u64array, fibonacci::FibonacciDecoder, utils::create_bitvector};
 
 	use super::*;
+
+	#[test]
+	fn test_decode_all_from_partial(){
+		let bits = create_bitvector(vec![ 
+			0,1,1,0,0,1,1,0, //1 
+			0,0,0,0,0,0,0,0, //2
+			0,0,0,0,0,0,0,0, //3
+			0,0,0,0,0,0,0,0, //4
+			0,0,0,0,0,0,0,0, //5
+			0,0,0,0,0,0,0,0, //6
+			0,0,0,0,0,0,0,0, //7
+			0,0,1,1,0,0,0,1, //8 
+			])
+		.to_bitvec();
+		let u = bits_to_fibonacci_u64array(&bits)[0];
+		let mut dd = Dirty64Single { buf: u, bitpos:0};
+		let (numbers, pa) = dd.decode_all_from_partial(Default::default());
+		assert_eq!(numbers, vec![2,3, 53316291173]);
+		assert_eq!(pa,  Partial::new(5, 4, 1))
+	}
+
+
 	#[test]
 	fn test_correctness_dirty64(){
 		use crate::utils::test::random_fibonacci_stream;

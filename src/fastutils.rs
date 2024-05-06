@@ -55,7 +55,10 @@ impl DecodingState {
             } else {
                 self.n = num;
             }
-
+            // TODO: ACTUALLY THIS LOOP RUNS EXACLTY ONCE (if len>0)
+            // IT ADJUSTS ThE FIRST NUMBER (taking into accoutn the partial decode)
+            // then the follwoing line sets len=0 which keeps all other numbers as is
+            // ITS CORRECT as it is, but a little akward
             self.decoded_numbers.push(self.n);
             self.n = 0;
             self.len = 0;

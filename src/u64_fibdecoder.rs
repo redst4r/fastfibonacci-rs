@@ -101,7 +101,7 @@ impl <R:Read> U64Decoder<R> {
 				// if the partial decoding is just zeros; thats the padding which can be ignored/
 				// If we see this, we're truely done with decoding
 				if partial.last_bit == 0 && partial.num == 0 {
-					return Err("End of Decoding".to_string());
+					Err("End of Decoding".to_string())
 				} else {
 					panic!("ran out of u64s to decode, but still have incomplete decoding {:?}", partial);
 				}
