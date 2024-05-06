@@ -97,12 +97,13 @@ impl <T:Integral>LookupVecNew<T> {    /// Create a new Lookup table for fast fib
 pub trait LookupTableNew<T> {
     /// Given the state of the last decoding operation and the new segment, returns
     /// the (precomputed) new state and decoding result.
-    fn lookup(&self, s: State, segment: T) -> (Vec<u64>, Partial);
+    fn lookup(&self, s: State, segment: T) -> (&[u64], &Partial);
 }
 
 
 impl <T:Integral> LookupTableNew<T> for LookupVecNew<T> {
-    fn lookup(&self, s: State, segment: T) -> (Vec<u64>, Partial) {
+    // fn lookup(&self, s: State, segment: T) -> (Vec<u64>, Partial) {
+    fn lookup(&self, s: State, segment: T) -> (&[u64], &Partial) {
             
         // we're indexing into the vec, this needs to be usize
         let idx:  usize = match segment.try_into(){
@@ -111,8 +112,8 @@ impl <T:Integral> LookupTableNew<T> for LookupVecNew<T> {
         };
 
         let (numbers, partial) = match s {
-            State(0) => self.table_state0.get(idx).unwrap().clone(),
-            State(1) => self.table_state1.get(idx).unwrap().clone(),
+            State(0) => self.table_state0.get(idx).unwrap(),
+            State(1) => self.table_state1.get(idx).unwrap(),
             // State(0) => &self.table_state0[segment as usize],
             // State(1) => &self.table_state1[segment as usize],            
             State(_) => panic!("yyy")
@@ -137,23 +138,23 @@ mod testing_lookups {
 
         assert_eq!(
             t.lookup(State(0), i), 
-            (vec![4], Partial { num:7, i_fibo: 4, last_bit: 1})
+            (vec![4].as_slice(), &Partial { num:7, i_fibo: 4, last_bit: 1})
         );
 
         let i = create_bitvector(vec![ 1,0,1,1,0,1,0,1]).load_be::<u8>();
         assert_eq!(
             t.lookup(State(1), i), 
-            (vec![0,2], Partial { num:7, i_fibo: 4, last_bit: 1})
+            (vec![0,2].as_slice(), &Partial { num:7, i_fibo: 4, last_bit: 1})
         );   
 
         let i = create_bitvector(vec![ 0,1,1,1,0,0,1,0]).load_be::<u8>();
         assert_eq!(
             t.lookup(State(1), i), 
-            (vec![2], Partial { num:6, i_fibo: 5, last_bit: 0})
+            (vec![2].as_slice(), &Partial { num:6, i_fibo: 5, last_bit: 0})
         );   
         assert_eq!(
             t.lookup(State(0), i), 
-            (vec![2], Partial { num:6, i_fibo: 5, last_bit: 0})
+            (vec![2].as_slice(), &Partial { num:6, i_fibo: 5, last_bit: 0})
         ); 
     }
 }
@@ -177,7 +178,7 @@ pub fn fast_decode_new<T:Integral>(stream: &[T], shifted_by_one: bool, table: &i
         // let segment_int_pad = padding(segment_int);
         let segment_int_pad = segment_int;
 
-        let ( mut numbers, p) = table.lookup(State(partial.last_bit as usize), segment_int_pad);
+        let (numbers, p) = table.lookup(State(partial.last_bit as usize), segment_int_pad);
         // println!("numbers {numbers:?}, partial {p:?}");
 
         // now, we need to properly decode those numbers:
@@ -188,17 +189,22 @@ pub fn fast_decode_new<T:Integral>(stream: &[T], shifted_by_one: bool, table: &i
             // println!("Combining {numbers:?} with {partial:?}");
             // absorb `partial` (the old decoding) into the number
             // and keep the new decoding status as is
-            let new_x = number_plus_partial(numbers[0], partial);
+            let new_x = number_plus_partial(numbers[0], &partial);
             // println!("newx {new_x}");
+            decoded_numbers.push(new_x);
 
-            numbers[0] = new_x;
-            partial = p;
+            decoded_numbers.extend(&numbers[1..]);
+
+
+            // numbers[0] = new_x;
+            partial = p.clone();
         } else {
             // "add" p and partial; ORDER is important
-            partial = combine_partial(partial, p)
-
+            // partial = combine_partial(partial, p)
+            let mut newp = p.clone();
+            newp.combine_partial(partial);
+            partial = newp;
         }
-        decoded_numbers.extend(numbers);
     }
 
     // TODO: check that partial is empy!
@@ -211,34 +217,10 @@ pub fn fast_decode_new<T:Integral>(stream: &[T], shifted_by_one: bool, table: &i
 }
 
 // adding a partial decoding (from previous segment) to a fully decoded number (in the current segemnt)
-fn number_plus_partial(x: u64, p: Partial) -> u64{
+fn number_plus_partial(x: u64, p: &Partial) -> u64{
     p.num + fibonacci_left_shift(x, p.i_fibo)
 }
 
-fn combine_partial(p_old: Partial, p_new: Partial) -> Partial{
-    // the new num is: the old num + the new num (adjusted for the additional bits)
-    let new_num = p_old.num + fibonacci_left_shift(p_new.num, p_old.i_fibo);
-    let new_i = p_old.i_fibo + p_new.i_fibo;
-    let new_last = p_new.last_bit;
-    Partial::new(new_num, new_i, new_last)
-}
-
-#[test]
-fn test_add_partial() {
-    // 6 = 1001_fib
-    let p1 = Partial::new(6, 4, 1);
-
-    // 00010001_fib = 39
-    let p2 = Partial::new(39, 8, 1);
-
-    // combined those would be 1+5+34+233 = 273
-    // todo the last bit of p1 and the first bit of p2 should never both the 1!!
-    let added = combine_partial(p1, p2);
-    assert_eq!(
-        added,
-        Partial::new(273, 12, 1)
-    )
-}
 
 #[test]
 fn test_fast_decode() {

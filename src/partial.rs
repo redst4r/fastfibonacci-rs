@@ -4,7 +4,7 @@
 
 // use std::marker::PhantomData;
 
-use crate::utils::FIB64;
+use crate::{fastutils::fibonacci_left_shift, utils::FIB64};
 /*
 enum DecState {
     Partial {
@@ -83,6 +83,21 @@ impl Partial {
             DecResult::Incomplete
         }
     }
+
+    /// adding a previous partial decoding to `self`
+    /// consumes the old encoding to make sure we dont use it any more
+    pub fn combine_partial(&mut self, p_old: Partial) {
+        // the new num is: the old num + the new num (adjusted for the additional bits)
+        let new_num = p_old.num + fibonacci_left_shift(self.num, p_old.i_fibo);
+        let new_i = p_old.i_fibo + self.i_fibo;
+        let new_last = self.last_bit;
+
+        self.num = new_num;
+        self.i_fibo = new_i;
+        self.last_bit = new_last;    
+    }
+
+
 }
 impl Default for Partial {
 	fn default() -> Self {
@@ -108,4 +123,25 @@ fn test_de_partial() {
         }
     }
     assert_eq!(7, res);
+}
+
+
+#[test]
+fn test_add_partial() {
+    // 6 = 1001_fib
+    let p_old = Partial::new(6, 4, 1);
+
+    // 00010001_fib = 39
+    let mut p2 = Partial::new(39, 8, 1);
+
+
+    p2.combine_partial(p_old);
+
+    // combined those would be 1+5+34+233 = 273
+    // todo the last bit of p1 and the first bit of p2 should never both the 1!!
+    // let added = combine_partial(p_old, p2);
+    assert_eq!(
+        p2,
+        Partial::new(273, 12, 1)
+    )
 }
