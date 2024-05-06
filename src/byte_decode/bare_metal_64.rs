@@ -24,10 +24,11 @@
 // 	}
 // }
 
-use bitvec::field::BitField;
-use funty::Integral;
+// use bitvec::field::BitField;
+// use funty::Integral;
 
-use crate::{fibonacci::FibonacciDecoder, partial::Partial, utils::{create_bitvector, FIB64}, MyBitSlice};
+use crate::utils::FIB64;
+use crate::byte_decode::partial::Partial;
 
 /// Nicer version of `decode_single_dirty_64` using a struct
 pub struct Dirty32 <'a> {
@@ -162,119 +163,125 @@ impl <'a> Dirty64 <'a> {
 	}
 }
 
-#[test]
-fn test_correctness_dirty64(){
-    use crate::utils::test::random_fibonacci_stream;
-    let n = 1_000_000;
-    // let N = 1000;
-    let data_encoded = random_fibonacci_stream(n, 1, 10000);
-	let encoded_bytes = bits_to_fibonacci_u64array(&data_encoded);
+#[cfg(test)]
+mod test {
+    use crate::{byte_decode::bare_metal_64::Dirty64, utils::{bits_to_fibonacci_generic_array, create_bitvector}};
+	use super::*;
 
-    let mut decoded = Vec::with_capacity(n);
-    let bitpos = 0;
-    let bufpos = 0;
+	#[test]
+	fn test_correctness_dirty64(){
+		use crate::bit_decode::fibonacci::FibonacciDecoder;
+		use crate::utils::test::random_fibonacci_stream;
+		let n = 1_000_000;
+		// let N = 1000;
+		let data_encoded = random_fibonacci_stream(n, 1, 10000);
+		let encoded_bytes = bits_to_fibonacci_generic_array::<u64>(&data_encoded);
 
-	let mut dd: Dirty64<'_> = Dirty64 { buf: &encoded_bytes, buf_size: encoded_bytes.len(), bitpos, bufpos};
-    for _i in 0..n {
-        // println!("number: {_i}");
-        match dd.decode() {
-			Ok(n) => {
-				decoded.push(n);
-			},
-			Err(e) => {
-				println!("{:?}", e);
-				println!("{n}");
-				assert_eq!(1,0);
-			},
+		let mut decoded = Vec::with_capacity(n);
+		let bitpos = 0;
+		let bufpos = 0;
+
+		let mut dd: Dirty64<'_> = Dirty64 { buf: &encoded_bytes, buf_size: encoded_bytes.len(), bitpos, bufpos};
+		for _i in 0..n {
+			// println!("number: {_i}");
+			match dd.decode() {
+				Ok(n) => {
+					decoded.push(n);
+				},
+				Err(e) => {
+					println!("{:?}", e);
+					println!("{n}");
+					assert_eq!(1,0);
+				},
+			}
 		}
-    }
 
-    // ground thruth
-    let dec = FibonacciDecoder::new(&data_encoded, false);
-    let decoded_truth: Vec<_> = dec.collect();
-    
-    assert_eq!(decoded_truth, decoded);
+		// ground thruth
+		let dec = FibonacciDecoder::new(&data_encoded, false);
+		let decoded_truth: Vec<_> = dec.collect();
+		
+		assert_eq!(decoded_truth, decoded);
+	}
+
+	#[test]
+	fn test_dirty64overhang2() {
+		// here the last bit is NOT set
+		let bits = create_bitvector(vec![ 
+			0,0,0,0,0,0,0,0, //1 
+			0,0,0,0,0,0,0,0, //2
+			0,0,0,0,0,0,0,0, //3
+			0,0,0,0,0,0,0,0, //4
+			0,0,0,0,0,0,0,0, //5
+			0,0,0,0,0,0,0,0, //6
+			0,0,0,0,0,0,0,0, //7
+			0,0,0,0,1,1,0,0, //8  the u64 ends here! this needs to return a PartialDecode num=2, i_fibo=2, lastbit = 1
+			])
+		.to_bitvec();
+		let encoded = bits_to_fibonacci_generic_array::<u64>(&bits);
+		let bitpos = 0;
+		let bufpos = 0;
+
+		let mut dd = Dirty64 { buf: &encoded, buf_size: encoded.len(), bitpos, bufpos};
+		assert_eq!(
+			dd.decode(),
+			Ok(4052739537881)
+		);
+
+		assert_eq!(
+			dd.decode(),
+			Err(Partial {num: 0, i_fibo:2 , last_bit: 0})
+		);
+
+	}
+
+	#[test]
+	fn test_dirty64overhang() {
+		let bits = create_bitvector(vec![ 
+			0,0,0,0,0,0,0,0, //1 
+			0,0,0,0,0,0,0,0, //2
+			0,0,0,0,0,0,0,0, //3
+			0,0,0,0,0,0,0,0, //4
+			0,0,0,0,0,0,0,0, //5
+			0,0,0,0,0,0,0,0, //6
+			0,0,0,0,0,0,0,0, //7
+			0,0,0,0,1,1,0,1, //8  the u64 ends here! this needs to return a PartialDecode num=2, i_fibo=2, lastbit = 1
+			])
+		.to_bitvec();
+		let encoded = bits_to_fibonacci_generic_array::<u64>(&bits);
+		let bitpos = 0;
+		let bufpos = 0;
+
+		let mut dd: Dirty64<'_> = Dirty64 { buf: &encoded, buf_size: encoded.len(), bitpos, bufpos};
+		assert_eq!(
+			dd.decode(),
+			Ok(4052739537881)
+		);
+
+		assert_eq!(
+			dd.decode(),
+			Err(Partial {num: 2, i_fibo:2 , last_bit: 1})
+		);
+
+		let bits = create_bitvector(vec![
+			1,0,1,1,0,0,0,0, //1 
+			0,0,0,0,0,0,0,0, //2
+			0,0,0,0,0,0,0,0, //3
+			0,0,0,0,0,0,0,0, //4
+			0,0,0,0,0,0,0,0, //5
+			0,0,0,0,0,0,0,0, //6
+			0,0,0,0,0,0,0,0, //7
+			0,0,0,0,0,0,0,0, //8  the u64 ends here! this needs to return a PartialDecode num=2, i_fibo=2, lastbit = 1
+			])
+		.to_bitvec();
+		let encoded = bits_to_fibonacci_generic_array::<u64>(&bits);
+		let mut dd = Dirty64 { buf: &encoded, buf_size: encoded.len(), bitpos:0, bufpos:0};
+		assert_eq!(
+			dd.decode_from_partial(2, 2, 1),
+			Ok(2)
+		);
+
+	}
 }
-
-#[test]
-fn test_dirty64overhang2() {
-	// here the last bit is NOT set
-	let bits = create_bitvector(vec![ 
-		0,0,0,0,0,0,0,0, //1 
-		0,0,0,0,0,0,0,0, //2
-		0,0,0,0,0,0,0,0, //3
-		0,0,0,0,0,0,0,0, //4
-		0,0,0,0,0,0,0,0, //5
-		0,0,0,0,0,0,0,0, //6
-		0,0,0,0,0,0,0,0, //7
-		0,0,0,0,1,1,0,0, //8  the u64 ends here! this needs to return a PartialDecode num=2, i_fibo=2, lastbit = 1
-		])
-	.to_bitvec();
-	let encoded = bits_to_fibonacci_u64array(&bits);
-    let bitpos = 0;
-    let bufpos = 0;
-
-	let mut dd = Dirty64 { buf: &encoded, buf_size: encoded.len(), bitpos, bufpos};
-	assert_eq!(
-		dd.decode(),
-		Ok(4052739537881)
-	);
-
-	assert_eq!(
-		dd.decode(),
-		Err(Partial {num: 0, i_fibo:2 , last_bit: 0})
-	);
-
-}
-
-#[test]
-fn test_dirty64overhang() {
-	let bits = create_bitvector(vec![ 
-		0,0,0,0,0,0,0,0, //1 
-		0,0,0,0,0,0,0,0, //2
-		0,0,0,0,0,0,0,0, //3
-		0,0,0,0,0,0,0,0, //4
-		0,0,0,0,0,0,0,0, //5
-		0,0,0,0,0,0,0,0, //6
-		0,0,0,0,0,0,0,0, //7
-		0,0,0,0,1,1,0,1, //8  the u64 ends here! this needs to return a PartialDecode num=2, i_fibo=2, lastbit = 1
-		])
-	.to_bitvec();
-	let encoded = bits_to_fibonacci_u64array(&bits);
-    let bitpos = 0;
-    let bufpos = 0;
-
-	let mut dd: Dirty64<'_> = Dirty64 { buf: &encoded, buf_size: encoded.len(), bitpos, bufpos};
-	assert_eq!(
-		dd.decode(),
-		Ok(4052739537881)
-	);
-
-	assert_eq!(
-		dd.decode(),
-		Err(Partial {num: 2, i_fibo:2 , last_bit: 1})
-	);
-
-	let bits = create_bitvector(vec![
-		1,0,1,1,0,0,0,0, //1 
-		0,0,0,0,0,0,0,0, //2
-		0,0,0,0,0,0,0,0, //3
-		0,0,0,0,0,0,0,0, //4
-		0,0,0,0,0,0,0,0, //5
-		0,0,0,0,0,0,0,0, //6
-		0,0,0,0,0,0,0,0, //7
-		0,0,0,0,0,0,0,0, //8  the u64 ends here! this needs to return a PartialDecode num=2, i_fibo=2, lastbit = 1
-		])
-	.to_bitvec();
-	let encoded = bits_to_fibonacci_u64array(&bits);
-	let mut dd = Dirty64 { buf: &encoded, buf_size: encoded.len(), bitpos:0, bufpos:0};
-	assert_eq!(
-		dd.decode_from_partial(2, 2, 1),
-		Ok(2)
-	);
-
-}
-
 
 /// see https://togglebit.io/posts/rust-bitwise/
 /// However, this reads the bits from the left side
@@ -308,80 +315,53 @@ fn test_read_bit() {
 	assert_eq!(read_bit_u64(0b01000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000, 1), true, "2 pos 1");
 }
 
-/// turns a bitstream into chunks of u64
-/// Note: the last byte will be right-padded if the encoding doesnt fill the netire byte
-pub fn bits_to_fibonacci_u64array(b: &MyBitSlice) -> Vec<u64>{
+// turns a bitstream into chunks of u64
+// /// Note: the last byte will be right-padded if the encoding doesnt fill the netire byte
+// pub fn bits_to_fibonacci_u64array(b: &MyBitSlice) -> Vec<u64>{
 
-    const WORDSIZE: usize = std::mem::size_of::<u64>() * 8; // inbits
-	let mut x: Vec<u64> = Vec::new();
-	for segment in b.chunks(64){
-		// warning: the last chunk might be shortert than 8
-		// and load_be would pad it with zeros ON THE LEFT!!
-		// but we need RIGHT PADDING
-		let enc = if segment.len() < WORDSIZE {
-			let mut topad = segment.to_owned();
-			for _i in 0..WORDSIZE-segment.len(){
-				topad.push(false);
-			}
-			topad.load_be()
-		} else {
-			segment.load_be()
-		};
+//     const WORDSIZE: usize = std::mem::size_of::<u64>() * 8; // inbits
+// 	let mut x: Vec<u64> = Vec::new();
+// 	for segment in b.chunks(64){
+// 		// warning: the last chunk might be shortert than 8
+// 		// and load_be would pad it with zeros ON THE LEFT!!
+// 		// but we need RIGHT PADDING
+// 		let enc = if segment.len() < WORDSIZE {
+// 			let mut topad = segment.to_owned();
+// 			for _i in 0..WORDSIZE-segment.len(){
+// 				topad.push(false);
+// 			}
+// 			topad.load_be()
+// 		} else {
+// 			segment.load_be()
+// 		};
 
-		x.push(enc)
-	}
-	x
-}
+// 		x.push(enc)
+// 	}
+// 	x
+// }
 
 
-/// turns a bitstream into chunks of u32
-/// Note: the last byte will be right-padded if the encoding doesnt fill the netire byte
-pub fn bits_to_fibonacci_u32array(b: &MyBitSlice) -> Vec<u32>{
+// turns a bitstream into chunks of u32
+// Note: the last byte will be right-padded if the encoding doesnt fill the netire byte
+// pub fn bits_to_fibonacci_u32array(b: &MyBitSlice) -> Vec<u32>{
 
-    const WORDSIZE: usize = std::mem::size_of::<u32>() * 8; // inbits
-	let mut x: Vec<u32> = Vec::new();
-	for segment in b.chunks(32){
-		// warning: the last chunk might be shortert than 8
-		// and load_be would pad it with zeros ON THE LEFT!!
-		// but we need RIGHT PADDING
-		let enc = if segment.len() < WORDSIZE {
-			let mut topad = segment.to_owned();
-			for _i in 0..WORDSIZE-segment.len(){
-				topad.push(false);
-			}
-			topad.load_be()
-		} else {
-			segment.load_be()
-		};
+//     const WORDSIZE: usize = std::mem::size_of::<u32>() * 8; // inbits
+// 	let mut x: Vec<u32> = Vec::new();
+// 	for segment in b.chunks(32){
+// 		// warning: the last chunk might be shortert than 8
+// 		// and load_be would pad it with zeros ON THE LEFT!!
+// 		// but we need RIGHT PADDING
+// 		let enc = if segment.len() < WORDSIZE {
+// 			let mut topad = segment.to_owned();
+// 			for _i in 0..WORDSIZE-segment.len(){
+// 				topad.push(false);
+// 			}
+// 			topad.load_be()
+// 		} else {
+// 			segment.load_be()
+// 		};
 
-		x.push(enc)
-	}
-	x
-}
-
-/// turns a bitstream into chunks of u8/u16/u32/u64
-/// Note: the last byte will be right-padded if the encoding doesnt fill the netire byte
-pub fn bits_to_fibonacci_generic_array<T:Integral>(b: &MyBitSlice) -> Vec<T>{
-
-    // const WORDSIZE: usize = std::mem::size_of::<u32>() * 8; // inbits
-    let wordsize = T::BITS as usize; // inbits
-
-	let mut x: Vec<T> = Vec::new();
-	for segment in b.chunks(wordsize){
-		// warning: the last chunk might be shortert than 8
-		// and load_be would pad it with zeros ON THE LEFT!!
-		// but we need RIGHT PADDING
-		let enc = if segment.len() < wordsize {
-			let mut topad = segment.to_owned();
-			for _i in 0..wordsize-segment.len(){
-				topad.push(false);
-			}
-			topad.load_be()
-		} else {
-			segment.load_be()
-		};
-
-		x.push(enc)
-	}
-	x
-}
+// 		x.push(enc)
+// 	}
+// 	x
+// }

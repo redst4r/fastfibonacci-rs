@@ -15,7 +15,7 @@
 //!
 //! ## Example
 //! ```rust
-//! use fastfibonacci::fast::{fast_decode, LookupVec, get_u8_decoder,get_u16_decoder};
+//! use fastfibonacci::bit_decode::fast::{fast_decode, LookupVec, get_u8_decoder,get_u16_decoder};
 //! use bitvec::prelude as bv;
 //! let bits = bv::bits![u8, bv::Msb0;
 //!     1,0,1,1,0,1,0,1,
@@ -381,7 +381,7 @@ mod testing_fast_decode {
 
     #[test]
     fn test_correctness_fast_decode_u8() {
-        use crate::fibonacci::FibonacciDecoder;
+        use crate::bit_decode::fibonacci::FibonacciDecoder;
         // use crate::fastutils::FFBitvec;
         let b = random_fibonacci_stream(100000, 1, 1000);
         // let b = dummy_encode(vec![64, 11, 88]);
@@ -424,7 +424,7 @@ mod testing_fast_decode {
 
     #[test]
     fn test_correctness_fast_decode() {
-        use crate::fibonacci::FibonacciDecoder;
+        use crate::bit_decode::fibonacci::FibonacciDecoder;
         let b = random_fibonacci_stream(100000, 1, 1000);
         // make a copy for fast decoder
         let mut b_fast: BitVec<u8, MyBitOrder> = BitVec::new();
@@ -487,7 +487,7 @@ pub fn get_u16_decoder(bistream: &MyBitSlice, shifted_by_one: bool) -> FastFibon
 ///
 /// # Example
 /// ```rust,
-/// use fastfibonacci::fast::{FastFibonacciDecoder, LookupVec};
+/// use fastfibonacci::bit_decode::fast::{FastFibonacciDecoder, LookupVec};
 /// use bitvec::prelude as bv;
 /// let bits = bv::bits![u8, bv::Msb0;
 ///     1,0,1,1,0,1,0,1,1,0,1,0,0,1,0,1,
@@ -824,7 +824,7 @@ mod test_iter {
     }
     #[test]
     fn test_correctness_iter() {
-        use crate::fibonacci::FibonacciDecoder;
+        use crate::bit_decode::fibonacci::FibonacciDecoder;
         use crate::utils::test::random_fibonacci_stream;
         let b = random_fibonacci_stream(100000, 1, 1000);
         // make a copy for fast decoder

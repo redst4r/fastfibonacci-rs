@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use bitvec::{store::BitStore, order::{BitOrder}, slice::BitSlice};
-use crate::{utils::FIB64, fibonacci::encode};
+use crate::{utils::FIB64, bit_decode::fibonacci::encode};
 
 // // the type of bitstream we expect as input!
 // pub(crate) type MyBitOrder = Msb0;

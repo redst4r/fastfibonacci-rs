@@ -54,6 +54,10 @@ fn test_de() {
     }
 }*/
 
+/// A Partial Fibonacci-decoding result:
+/// The input stream finished before we could decode a complete integer.
+/// This struct contains all information to continue the decoding of the current number
+/// with another bitstream
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Partial {
     pub (crate) num: u64,

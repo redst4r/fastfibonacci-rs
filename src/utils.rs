@@ -1,9 +1,10 @@
 //! Utility functions
 use bitvec::{field::BitField, order::BitOrder, slice::BitSlice, store::BitStore};
+use funty::Integral;
 use itertools::Itertools;
 use rand::{distributions::{Distribution, Uniform}, rngs::StdRng, thread_rng, SeedableRng};
 
-use crate::{fibonacci::encode, MyBitSlice, MyBitVector};
+use crate::{bit_decode::fibonacci::encode, MyBitSlice, MyBitVector};
 
 /// Iterative fibonacci. just to get the first N fibonacci numbers
 ///
@@ -105,7 +106,7 @@ pub (crate) const FIB64: &[u64] = &[
 pub mod test {
     use crate::MyBitVector;
     use rand::{distributions::Uniform, prelude::Distribution, thread_rng};
-    use crate::fibonacci::encode;
+    use crate::bit_decode::fibonacci::encode;
 
     /// Generates a random stream of interger in `[min,max]` and return the Fibonacci
     /// encoding of thise stream
@@ -126,26 +127,6 @@ pub (crate)fn bitstream_to_string<T: BitStore, O: BitOrder>(buffer: &BitSlice<T,
     let s = buffer.iter().map(|x| if *x { "1" } else { "0" }).join("");
     s
 }
-
-// #[allow(dead_code)]
-// /// just for debugging purpose
-// pub (crate)fn bitstream_to_string_pretty<T: BitStore, O: BitOrder>(buffer: &BitSlice<T, O>, chunksize: usize) -> String {
-
-//     // assert_eq!(buffer.len() % chunksize, 0);
-
-//     let mut the_strings = vec![];
-//     for i in 0..buffer.len() / chunksize {
-//         let chunk = &buffer[(i*chunksize)..(i+1)*chunksize];
-
-//         let s = chunk.iter().map(|x| if *x { "1" } else { "0" }).join("");
-//         the_strings.push(s);
-//     };
-
-//     if buffer.len() % chunksize != 0 {
-//         println!("might be missing the end");
-//     }
-//     the_strings.iter().join("|")
-// }
 
 /// just for debugging purpose
 pub fn bitstream_to_string_pretty<T: BitStore, O: BitOrder>(buffer: &BitSlice<T, O>, chunksize: usize) -> String {
@@ -189,16 +170,43 @@ pub fn create_bitvector(bits: Vec<usize>) -> MyBitVector {
 
 /// turns a bitstream into chunks of u8
 /// Note: the last byte will be right-padded if the encoding doesnt fill the netire byte
-pub fn bits_to_fibonacci_bytes(b: &MyBitSlice) -> Vec<u8>{
+// pub fn bits_to_fibonacci_bytes(b: &MyBitSlice) -> Vec<u8>{
+//     todo!("Deprecated");
+// 	let mut x = Vec::new();
+// 	for segment in b.chunks(8){
+// 		// warning: the last chunk might be shortert than 8
+// 		// and load_be would pad it with zeros ON THE LEFT!!
+// 		// but we need RIGHT PADDING
+// 		let enc = if segment.len() <8 {
+// 			let mut topad = segment.to_owned();
+// 			for _i in 0..8-segment.len(){
+// 				topad.push(false);
+// 			}
+// 			topad.load_be()
+// 		} else {
+// 			segment.load_be()
+// 		};
 
-	let mut x = Vec::new();
-	for segment in b.chunks(8){
+// 		x.push(enc)
+// 	}
+// 	x
+// }
+
+/// turns a bitstream into chunks of u8/u16/u32/u64
+/// Note: the last byte will be right-padded if the encoding doesnt fill the netire byte
+pub fn bits_to_fibonacci_generic_array<T:Integral>(b: &MyBitSlice) -> Vec<T>{
+
+    // const WORDSIZE: usize = std::mem::size_of::<u32>() * 8; // inbits
+    let wordsize = T::BITS as usize; // inbits
+
+	let mut x: Vec<T> = Vec::new();
+	for segment in b.chunks(wordsize){
 		// warning: the last chunk might be shortert than 8
 		// and load_be would pad it with zeros ON THE LEFT!!
 		// but we need RIGHT PADDING
-		let enc = if segment.len() <8 {
+		let enc = if segment.len() < wordsize {
 			let mut topad = segment.to_owned();
-			for _i in 0..8-segment.len(){
+			for _i in 0..wordsize-segment.len(){
 				topad.push(false);
 			}
 			topad.load_be()

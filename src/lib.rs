@@ -16,7 +16,7 @@
 //! # Examples
 //! Regular encoding and decoding:
 //! ```rust
-//! use fastfibonacci::fibonacci::{encode, decode, FibonacciDecoder};
+//! use fastfibonacci::bit_decode::fibonacci::{encode, decode, FibonacciDecoder};
 //! let encoded = encode(&vec![34, 12]) ;
 //!
 //! // Decoding
@@ -47,8 +47,8 @@
 //!    ***Note***: For simplicity, there's also the [`fast::fast_decode`] function, which skips the Decoder and just immediately decodes the sequence.
 //! 
 //! ```rust
-//! use fastfibonacci::fibonacci::encode;
-//! use fastfibonacci::fast::{fast_decode,LookupVec, get_u8_decoder, get_u16_decoder};
+//! use fastfibonacci::bit_decode::fibonacci::encode;
+//! use fastfibonacci::bit_decode::fast::{fast_decode,LookupVec, get_u8_decoder, get_u16_decoder};
 //! use bitvec::prelude as bv;
 //! let bits = encode(&vec![4,7, 86]) ;
 //! // in bits, this is
@@ -90,20 +90,23 @@
 //! - fast decoding (u16 segments): 30ms / 1M integers
 //! - fast decoding (using an iterator): 54ms / 1M integers
 //! 
-pub mod fibonacci;
+// pub mod fibonacci;
 pub mod utils;
 mod fastutils;
-pub mod fast;
-pub mod faster;
+// pub mod fast;
+
+pub mod byte_decode;
+pub mod bit_decode;
+// pub mod faster;
 // pub mod nobitvec;
 // pub mod bare_metal;
-pub mod bare_metal_64;
-pub mod bare_metal_64single;
-pub mod bare_metal_generic_single;
-pub mod u64_fibdecoder;
+// pub mod bare_metal_64;
+// pub mod bare_metal_64single;
+// pub mod bare_metal_generic_single;
+// pub mod u64_fibdecoder;
 // pub (crate) mod u64reader;
-pub (crate) mod chunker;
-pub (crate) mod partial;
+// pub (crate) mod chunker;
+// pub (crate) mod partial;
 
 use bitvec::prelude as bv;
 

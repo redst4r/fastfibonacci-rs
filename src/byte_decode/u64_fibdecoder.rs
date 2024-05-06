@@ -2,7 +2,7 @@
 //! 
 //! 
 use std::io::Read;
-use crate::{bare_metal_64single::Dirty64Single, chunker::Chunks, partial::Partial};
+use crate::byte_decode::{bare_metal_64single::Dirty64Single, chunker::Chunks, partial::Partial};
 
 
 fn load_u64_from_bytes(bytes: &[u8]) -> u64 {
@@ -162,7 +162,8 @@ impl<R:Read> Iterator for U64Decoder<R> {
 
 #[cfg(test)]
 mod testing {
-    use crate::{utils::bits_to_fibonacci_bytes, u64_fibdecoder::U64Decoder, utils::create_bitvector};
+    use crate::{utils::bits_to_fibonacci_generic_array, utils::create_bitvector};
+	use crate::byte_decode::u64_fibdecoder::U64Decoder;
 	
 	pub (crate) fn swap_endian(bytes: &[u8], wordsize: usize) -> Vec<u8>{
 		let mut swapped_endian: Vec<u8> = Vec::with_capacity(bytes.len());
@@ -192,7 +193,7 @@ mod testing {
 			0,0,0,0,0,0,0,0, //7
 			0,0,0,0,0,0,0,0, //8  the u64 ends here!
 			]).to_bitvec();
-		let mut encoded = bits_to_fibonacci_bytes(&bits);
+		let mut encoded = bits_to_fibonacci_generic_array(&bits);
 		encoded=swap_endian(&encoded, 8);
 
 		let mut dd = U64Decoder::new(encoded.as_slice());
@@ -223,7 +224,7 @@ mod testing {
 			0,0,0,0,0,0,0,0, //7
 			0,0,0,0,0,0,0,0, //8  the u64 ends here!
 			]).to_bitvec();
-		let mut encoded = bits_to_fibonacci_bytes(&bits);
+		let mut encoded = bits_to_fibonacci_generic_array(&bits);
 		encoded=swap_endian(&encoded, 8);
 
 		let mut dd = U64Decoder::new(encoded.as_slice());
@@ -261,7 +262,7 @@ mod testing {
 			0,0,0,0,0,0,0,0, //7
 			0,0,0,0,0,0,0,0, //8  the u64 ends here!
 			]).to_bitvec();
-		let mut encoded = bits_to_fibonacci_bytes(&bits);
+		let mut encoded = bits_to_fibonacci_generic_array(&bits);
 		encoded=swap_endian(&encoded, 8);
 
 		let mut dd = U64Decoder::new(encoded.as_slice());
@@ -302,7 +303,7 @@ mod testing {
 			0,0,0,0,0,0,0,0, //7
 			0,0,0,0,0,0,0,0, //8  the u64 ends here!
 			]).to_bitvec();
-		let mut encoded = bits_to_fibonacci_bytes(&bits);
+		let mut encoded = bits_to_fibonacci_generic_array(&bits);
 		encoded=swap_endian(&encoded, 8);
 
 		let mut dd = U64Decoder::new(encoded.as_slice());
@@ -329,7 +330,7 @@ mod testing {
 			0,0,0,0,1,1,0,0, //8  the u64 ends here!
 			// this would be fine; the buffer is just zero padded!
 			]).to_bitvec();
-		let mut encoded = bits_to_fibonacci_bytes(&bits);
+		let mut encoded = bits_to_fibonacci_generic_array(&bits);
 		encoded=swap_endian(&encoded, 8);
 
 		let mut dd = U64Decoder::new(encoded.as_slice());
@@ -361,7 +362,7 @@ mod testing {
 			0,0,0,0,1,1,1,0, //8  the u64 ends here!
 			// NOTE THE remaining bit in there
 			]).to_bitvec();
-		let mut encoded = bits_to_fibonacci_bytes(&bits);
+		let mut encoded = bits_to_fibonacci_generic_array(&bits);
 		encoded=swap_endian(&encoded, 8);
 
 		let mut dd = U64Decoder::new(encoded.as_slice());
@@ -398,7 +399,7 @@ mod testing {
 			0,0,0,0,0,0,0,0, //7
 			0,0,0,0,0,0,0,0, //8  the u64 ends here!
 			]).to_bitvec();
-		let mut encoded = bits_to_fibonacci_bytes(&bits);
+		let mut encoded = bits_to_fibonacci_generic_array(&bits);
 		encoded=swap_endian(&encoded, 8);
 
 		let mut dd = U64Decoder::new(encoded.as_slice());
@@ -440,7 +441,7 @@ mod testing {
 			0,0,0,0,0,0,0,0, //7
 			0,0,0,0,0,0,0,0, //8  the u64 ends here!
 			]).to_bitvec();
-		let mut encoded = bits_to_fibonacci_bytes(&bits);
+		let mut encoded = bits_to_fibonacci_generic_array(&bits);
 		encoded=swap_endian(&encoded, 8);
 
 		let mut dd = U64Decoder::new(encoded.as_slice());

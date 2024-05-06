@@ -4,7 +4,7 @@
 //! # Usage
 //! ```rust
 //! // Encoding
-//! use fastfibonacci::fibonacci::{encode, decode, FibonacciDecoder};
+//! use fastfibonacci::bit_decode::fibonacci::{encode, decode, FibonacciDecoder};
 //! let encoded = encode(&vec![34, 12]) ;
 //!
 //! // Decoding
@@ -32,7 +32,7 @@ use crate::{MyBitSlice, MyBitVector, FbDec};
 ///
 /// # Example
 /// ```rust
-/// use fastfibonacci::{FbDec, fibonacci::FibonacciDecoder};
+/// use fastfibonacci::{FbDec, bit_decode::fibonacci::FibonacciDecoder};
 /// use bitvec::prelude::{BitVec, Msb0};
 /// let buffer:BitVec<u8, Msb0> = BitVec::from_iter(vec![true, false, true, true, false, true, true, false, true]);
 /// let d = FibonacciDecoder::new(buffer.as_bitslice(), false);
@@ -221,11 +221,14 @@ where
 
 #[cfg(test)]
 mod test {
-    use crate::{fibonacci::{encode, FibonacciDecoder}, utils::create_bitvector};
+    use super::*;
+    use crate::{utils::create_bitvector};
 
     mod test_table {
-        use crate::fibonacci::{bits_from_table_internal, encode, MyBitVector, FIB64};
+        use crate::{bit_decode::fibonacci::{bits_from_table_internal, encode}, utils::FIB64, MyBitVector};
+
         use bitvec::vec::BitVec;
+        
 
         #[test]
         fn test_1() {

@@ -1,6 +1,6 @@
 //!
 use funty::Integral;
-use crate::partial::Partial;
+use crate::byte_decode::partial::Partial;
 
 ///
 #[derive(Debug)]
@@ -98,8 +98,8 @@ impl <T:Integral> DirtyGenericSingle<T> {
 			self.bitpos += 1;
 			// println!("{bit}");
 			match partial.update(bit) {
-				crate::partial::DecResult::Incomplete => {  /*println!("{:?}", partial) */},
-				crate::partial::DecResult::Complete(n) => {
+				crate::byte_decode::partial::DecResult::Incomplete => {  /*println!("{:?}", partial) */},
+				crate::byte_decode::partial::DecResult::Complete(n) => {
 					return Ok(n)
 				},
 			};
@@ -162,7 +162,8 @@ impl <T:Integral> DirtyGenericSingle<T> {
 
 #[cfg(test)]
 mod testing {
-	use crate::{bare_metal_64::{bits_to_fibonacci_generic_array, bits_to_fibonacci_u64array}, fibonacci::FibonacciDecoder, utils::{bitstream_to_string_pretty, create_bitvector}};
+	use crate::utils::bits_to_fibonacci_generic_array;
+	use crate::{bit_decode::fibonacci::FibonacciDecoder, utils::{bitstream_to_string_pretty, create_bitvector}};
 
 	use super::*;
 
@@ -345,7 +346,7 @@ mod testing {
 			0,0,0,0,1,1,0,0, //8  the u64 ends here! this needs to return a PartialDecode num=2, i_fibo=2, lastbit = 1
 			])
 		.to_bitvec();
-		let encoded = bits_to_fibonacci_u64array(&bits);
+		let encoded = bits_to_fibonacci_generic_array::<u64>(&bits);
 		let mut dd = DirtyGenericSingle { buf: encoded[0], bitpos:0};
 		assert_eq!(dd.all_trailing_zeros(), false);
 		let _ = dd.decode();
@@ -371,7 +372,7 @@ mod testing {
 			0,0,0,0,1,1,0,0, //8  the u64 ends here! this needs to return a PartialDecode num=2, i_fibo=2, lastbit = 1
 			])
 		.to_bitvec();
-		let encoded = bits_to_fibonacci_u64array(&bits);
+		let encoded = bits_to_fibonacci_generic_array::<u64>(&bits);
 
 		let mut dd = DirtyGenericSingle { buf: encoded[0], bitpos:0};
 		assert_eq!(
@@ -399,7 +400,7 @@ mod testing {
 			0,0,0,0,1,1,0,1, //8  the u64 ends here! this needs to return a PartialDecode num=2, i_fibo=2, lastbit = 1
 			])
 		.to_bitvec();
-		let encoded = bits_to_fibonacci_u64array(&bits);
+		let encoded = bits_to_fibonacci_generic_array::<u64>(&bits);
 
 		let mut dd = DirtyGenericSingle { buf: encoded[0],  bitpos: 0};
 		assert_eq!(
@@ -423,7 +424,7 @@ mod testing {
 			0,0,0,0,0,0,0,0, //8
 			])
 		.to_bitvec();
-		let encoded = bits_to_fibonacci_u64array(&bits);
+		let encoded = bits_to_fibonacci_generic_array::<u64>(&bits);
 		let mut dd = DirtyGenericSingle { buf: encoded[0], bitpos:0};
 
 		assert_eq!(
@@ -445,7 +446,7 @@ mod testing {
 			0,0,1,1,0,0,0,1, //8 
 			])
 		.to_bitvec();
-		let u = bits_to_fibonacci_u64array(&bits)[0];
+		let u = bits_to_fibonacci_generic_array::<u64>(&bits)[0];
 		let mut d = DirtyGenericSingle {buf:u, bitpos: 0};
 		assert_eq!(
 			d.decode_from_partial(Default::default()),

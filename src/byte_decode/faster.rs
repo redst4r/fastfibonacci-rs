@@ -1,7 +1,9 @@
 //!
 use std::marker::PhantomData;
 use funty::Integral;
-use crate::{bare_metal_64::bits_to_fibonacci_generic_array, bare_metal_64single::Dirty64Single, bare_metal_generic_single::DirtyGenericSingle, fastutils::{fibonacci_left_shift, State}, fibonacci::FibonacciDecoder, partial::{self, Partial}, utils::{create_bitvector, random_fibonacci_stream}};
+
+use crate::byte_decode::{bare_metal_generic_single::DirtyGenericSingle,  partial::Partial};
+use crate::fastutils::{fibonacci_left_shift, State};
 
 /// Kind of a marker trait which we can use 
 /// for our lookup table
@@ -221,46 +223,52 @@ fn number_plus_partial(x: u64, p: &Partial) -> u64{
     p.num + fibonacci_left_shift(x, p.i_fibo)
 }
 
+#[cfg(test)]
+mod test {
+    use crate::utils::{bits_to_fibonacci_generic_array, create_bitvector, random_fibonacci_stream};
 
-#[test]
-fn test_fast_decode() {
+    use super::*;
+    #[test]
+    fn test_fast_decode() {
 
-    // the exampel from the paper, Fig 9.4
-    let bits = create_bitvector(vec![ 
-        1,0,1,1,0,1,0,1,
-        1,0,1,0,0,1,0,1,
-        0,1,1,1,0,0,1,0]).to_bitvec();
+        // the exampel from the paper, Fig 9.4
+        let bits = create_bitvector(vec![ 
+            1,0,1,1,0,1,0,1,
+            1,0,1,0,0,1,0,1,
+            0,1,1,1,0,0,1,0]).to_bitvec();
 
-    let x_u8 = bits_to_fibonacci_generic_array::<u8>(&bits);
-    let x_u16 = bits_to_fibonacci_generic_array::<u16>(&bits);
+        let x_u8 = bits_to_fibonacci_generic_array::<u8>(&bits);
+        let x_u16 = bits_to_fibonacci_generic_array::<u16>(&bits);
 
-    let t: LookupVecNew<u8> = LookupVecNew::new();
-    let r = fast_decode_new(&x_u8,false, &t);
-    assert_eq!(r, vec![4,7, 86]);
+        let t: LookupVecNew<u8> = LookupVecNew::new();
+        let r = fast_decode_new(&x_u8,false, &t);
+        assert_eq!(r, vec![4,7, 86]);
 
-    let t: LookupVecNew<u16> = LookupVecNew::new();
-    let r = fast_decode_new(&x_u16,false, &t);
-    assert_eq!(r, vec![4,7, 86]);
-}
+        let t: LookupVecNew<u16> = LookupVecNew::new();
+        let r = fast_decode_new(&x_u16,false, &t);
+        assert_eq!(r, vec![4,7, 86]);
+    }
 
-#[test]
-fn test_correctness_fast_decode_u8() {
-    let bits = random_fibonacci_stream(100000, 1, 1000, 123455);
+    #[test]
+    fn test_correctness_fast_decode_u8() {
+        use crate::bit_decode::fibonacci::FibonacciDecoder;
+        let bits = random_fibonacci_stream(100000, 1, 1000, 123455);
 
-    let x_u8 = bits_to_fibonacci_generic_array::<u8>(&bits);
-    let x_u16 = bits_to_fibonacci_generic_array::<u16>(&bits);
-
-
-    // ground thruth
-    let dec = FibonacciDecoder::new(&bits, false);
-    let x1: Vec<_> = dec.collect();
-
-    let t: LookupVecNew<u8> = LookupVecNew::new();
-    let x2 = fast_decode_new(&x_u8,false, &t);        
-    assert_eq!(x1, x2);
+        let x_u8 = bits_to_fibonacci_generic_array::<u8>(&bits);
+        let x_u16 = bits_to_fibonacci_generic_array::<u16>(&bits);
 
 
-    let t: LookupVecNew<u16> = LookupVecNew::new();
-    let x2 = fast_decode_new(&x_u16,false, &t);        
-    assert_eq!(x1, x2);
+        // ground thruth
+        let dec = FibonacciDecoder::new(&bits, false);
+        let x1: Vec<_> = dec.collect();
+
+        let t: LookupVecNew<u8> = LookupVecNew::new();
+        let x2 = fast_decode_new(&x_u8,false, &t);        
+        assert_eq!(x1, x2);
+
+
+        let t: LookupVecNew<u16> = LookupVecNew::new();
+        let x2 = fast_decode_new(&x_u16,false, &t);        
+        assert_eq!(x1, x2);
+    }
 }

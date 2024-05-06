@@ -4,14 +4,15 @@ use bitvec::slice::BitSlice;
 use bitvec::vec::BitVec;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 // use fastfibonacci::bare_metal::decode_single_dirty;
-use fastfibonacci::bare_metal_64::{bits_to_fibonacci_generic_array, bits_to_fibonacci_u64array, read_bit_u64, Dirty64};
-use fastfibonacci::fast::{LookupVec, fast_decode, get_u8_decoder, get_u16_decoder};
-use fastfibonacci::faster::{fast_decode_new, LookupVecNew};
-use fastfibonacci::fibonacci::{encode, FibonacciDecoder};
-use fastfibonacci::u64_fibdecoder::U64Decoder;
-use fastfibonacci::utils::bits_to_fibonacci_bytes;
+use fastfibonacci::bit_decode::fast::{LookupVec, fast_decode, get_u8_decoder, get_u16_decoder};
+use fastfibonacci::byte_decode::bare_metal_64::{read_bit_u64, Dirty64};
+use fastfibonacci::byte_decode::faster::{fast_decode_new, LookupVecNew};
+use fastfibonacci::bit_decode::fibonacci::{encode, FibonacciDecoder};
+use fastfibonacci::byte_decode::u64_fibdecoder::U64Decoder;
 use fastfibonacci::utils::random_fibonacci_stream;
 use fastfibonacci::{MyBitSlice, MyBitVector};
+
+use fastfibonacci::utils::bits_to_fibonacci_generic_array;
 // use fastfibonacci::random_fibonacci_stream;
 use fibonacci_codec::Encode;
 use rand::distributions::{Distribution, Uniform};
@@ -155,7 +156,7 @@ fn fibonacci_mybitwise(c: &mut Criterion) {
 
     let seed = 23; 
     let data_encoded = random_fibonacci_stream(100_000, 1, 10000, seed);
-    let mut x = bits_to_fibonacci_bytes(&data_encoded);
+    let mut x = bits_to_fibonacci_generic_array(&data_encoded);
     // this needs to have a multiiple of 8 bytes
     println!("{}", x.len());
     let bytse_to_add = 8 - (x.len() % 8);
@@ -165,7 +166,7 @@ fn fibonacci_mybitwise(c: &mut Criterion) {
     assert_eq!(x.len() % 8, 0);
     x = swap_endian(&x, 8);
 
-    let encoded_bytes64 = bits_to_fibonacci_u64array(&data_encoded);
+    let encoded_bytes64 = bits_to_fibonacci_generic_array::<u64>(&data_encoded);
 
     fn _dummy_dirty64(data: &[u64]) -> Vec<u64> {
 
@@ -253,7 +254,7 @@ fn bitstore(c: &mut Criterion) {
         xu64.push(*b);
     }
     
-    let u64array = bits_to_fibonacci_u64array(&x);
+    let u64array = bits_to_fibonacci_generic_array::<u64>(&x);
     fn dummy_u64raw(ua: &[u64]) -> usize {
         let mut s = 0_usize;
         for &u in ua {
