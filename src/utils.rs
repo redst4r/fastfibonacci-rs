@@ -4,7 +4,7 @@ use funty::Integral;
 use itertools::Itertools;
 use rand::{distributions::{Distribution, Uniform}, rngs::StdRng, thread_rng, SeedableRng};
 
-use crate::{bit_decode::fibonacci::encode, MyBitSlice, MyBitVector};
+use crate::{bit_decode::fibonacci::encode, bit_decode::{MyBitSlice, MyBitVector}};
 
 /// Iterative fibonacci. just to get the first N fibonacci numbers
 ///
@@ -104,7 +104,7 @@ pub (crate) const FIB64: &[u64] = &[
 #[doc(hidden)]
 #[cfg(test)]
 pub mod test {
-    use crate::MyBitVector;
+    use crate::bit_decode::MyBitVector;
     use rand::{distributions::Uniform, prelude::Distribution, thread_rng};
     use crate::bit_decode::fibonacci::encode;
 
@@ -166,31 +166,6 @@ pub fn create_bitvector(bits: Vec<usize>) -> MyBitVector {
     }
     bitvector
 }
-
-
-/// turns a bitstream into chunks of u8
-/// Note: the last byte will be right-padded if the encoding doesnt fill the netire byte
-// pub fn bits_to_fibonacci_bytes(b: &MyBitSlice) -> Vec<u8>{
-//     todo!("Deprecated");
-// 	let mut x = Vec::new();
-// 	for segment in b.chunks(8){
-// 		// warning: the last chunk might be shortert than 8
-// 		// and load_be would pad it with zeros ON THE LEFT!!
-// 		// but we need RIGHT PADDING
-// 		let enc = if segment.len() <8 {
-// 			let mut topad = segment.to_owned();
-// 			for _i in 0..8-segment.len(){
-// 				topad.push(false);
-// 			}
-// 			topad.load_be()
-// 		} else {
-// 			segment.load_be()
-// 		};
-
-// 		x.push(enc)
-// 	}
-// 	x
-// }
 
 /// turns a bitstream into chunks of u8/u16/u32/u64
 /// Note: the last byte will be right-padded if the encoding doesnt fill the netire byte

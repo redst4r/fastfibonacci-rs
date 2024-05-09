@@ -70,7 +70,7 @@ use std::cmp;
 use once_cell::sync::Lazy;
 use bitvec::{view::BitView, field::BitField, store::BitStore};
 use funty::Integral;
-use crate::{FbDec, MyBitOrder, MyBitSlice};
+use crate::bit_decode::{FbDec, MyBitOrder, MyBitSlice};
 use crate::fastutils::{DecodingResult, State, DecodingState, decode_with_remainder};
 
 /// Fast Fibonacci decoding lookup table for u8/u16/... segment sizes.
@@ -289,7 +289,7 @@ mod testing_lookups {
 mod testing_fast_decode {
     use bitvec::prelude::*;
     use super::*;
-    use crate::{utils::{create_bitvector, test::random_fibonacci_stream}, MyBitVector};
+    use crate::{utils::{create_bitvector, test::random_fibonacci_stream}, bit_decode::MyBitVector};
 
     #[test]
     fn test_fast_decode_correct_padding() {
@@ -675,12 +675,13 @@ impl<'a, T:Integral> Iterator for FastFibonacciDecoder<'a, T> {
         } else {
             el
         }
+
     }
 }
 
 #[cfg(test)]
 mod test_iter {
-    use crate::{utils::create_bitvector, MyBitVector};
+    use crate::{utils::create_bitvector, bit_decode::MyBitVector};
 
     use super::*;
     use bitvec::vec::BitVec;

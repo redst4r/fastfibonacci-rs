@@ -13,6 +13,16 @@
 //! [FastFibonacci decoding](https://www.semanticscholar.org/paper/Fast-data-Encoding-and-Deconding-Algorithms-Walder/4fbae5afc34dd32e7527fe4b1a1bd19e68794e3d)
 //! looks at `n` bits at once, decoding this chunk in a single operation which can be faster.
 //! 
+//! ### Bit- vs Bytestreams
+//! The crate is divided into two parts: 
+//! - `bit_decode` (misnomer, not only for decoding), which represents input as [`bitvec::BitVec`] 
+//! and allows to decode arbitrary sequences of bits. Once we're done with decoding we can retriueve the remaining bistream for further processing
+//! - `byte_decode`, which does *not* operate on bits but assumes each block of Fibonacci-encoded numbers comes as a sequence of `u8` (or `u16`, `u32`, `u64`).
+//! The stream might contain other data after, but it is assumed that this transition happens at the `u8` (`u16` etc) boundary. This makes it less flexible, but
+//! faster than processing bit by bit.
+//! 
+//! Both approaches support an on the fly decoding and a **fast** decoding (using a lookup table of precomputed partial decodings).
+//! 
 //! # Examples
 //! Regular encoding and decoding:
 //! ```rust
@@ -108,27 +118,13 @@ pub mod bit_decode;
 // pub (crate) mod chunker;
 // pub (crate) mod partial;
 
-use bitvec::prelude as bv;
 
-/// The type of bitvector used in the crate.
-/// Importantly, some code *relies* on `Msb0`
-pub(crate) type MyStore = u8;
-pub (crate) type MyBitOrder = bv::Msb0;
-///
-pub type MyBitSlice = bv::BitSlice<MyStore,MyBitOrder>;
-/// reftype that goes with [`MyBitSlice`]
-pub type MyBitVector = bv::BitVec<MyStore, MyBitOrder>;
+// regular bit encoding/decoding
+pub use bit_decode::{FbDec, fibonacci::FibonacciDecoder, fibonacci::encode, fibonacci::decode};
+// fast bit-en/decoding
+pub use bit_decode::fast::FastFibonacciDecoder;
 
 
-/// Marker trait for Fibonacci decoders.
-/// This is an iterator over u64 (the decoded integers),
-/// and lets you return parts of the buffer not yet decoded.
-pub trait FbDec<'a>: Iterator<Item = u64> {
-    /// Returns the buffer behind the last bit processed.
-    /// Comes handy when the buffer contains data OTHER than fibonacci encoded
-    /// data that needs to be processed externally.
-    fn get_remaining_buffer(&self) -> &'a MyBitSlice;
-
-    /// how far did we process into the buffer (pretty much the first bit after a 11).
-    fn get_bits_processed(&self) -> usize;
-}
+// regulat byte decoding
+pub use byte_decode::u64_fibdecoder::U64Decoder;
+pub use byte_decode::faster::fast_decode_new;

@@ -367,7 +367,7 @@ pub(crate) fn decode_with_remainder<T: BitStore, O: BitOrder>(
 
 #[cfg(test)]
 mod test_decode_with_remainder {
-    use crate::MyBitOrder;
+    use crate::bit_decode::MyBitOrder;
 
     use super::*;
     use bitvec::{bits, view::BitView};

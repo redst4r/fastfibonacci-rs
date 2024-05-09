@@ -22,7 +22,7 @@ use crate::utils::FIB64;
 /// note the the entire content of this module is
 /// **independent** of the choice of BitOrder, i.e.
 /// both Lsb0 and Msb0 work the same way!
-use crate::{MyBitSlice, MyBitVector, FbDec};
+use crate::bit_decode::{MyBitSlice, MyBitVector, FbDec};
 
 
 /// Decoder for Fibonacci encoded integer sequences (allows to iterate)
@@ -222,10 +222,10 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{utils::create_bitvector};
+    use crate::utils::create_bitvector;
 
     mod test_table {
-        use crate::{bit_decode::fibonacci::{bits_from_table_internal, encode}, utils::FIB64, MyBitVector};
+        use crate::{bit_decode::fibonacci::{bits_from_table_internal, encode}, utils::FIB64, bit_decode::MyBitVector};
 
         use bitvec::vec::BitVec;
         
