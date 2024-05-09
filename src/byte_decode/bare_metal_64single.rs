@@ -152,7 +152,6 @@ impl Dirty64Single {
 
 		(fully_decoded,last_partial )
 	}
-
 }
 
 #[cfg(test)]

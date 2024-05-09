@@ -2,7 +2,7 @@
 use bitvec::{field::BitField, order::BitOrder, slice::BitSlice, store::BitStore};
 use funty::Integral;
 use itertools::Itertools;
-use rand::{distributions::{Distribution, Uniform}, rngs::StdRng, thread_rng, SeedableRng};
+use rand::{distributions::{Distribution, Uniform}, rngs::StdRng, SeedableRng};
 
 use crate::{bit_decode::fibonacci::encode, bit_decode::{MyBitSlice, MyBitVector}};
 

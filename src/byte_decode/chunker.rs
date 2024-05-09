@@ -101,3 +101,23 @@ impl<T: ?Sized> ReadPlus for T where T: Read {}
 
 //     Ok(())
 // }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+    fn test_chunk(){
+        let bytes = vec![0_u8, 1, 0, 3];
+
+        let mut c = Chunks::new(bytes.as_slice(), 2);
+
+        assert_eq!(
+            c.next().unwrap().unwrap(),
+            vec![0, 1]
+        );
+        assert_eq!(
+            c.next().unwrap().unwrap(),
+            vec![0, 3]
+        );
+    }
+}

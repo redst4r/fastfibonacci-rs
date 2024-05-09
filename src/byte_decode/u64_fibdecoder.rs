@@ -4,6 +4,8 @@
 use std::io::Read;
 use crate::byte_decode::{bare_metal_64single::Dirty64Single, chunker::Chunks, partial::Partial};
 
+// use super::FbDecNew;
+
 
 fn load_u64_from_bytes(bytes: &[u8]) -> u64 {
 	// with BE we need to swap the entire stream
@@ -84,7 +86,7 @@ impl <R:Read> U64Decoder<R> {
 			Some(Ok(bytes8)) => {
 				// println!("\tLoading new u64");
 				let el =load_u64_from_bytes(&bytes8);
-				self.decoder = Dirty64Single::new(el);
+				self.decoder = Dirty64Single::new(el); // TODO lots of allocations
 				self.dec_status = partial; // carry over the current decoding status
 				self.n_u64s_consumed += 1;
 				Ok(())
@@ -159,7 +161,15 @@ impl<R:Read> Iterator for U64Decoder<R> {
 	}
 }
 
+// impl<'a> FbDecNew<'a> for U64Decoder<'a> {
+// 	fn get_remaining_buffer(&self) -> &'a impl Read {
+// 		todo!()
+// 	}
 
+// 	fn get_bytes_processed(&self) -> usize {
+// 		todo!()
+// 	}
+// }
 #[cfg(test)]
 mod testing {
     use crate::{utils::bits_to_fibonacci_generic_array, utils::create_bitvector};

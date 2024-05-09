@@ -1,4 +1,5 @@
 //!
+use std::collections::VecDeque;
 use std::marker::PhantomData;
 use funty::Integral;
 
@@ -32,14 +33,16 @@ impl StorageInteger for u16 {
     }
 }
 
-fn padding<T:Integral>(x: T) -> T {
-    if x > T::ZERO{
-        x << x.leading_zeros()
-    } else {
-        T::ZERO
-    }
-}
+/// pads zeros on the RIGHT
+// fn padding<T:Integral>(x: T) -> T {
+//     if x > T::ZERO{
+//         x << x.leading_zeros()
+//     } else {
+//         T::ZERO
+//     }
+// }
 
+#[derive(Debug)]
 ///
 pub struct LookupVecNew<T> {
     table_state0: Vec<(Vec<u64>, Partial)>,
@@ -102,7 +105,6 @@ pub trait LookupTableNew<T> {
     fn lookup(&self, s: State, segment: T) -> (&[u64], &Partial);
 }
 
-
 impl <T:Integral> LookupTableNew<T> for LookupVecNew<T> {
     // fn lookup(&self, s: State, segment: T) -> (Vec<u64>, Partial) {
     fn lookup(&self, s: State, segment: T) -> (&[u64], &Partial) {
@@ -115,9 +117,7 @@ impl <T:Integral> LookupTableNew<T> for LookupVecNew<T> {
 
         let (numbers, partial) = match s {
             State(0) => self.table_state0.get(idx).unwrap(),
-            State(1) => self.table_state1.get(idx).unwrap(),
-            // State(0) => &self.table_state0[segment as usize],
-            // State(1) => &self.table_state1[segment as usize],            
+            State(1) => self.table_state1.get(idx).unwrap(),        
             State(_) => panic!("yyy")
         };
         (numbers, partial)
@@ -161,7 +161,6 @@ mod testing_lookups {
     }
 }
 
-
 /// Fast Fibonacci decoding of the entire bitstream using the precomputed lookup table.
 /// 
 /// Fibonacci decoding cannot handle zeros, and often during the encoding, every value is incremented by one (to encode zero as 1).
@@ -204,7 +203,7 @@ pub fn fast_decode_new<T:Integral>(stream: &[T], shifted_by_one: bool, table: &i
             // "add" p and partial; ORDER is important
             // partial = combine_partial(partial, p)
             let mut newp = p.clone();
-            newp.combine_partial(partial);
+            newp.combine_partial(&partial);
             partial = newp;
         }
     }
@@ -218,8 +217,9 @@ pub fn fast_decode_new<T:Integral>(stream: &[T], shifted_by_one: bool, table: &i
     }
 }
 
+#[inline]
 // adding a partial decoding (from previous segment) to a fully decoded number (in the current segemnt)
-fn number_plus_partial(x: u64, p: &Partial) -> u64{
+pub (crate) fn number_plus_partial(x: u64, p: &Partial) -> u64{
     p.num + fibonacci_left_shift(x, p.i_fibo)
 }
 
@@ -270,5 +270,97 @@ mod test {
         let t: LookupVecNew<u16> = LookupVecNew::new();
         let x2 = fast_decode_new(&x_u16,false, &t);        
         assert_eq!(x1, x2);
+    }
+}
+
+
+/// 
+pub struct FastFibonacciDecoderNew<'a, T> {
+    stream: Box<dyn Iterator<Item = T>>, // bitstream to decode
+    lookup_table: &'a LookupVecNew<T>,
+    current_buffer: VecDeque<Option<u64>>, // decoded numbers not yet emitted; once there's no new numbers, adds a `None` as terminator
+    shifted_by_one: bool,
+    partial: Partial,
+}
+
+impl<'a, T:Integral>  FastFibonacciDecoderNew<'a, T> {
+
+    ///
+    pub fn new(stream: impl Iterator<Item = T> + 'static, lookup_table: &'a LookupVecNew<T>, shifted_by_one: bool) ->Self {
+        Self {
+            stream: Box::new(stream),
+            lookup_table,
+            current_buffer: VecDeque::new(),
+            shifted_by_one,
+            partial: Default::default(),
+        }
+    }
+
+    /// pull another segment from the stream, decode
+    pub fn load_segment(&mut self) {
+
+        match self.stream.next() {
+            Some(segment_int) => {
+                // decode the segment
+
+                // need to pad
+                // actually dont!
+                // let segment_int_pad = padding(segment_int);
+                let segment_int_pad = segment_int;
+                let (numbers, p) = self.lookup_table.lookup(State(self.partial.last_bit as usize), segment_int_pad);
+
+                // now, we need to properly decode those numbers:
+                // if the previous segment left over something (see partial)
+                // we need to "add" this to numbers[0]
+                // if not, we need to merge p (the new partial decode from stream[i]) and partial (the old partial decode from stream(i-1))
+                if !numbers.is_empty() {
+                    // println!("Combining {numbers:?} with {partial:?}");
+                    // absorb `partial` (the old decoding) into the number
+                    // and keep the new decoding status as is
+                    let new_x = number_plus_partial(numbers[0], &self.partial);
+                    // println!("newx {new_x}");
+                    self.current_buffer.push_back(Some(new_x));
+                    self.current_buffer.extend(numbers[1..].iter().map(|&x| Some(x)));
+                    // decoded_numbers.extend(&numbers[1..]);
+
+
+                    // numbers[0] = new_x;
+                    self.partial = p.clone();
+                } else {
+                    // "add" p and partial; ORDER is important
+                    // partial = combine_partial(partial, p)
+                    let mut newp = p.clone();
+                    newp.combine_partial(&self.partial);
+                    self.partial = newp;
+                }
+            }
+            None => {
+                // no more segments in stream
+                // assert that there's no leftovers in the current decoding
+                // and add None to buffer
+                assert!(self.partial.is_clean());
+                self.current_buffer.push_back(None);
+            }
+        }
+    }
+}
+
+impl<'a, T:Integral> Iterator for FastFibonacciDecoderNew<'a, T> {
+    type Item=u64;
+
+    fn next(&mut self) -> Option<Self::Item> {
+
+        // pull in new elements until we get something in the buffer to emit
+        while self.current_buffer.is_empty() {
+            self.load_segment()
+        }
+
+        let el = self.current_buffer.pop_front().unwrap(); // unwrap should be save, there HAS to be an element
+
+        if self.shifted_by_one {
+            el.map(|x| x - 1)
+        } else {
+            el
+        }
     }
 }

@@ -163,7 +163,7 @@ impl <T:Integral> DirtyGenericSingle<T> {
 #[cfg(test)]
 mod testing {
 	use crate::utils::bits_to_fibonacci_generic_array;
-	use crate::{bit_decode::fibonacci::FibonacciDecoder, utils::{bitstream_to_string_pretty, create_bitvector}};
+	use crate::{bit_decode::fibonacci::FibonacciDecoder, utils::create_bitvector};
 
 	use super::*;
 

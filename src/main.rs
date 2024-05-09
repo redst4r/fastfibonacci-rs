@@ -4,9 +4,7 @@
 // use fastfibonacci::{utils::bits_to_fibonacci_bytes, utils::random_fibonacci_stream};
 
 use std::time::Instant;
-
-use fastfibonacci::{byte_decode::faster::{fast_decode_new, LookupVecNew}, utils::bits_to_fibonacci_generic_array};
-
+use fastfibonacci::{byte_decode::{bare_metal_16single_faster::U16DecoderFast, faster::{fast_decode_new, FastFibonacciDecoderNew, LookupVecNew}}, utils::bits_to_fibonacci_generic_array};
 use fastfibonacci::bit_decode::fast::{fast_decode, LookupVec};
 use fastfibonacci::utils::random_fibonacci_stream;
 
@@ -26,11 +24,28 @@ pub fn main() {
     
     let table8: LookupVecNew<u8> = LookupVecNew::new();
     let x_u8 = bits_to_fibonacci_generic_array::<u8>(&data);
+
     let now = Instant::now();
     let ground_truth = fast_decode_new(&x_u8, false, &table8);
     let elapsed_time = now.elapsed();
     println!("{} in {:?}", ground_truth.len(), elapsed_time);
 
+
+    // let x_u8 = bits_to_fibonacci_generic_array::<u8>(&data);
+    let now = Instant::now();
+    let dd = FastFibonacciDecoderNew::new(x_u8.into_iter(), &table8, false);
+    let x:Vec<_> = dd.collect();
+    let elapsed_time = now.elapsed();
+    println!("{} in {:?}", x.len(), elapsed_time);
+
+
+    let x_u8 = bits_to_fibonacci_generic_array::<u8>(&data);
+    let table16: LookupVecNew<u16> = LookupVecNew::new();
+    let now = Instant::now();
+    let dd = U16DecoderFast::new(x_u8.as_slice(), &table16);
+    let x:Vec<_> = dd.collect();
+    let elapsed_time = now.elapsed();
+    println!("{} in {:?}", x.len(), elapsed_time);
     // let now = Instant::now();
     // let f = get_u8_decoder(&data, false);
     // let x: Vec<_> = f.collect();

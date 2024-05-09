@@ -5,12 +5,13 @@ use bitvec::vec::BitVec;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 // use fastfibonacci::bare_metal::decode_single_dirty;
 use fastfibonacci::bit_decode::fast::{LookupVec, fast_decode, get_u8_decoder, get_u16_decoder};
+use fastfibonacci::byte_decode::bare_metal_16single_faster::U16DecoderFast;
 use fastfibonacci::byte_decode::bare_metal_64::{read_bit_u64, Dirty64};
-use fastfibonacci::byte_decode::faster::{fast_decode_new, LookupVecNew};
+use fastfibonacci::byte_decode::faster::{fast_decode_new, FastFibonacciDecoderNew, LookupVecNew};
 use fastfibonacci::bit_decode::fibonacci::{encode, FibonacciDecoder};
 use fastfibonacci::byte_decode::u64_fibdecoder::U64Decoder;
 use fastfibonacci::utils::random_fibonacci_stream;
-use fastfibonacci::{MyBitSlice, MyBitVector};
+use fastfibonacci::bit_decode::{MyBitSlice, MyBitVector};
 
 use fastfibonacci::utils::bits_to_fibonacci_generic_array;
 // use fastfibonacci::random_fibonacci_stream;
@@ -211,6 +212,20 @@ fn fibonacci_mybitwise(c: &mut Criterion) {
     let x_u16 = bits_to_fibonacci_generic_array::<u16>(&data_encoded);
     c.bench_function(&format!("Decoding: NEW  generic fast vec u16-decode"), |b| {
         b.iter(|| fast_decode_new(black_box(&x_u16),false, &table16))
+    });
+
+    c.bench_function(&format!("Decoding: NEW iterator u8"), |b| {
+        b.iter(||  FastFibonacciDecoderNew::new(x_u8.clone().into_iter(), &table8, false).collect::<Vec<u64>>())
+    });
+
+
+    let mut x_u8_padded = x_u8.clone();
+    if x_u8_padded.len() % 2 == 1{
+        x_u8_padded.push(0);
+    }
+
+    c.bench_function(&format!("Decoding: FAST NEW iterator u16"), |b| {
+        b.iter(||  U16DecoderFast::new(x_u8_padded.as_slice(), &table16).collect::<Vec<u64>>())
     });
 
 

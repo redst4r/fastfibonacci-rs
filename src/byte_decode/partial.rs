@@ -89,8 +89,8 @@ impl Partial {
     }
 
     /// adding a previous partial decoding to `self`
-    /// consumes the old encoding to make sure we dont use it any more
-    pub fn combine_partial(&mut self, p_old: Partial) {
+    /// modifies `self`
+    pub fn combine_partial(&mut self, p_old: &Partial) {
         // the new num is: the old num + the new num (adjusted for the additional bits)
         let new_num = p_old.num + fibonacci_left_shift(self.num, p_old.i_fibo);
         let new_i = p_old.i_fibo + self.i_fibo;
@@ -101,6 +101,12 @@ impl Partial {
         self.last_bit = new_last;    
     }
 
+    /// checks if there's any leftover in the decoding, or just a bunch of zeros
+    /// which could be considered padding
+    pub fn is_clean(&self) -> bool {
+        // i_fibo doesnt matter, it gets increase even for zeros
+        self.last_bit == 0 && self.num == 0
+    }
 
 }
 impl Default for Partial {
@@ -139,7 +145,7 @@ fn test_add_partial() {
     let mut p2 = Partial::new(39, 8, 1);
 
 
-    p2.combine_partial(p_old);
+    p2.combine_partial(&p_old);
 
     // combined those would be 1+5+34+233 = 273
     // todo the last bit of p1 and the first bit of p2 should never both the 1!!
