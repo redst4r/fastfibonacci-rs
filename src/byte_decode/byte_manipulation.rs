@@ -28,6 +28,8 @@ use bitvec::field::BitField;
 use funty::Integral;
 use crate::{bit_decode::MyBitSlice, utils::create_bitvector};
 
+use super::chunker::U64BytesToU64;
+
 
 /// load a series of 8 bytes into a u64
 /// 
@@ -38,7 +40,10 @@ pub (crate) fn load_u64_from_bytes(bytes: &[u8]) -> u64 {
 	
 	// do le instead, i.e. the last byte `bytes[7]` is the first to be processed
 	// This is how its done in the busfiles, and we need to stick to this!
-	u64::from_le_bytes(bytes.try_into().unwrap())
+	// u64::from_le_bytes(bytes.try_into().unwrap())
+
+    // actually lets use the U64BytesToU64 for consistent fconversion
+    U64BytesToU64::new(bytes).next().unwrap()
 }
 
 /// see xample at the top of the module
@@ -157,19 +162,66 @@ fn read_bit_u16_lsb(x: u16, pos: usize) -> bool {
 	thebit>0
 }
 
+
+
+///
+#[inline]
+pub fn read_bit_u32(x: u32, pos: usize) -> bool {
+    read_bit_u32_msb(x, pos)
+}
+
+/// Reads out the bits, pos=0 will yield the MOST SIGNIFICANT BIT FIRST
+/// see https://togglebit.io/posts/rust-bitwise/
+#[inline]
+fn read_bit_u32_msb(x: u32, pos: usize) -> bool {
+	// assert!(pos < 64);
+	const WORDSIZE:usize = std::mem::size_of::<u32>() * 8;
+	let shift_op = WORDSIZE - 1 - pos;
+	let thebit = (x >> shift_op) & 1;
+	thebit>0
+}
+
+
 /// turns a bitstream into a u64/u32 representation
 /// Note: the last byte will be right-padded if the encoding doesnt fill the netire byte
-pub fn bits_to_fibonacci_generic_array<T:Integral>(b: &MyBitSlice) -> Vec<T>{
+// pub fn bits_to_fibonacci_generic_array<T:Integral>(b: &MyBitSlice) -> Vec<T>{
+
+//     // const WORDSIZE: usize = std::mem::size_of::<u32>() * 8; // inbits
+//     let wordsize = T::BITS as usize; // inbits
+
+// 	let mut x: Vec<T> = Vec::new();
+// 	for segment in b.chunks(wordsize){
+// 		// warning: the last chunk might be shortert than 8
+// 		// and load_be would pad it with zeros ON THE LEFT!!
+// 		// but we need RIGHT PADDING
+// 		let enc = if segment.len() < wordsize {
+// 			let mut topad = segment.to_owned();
+// 			for _i in 0..wordsize-segment.len(){
+// 				topad.push(false);
+// 			}
+// 			topad.load_be()  // REALLY ODD! we need to use bigEndian here, otherwise it doesnt not work out (see [bits_to_bytes] test)
+// 		} else {
+// 			segment.load_be()
+// 		};
+
+// 		x.push(enc)
+// 	}
+// 	x
+// }
+
+/// turns a bitstream into a u64/u32 representation
+/// Note: the last byte will be right-padded if the encoding doesnt fill the netire byte
+pub fn bits_to_fibonacci_generic_array(b: &MyBitSlice) -> Vec<u8>{
 
     // const WORDSIZE: usize = std::mem::size_of::<u32>() * 8; // inbits
-    let wordsize = T::BITS as usize; // inbits
+    let wordsize = 64 as usize; // inbits
 
-	let mut x: Vec<T> = Vec::new();
+	let mut x: Vec<u8> = Vec::new();
 	for segment in b.chunks(wordsize){
 		// warning: the last chunk might be shortert than 8
 		// and load_be would pad it with zeros ON THE LEFT!!
 		// but we need RIGHT PADDING
-		let enc = if segment.len() < wordsize {
+		let enc:u64 = if segment.len() < wordsize {
 			let mut topad = segment.to_owned();
 			for _i in 0..wordsize-segment.len(){
 				topad.push(false);
@@ -178,13 +230,13 @@ pub fn bits_to_fibonacci_generic_array<T:Integral>(b: &MyBitSlice) -> Vec<T>{
 		} else {
 			segment.load_be()
 		};
-
-		x.push(enc)
+        
+        for byte in enc.to_le_bytes(){
+		    x.push(byte)
+        }
 	}
 	x
 }
-
-
 
 #[cfg(test)]
 mod testing {
@@ -204,12 +256,15 @@ mod testing {
             0,0,0,0,0,0,0,0,
             0,0,0,0,0,0,0,0,
             ]);
-        let bytes = bits_to_fibonacci_generic_array::<u64>(&bits);
-        assert_eq!(bytes, vec![6341068275337658368]);
-    
-    
-        let bytes = bits_to_fibonacci_generic_array::<u8>(&bits);
+
+        let bytes = bits_to_fibonacci_generic_array(&bits);
         assert_eq!(bytes, vec![0,0,0,0,0,0,0,88_u8]);
+
+        let bytes = bits_to_fibonacci_generic_array(&bits);
+        let xu64: Vec<_> = U64BytesToU64::new(bytes.as_slice()).collect();
+        assert_eq!(xu64, vec![6341068275337658368]);
+    
+    
     }
     #[test]
     fn test_bits_to_bytes() {
@@ -221,8 +276,8 @@ mod testing {
         ]);
 
         assert_eq!(
-            bits_to_fibonacci_generic_array::<u8>(&bits),
-            vec![128, 0]
+            bits_to_fibonacci_generic_array(&bits),
+            vec![0, 0, 0, 0, 0, 0, 0, 128]
         );
 
         // assert that things are padded correctly: if we cant fill the entire segment, append zero bytes     
@@ -230,8 +285,8 @@ mod testing {
             1,0,0,0,0,0,0,0,
         ]);        
         assert_eq!(
-            bits_to_fibonacci_generic_array::<u16>(&bits[..8]),
-            vec![128]
+            bits_to_fibonacci_generic_array(&bits[..8]),
+            vec![0, 0, 0, 0, 0, 0, 0, 128]
         );
 
 
@@ -242,8 +297,8 @@ mod testing {
             0,0,0,0,0,0,0,0,
         ]); 
         assert_eq!(
-            bits_to_fibonacci_generic_array::<u16>(&bits),
-            vec![128]
+            bits_to_fibonacci_generic_array(&bits),
+            vec![0, 0, 0, 0, 0, 0, 0, 128]
         );
     }
 

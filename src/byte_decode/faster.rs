@@ -8,34 +8,34 @@ use funty::Integral;
 use crate::byte_decode::{bare_metal_generic_single::DirtyGenericSingle,  partial::Partial};
 use crate::fastutils::{fibonacci_left_shift, State};
 
-use super::chunker::{Chunks, ChunksU64ToU16, ChunksU64ToU8};
+use super::chunker::{U64BytesToU16, U64BytesToU8};
 
 /// Kind of a marker trait which we can use 
 /// for our lookup table
-trait StorageInteger {
-    fn to_usize(&self) -> usize;
-    fn nbits() -> usize;
-}
+// trait StorageInteger {
+//     fn to_usize(&self) -> usize;
+//     fn nbits() -> usize;
+// }
 
-impl StorageInteger for u8 {
-    fn to_usize(&self) -> usize {
-        *self as usize
-     }
+// impl StorageInteger for u8 {
+//     fn to_usize(&self) -> usize {
+//         *self as usize
+//      }
      
-    fn nbits() -> usize {
-        8
-    }
-}
+//     fn nbits() -> usize {
+//         8
+//     }
+// }
 
-impl StorageInteger for u16 {
-    fn to_usize(&self) -> usize {
-        *self as usize
-     }
+// impl StorageInteger for u16 {
+//     fn to_usize(&self) -> usize {
+//         *self as usize
+//      }
      
-    fn nbits() -> usize {
-        16
-    }
-}
+//     fn nbits() -> usize {
+//         16
+//     }
+// }
 
 /// pads zeros on the RIGHT
 // fn padding<T:Integral>(x: T) -> T {
@@ -241,8 +241,9 @@ mod test {
             1,0,1,0,0,1,0,1,
             0,1,1,1,0,0,1,0]).to_bitvec();
 
-        let x_u8 = bits_to_fibonacci_generic_array::<u8>(&bits);
-        let x_u16 = bits_to_fibonacci_generic_array::<u16>(&bits);
+        let bytes = bits_to_fibonacci_generic_array(&bits);
+        let x_u8: Vec<u8> = U64BytesToU8::new(bytes.as_slice()).flatten().collect();
+        let x_u16: Vec<u16> = U64BytesToU16::new(bytes.as_slice()).flatten().collect();
 
         let t: LookupVecNew<u8> = LookupVecNew::new();
         let r = fast_decode_new(&x_u8,false, &t);
@@ -258,9 +259,9 @@ mod test {
         use crate::bit_decode::fibonacci::FibonacciDecoder;
         let bits = random_fibonacci_stream(100000, 1, 1000, 123455);
 
-        let x_u8 = bits_to_fibonacci_generic_array::<u8>(&bits);
-        let x_u16 = bits_to_fibonacci_generic_array::<u16>(&bits);
-
+        let bytes = bits_to_fibonacci_generic_array(&bits);
+        let x_u8: Vec<u8> = U64BytesToU8::new(bytes.as_slice()).flatten().collect();
+        let x_u16: Vec<u16> = U64BytesToU16::new(bytes.as_slice()).flatten().collect();
 
         // ground thruth
         let dec = FibonacciDecoder::new(&bits, false);
@@ -276,7 +277,6 @@ mod test {
         assert_eq!(x1, x2);
     }
 }
-
 
 
 /// Wether the byte stream originates from u64 or u32
@@ -297,7 +297,7 @@ pub enum StreamType {
 /// 
 pub struct FastFibonacciDecoderNewU8<'a, R:Read> {
     //stream to decode, chunked into the right pieces to be fed into lookup table
-    stream: Flatten<ChunksU64ToU8<R>>, 
+    stream: Flatten<U64BytesToU8<R>>, 
     lookup_table: &'a LookupVecNew<u8>,
     // decoded numbers not yet emitted; once there's no new numbers, adds a `None` as terminator
     current_buffer: VecDeque<Option<u64>>,
@@ -313,7 +313,7 @@ impl<'a, R:Read>  FastFibonacciDecoderNewU8<'a, R> {
                 // things come in as 12345678|ABCDEFGH
                 // `8` is the byte that we need to look at first.
                 // we use the ChunksU64ToU8 to get the order of bytes right for decoding
-                ChunksU64ToU8::new(stream).flatten() // note: ChunksU64ToU8 returns [u8;8], but we need to emit byte by byte! hence the flatten
+                U64BytesToU8::new(stream).flatten() // note: ChunksU64ToU8 returns [u8;8], but we need to emit byte by byte! hence the flatten
             },
             StreamType::U32 => todo!(),
         };
@@ -412,16 +412,18 @@ fn test_fixed_(){
     let t: LookupVecNew<u8> = LookupVecNew::new();
     let mut dd = FastFibonacciDecoderNewU8::new(bytes.as_slice(), &t, false, StreamType::U64);
     let x = dd.next();
-    
     assert_eq!(x, Some(7));
+    let x = dd.next();
     assert_eq!(x, Some(7));
+    let x = dd.next();
+    assert_eq!(x, None);
 }
 
 
 /// 
 pub struct FastFibonacciDecoderNewU16<'a, R:Read> {
     //stream to decode, chunked into the right pieces to be fed into lookup table
-    stream: Flatten<ChunksU64ToU16<R>>, 
+    stream: Flatten<U64BytesToU16<R>>, 
     lookup_table: &'a LookupVecNew<u16>,
     // decoded numbers not yet emitted; once there's no new numbers, adds a `None` as terminator
     current_buffer: VecDeque<Option<u64>>,
@@ -437,7 +439,7 @@ impl<'a, R:Read>  FastFibonacciDecoderNewU16<'a, R> {
                 // things come in as 12345678|ABCDEFGH
                 // `8` is the byte that we need to look at first.
                 // we use the ChunksU64ToU8 to get the order of bytes right for decoding
-                ChunksU64ToU16::new(stream).flatten() // note: ChunksU64ToU8 returns [u8;8], but we need to emit byte by byte! hence the flatten
+                U64BytesToU16::new(stream).flatten() // note: ChunksU64ToU8 returns [u8;8], but we need to emit byte by byte! hence the flatten
             },
             StreamType::U32 => todo!(),
         };
@@ -537,5 +539,9 @@ fn test_fixed_u16(){
     let x = dd.next();
     
     assert_eq!(x, Some(7));
+    let x = dd.next();
     assert_eq!(x, Some(7));
+
+    let x = dd.next();
+    assert_eq!(x, None);
 }

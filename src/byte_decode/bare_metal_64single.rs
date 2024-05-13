@@ -157,7 +157,7 @@ impl Dirty64Single {
 
 #[cfg(test)]
 mod testing {
-	use crate::{bit_decode::fibonacci::FibonacciDecoder, byte_decode::byte_manipulation::{bits_to_fibonacci_generic_array, load_u64_from_bytes}, utils::{create_bitvector, random_fibonacci_stream}};
+	use crate::{bit_decode::fibonacci::FibonacciDecoder, byte_decode::{byte_manipulation::{bits_to_fibonacci_generic_array, load_u64_from_bytes}, chunker::U64BytesToU64}, utils::{create_bitvector, random_fibonacci_stream}};
 	use super::*;
 
 	#[test]
@@ -197,8 +197,10 @@ mod testing {
 			0,0,1,1,0,0,0,1, //8 
 			])
 		.to_bitvec();
-		let u = bits_to_fibonacci_generic_array::<u64>(&bits)[0];
-		let mut dd = Dirty64Single { buf: u, bitpos:0};
+		let bytes = bits_to_fibonacci_generic_array(&bits);
+		let encoded_u64s: Vec<u64> = U64BytesToU64::new(bytes.as_slice()).collect();
+		
+		let mut dd = Dirty64Single { buf: encoded_u64s[0], bitpos:0};
 		let (numbers, pa) = dd.decode_all_from_partial(Default::default());
 		assert_eq!(numbers, vec![2,3, 53316291173]);
 		assert_eq!(pa,  Partial::new(5, 4, 1))
@@ -210,15 +212,18 @@ mod testing {
 		let n = 1_00000;
 		// let N = 1000;
 		let data_encoded = random_fibonacci_stream(n, 1, 10000, 123);
-		let encoded_bytes = bits_to_fibonacci_generic_array::<u64>(&data_encoded);
+		let encoded_bytes = bits_to_fibonacci_generic_array(&data_encoded);
+		let encoded_u64s: Vec<u64> = U64BytesToU64::new(encoded_bytes.as_slice()).collect();
+
+
 
 		// println!("{}", bitstream_to_string_pretty(&data_encoded, 64));
 		let mut decoded = Vec::with_capacity(n);
 
 		let mut last_partial = Default::default();
-		for _i in 0..encoded_bytes.len() {
+		for _i in 0..encoded_u64s.len() {
 			let mut dd = Dirty64Single { 
-				buf: encoded_bytes[_i],
+				buf: encoded_u64s[_i],
 				bitpos: 0
 			};
 
@@ -261,14 +266,17 @@ mod testing {
 			0,0,0,0,1,1,0,0, //8  the u64 ends here! this needs to return a PartialDecode num=2, i_fibo=2, lastbit = 1
 			])
 		.to_bitvec();
-		let encoded = bits_to_fibonacci_generic_array::<u64>(&bits);
-		let mut dd = Dirty64Single { buf: encoded[0], bitpos:0};
+		let encoded_bytes = bits_to_fibonacci_generic_array(&bits);
+		let encoded_u64s: Vec<u64> = U64BytesToU64::new(encoded_bytes.as_slice()).collect();
+
+
+		let mut dd = Dirty64Single { buf: encoded_u64s[0], bitpos:0};
 		assert_eq!(dd.all_trailing_zeros(), false);
 		let _ = dd.decode();
 		assert_eq!(dd.all_trailing_zeros(), true);
 
 		// make sure to return zero even if read every single bit!
-		let dd = Dirty64Single { buf: encoded[0], bitpos:64};
+		let dd = Dirty64Single { buf: encoded_u64s[0], bitpos:64};
 		assert_eq!(dd.all_trailing_zeros(), true);
 
 	}
@@ -287,9 +295,11 @@ mod testing {
 			0,0,0,0,1,1,0,0, //8  the u64 ends here! this needs to return a PartialDecode num=2, i_fibo=2, lastbit = 1
 			])
 		.to_bitvec();
-		let encoded = bits_to_fibonacci_generic_array::<u64>(&bits);
+		let encoded_bytes = bits_to_fibonacci_generic_array(&bits);
+		let encoded_u64s: Vec<u64> = U64BytesToU64::new(encoded_bytes.as_slice()).collect();
 
-		let mut dd = Dirty64Single { buf: encoded[0], bitpos:0};
+
+		let mut dd = Dirty64Single { buf: encoded_u64s[0], bitpos:0};
 		assert_eq!(
 			dd.decode(),
 			Ok(4052739537881)
@@ -315,9 +325,10 @@ mod testing {
 			0,0,0,0,1,1,0,1, //8  the u64 ends here! this needs to return a PartialDecode num=2, i_fibo=2, lastbit = 1
 			])
 		.to_bitvec();
-		let encoded = bits_to_fibonacci_generic_array::<u64>(&bits);
+		let encoded_bytes = bits_to_fibonacci_generic_array(&bits);
+		let encoded_u64s: Vec<u64> = U64BytesToU64::new(encoded_bytes.as_slice()).collect();
 
-		let mut dd = Dirty64Single { buf: encoded[0],  bitpos: 0};
+		let mut dd = Dirty64Single { buf: encoded_u64s[0],  bitpos: 0};
 		assert_eq!(
 			dd.decode(),
 			Ok(4052739537881)
@@ -339,8 +350,10 @@ mod testing {
 			0,0,0,0,0,0,0,0, //8
 			])
 		.to_bitvec();
-		let encoded = bits_to_fibonacci_generic_array::<u64>(&bits);
-		let mut dd = Dirty64Single { buf: encoded[0], bitpos:0};
+		let encoded_bytes = bits_to_fibonacci_generic_array(&bits);
+		let encoded_u64s: Vec<u64> = U64BytesToU64::new(encoded_bytes.as_slice()).collect();
+
+		let mut dd = Dirty64Single { buf: encoded_u64s[0], bitpos:0};
 
 		assert_eq!(
 			dd.decode_from_partial(Partial::new(2, 2, 1)),
@@ -361,8 +374,10 @@ mod testing {
 			0,0,1,1,0,0,0,1, //8 
 			])
 		.to_bitvec();
-		let u = bits_to_fibonacci_generic_array::<u64>(&bits)[0];
-		let mut d = Dirty64Single {buf:u, bitpos: 0};
+		let encoded_bytes = bits_to_fibonacci_generic_array(&bits);
+		let encoded_u64s: Vec<u64> = U64BytesToU64::new(encoded_bytes.as_slice()).collect();
+
+		let mut d = Dirty64Single {buf: encoded_u64s[0], bitpos: 0};
 		assert_eq!(
 			d.decode_from_partial(Default::default()),
 			Ok(2)
@@ -402,8 +417,10 @@ mod testing {
 			0,0,1,1,0,0,0,1, //8 
 			])
 		.to_bitvec();
-		let u = bits_to_fibonacci_generic_array::<u64>(&bits)[0];
-		let mut d = Dirty64Single {buf:u, bitpos: 0};
+		let encoded_bytes = bits_to_fibonacci_generic_array(&bits);
+		let encoded_u64s: Vec<u64> = U64BytesToU64::new(encoded_bytes.as_slice()).collect();
+
+		let mut d = Dirty64Single {buf:encoded_u64s[0], bitpos: 0};
 		assert_eq!(
 			d.decode_from_partial2(Default::default()),
 			Ok(2)

@@ -16,7 +16,7 @@ pub fn main() {
     let data = random_fibonacci_stream(n, 1, 10000, 23);
 
     // regular U64Decode
-    let mut x_u8_padded = bits_to_fibonacci_generic_array::<u8>(&data);
+    let mut x_u8_padded = bits_to_fibonacci_generic_array(&data);
     for i in 0..8 - (x_u8_padded.len() % 8) {
         x_u8_padded.push(0)
     }
@@ -44,7 +44,7 @@ pub fn main() {
     
     // fast byte decode
     let table8: LookupVecNew<u8> = LookupVecNew::new();
-    let x_u8 = bits_to_fibonacci_generic_array::<u8>(&data);
+    let x_u8 = bits_to_fibonacci_generic_array(&data);
 
     let now = Instant::now();
     let ground_truth = fast_decode_new(&x_u8, false, &table8);
@@ -52,7 +52,7 @@ pub fn main() {
     println!("byte-fast{} in {:?}", ground_truth.len(), elapsed_time);
 
 
-    let x_u8 = bits_to_fibonacci_generic_array::<u8>(&data);
+    let x_u8 = bits_to_fibonacci_generic_array(&data);
     let now = Instant::now();
     let dd = FastFibonacciDecoderNewU8::new(x_u8.as_slice(), &table8, false, fastfibonacci::byte_decode::faster::StreamType::U64);
     let x:Vec<_> = dd.collect();
@@ -60,7 +60,7 @@ pub fn main() {
     println!("{} in {:?}", x.len(), elapsed_time);
 
 
-    let x_u8 = bits_to_fibonacci_generic_array::<u8>(&data);
+    let x_u8 = bits_to_fibonacci_generic_array(&data);
     let table16: LookupVecNew<u16> = LookupVecNew::new();
     let now = Instant::now();
     let dd = U16DecoderFast::new(x_u8.as_slice(), &table16);

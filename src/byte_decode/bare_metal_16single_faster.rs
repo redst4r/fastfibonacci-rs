@@ -1,9 +1,8 @@
 //!
-use std::collections::VecDeque;
+use std::{collections::VecDeque, iter::Flatten};
 use std::io::Read;
 use crate::byte_decode::partial::Partial;
-use super::chunker::Chunks;
-use super::faster::{number_plus_partial, LookupTableNew, LookupVecNew};
+use super::{chunker::U64BytesToU16, faster::{number_plus_partial, LookupTableNew, LookupVecNew}};
 
 /// Decoding chunks of 16bits using the lookup table
 #[derive(Debug)]
@@ -59,7 +58,7 @@ impl <'a> U16Fast <'a> {
 
 #[cfg(test)]
 mod testing {
-	use crate::{bit_decode::fibonacci::FibonacciDecoder, byte_decode::byte_manipulation::bits_to_fibonacci_generic_array, utils::{create_bitvector, random_fibonacci_stream}};
+	use crate::{bit_decode::fibonacci::FibonacciDecoder, byte_decode::{byte_manipulation::bits_to_fibonacci_generic_array, chunker::U64BytesToU64}, utils::{create_bitvector, random_fibonacci_stream}};
 
 	use super::*;
 
@@ -71,7 +70,9 @@ mod testing {
 			0,0,1,1,0,0,0,0, //7
 			0,0,0,0,1,1,0,0, //8  
 		]).to_bitvec();
-		let u = bits_to_fibonacci_generic_array::<u16>(&bits)[0];
+		let encoded_bytes = bits_to_fibonacci_generic_array(&bits);
+		let u = U64BytesToU16::new(encoded_bytes.as_slice()).flatten().collect::<Vec<_>>()[0];
+
         let table = LookupVecNew::new();
 		println!("u: {u}");
 		let mut dd = U16Fast { buf: u, table: &table};
@@ -84,7 +85,9 @@ mod testing {
 			0,1,0,0,0,0,0,0, //1 
 			0,0,0,0,0,0,0,0, //2
 		]).to_bitvec();
-		let u = bits_to_fibonacci_generic_array::<u16>(&bits)[0];
+		let encoded_bytes = bits_to_fibonacci_generic_array(&bits);
+		let u = U64BytesToU16::new(encoded_bytes.as_slice()).flatten().collect::<Vec<_>>()[0];
+
 		let mut dd = U16Fast { buf: u, table: &table};
 		let (numbers, pa) = dd.decode_all_from_partial(&Default::default());
 		assert_eq!(pa,  Partial::new(2, 16, 0));
@@ -98,15 +101,18 @@ mod testing {
 		// let N = 1000;
 		let data_encoded = random_fibonacci_stream(n, 1, 10000, 123);
 		// let encoded_bytes = bits_to_fibonacci_u64array(&data_encoded);
-		let encoded_bytes = bits_to_fibonacci_generic_array::<u16>(&data_encoded);
+		let bytes = bits_to_fibonacci_generic_array(&data_encoded);
+        let x_u16: Vec<u16> = U64BytesToU16::new(bytes.as_slice()).flatten().collect();
+
+
         let table = LookupVecNew::new();
 
 		// println!("{}", bitstream_to_string_pretty(&data_encoded, 64));
 		let mut decoded = Vec::with_capacity(n);
 
 		let mut last_partial = Default::default();
-		for _i in 0..encoded_bytes.len() {
-            let mut dd = U16Fast { buf: encoded_bytes[_i], table: &table};
+		for _i in 0..x_u16.len() {
+            let mut dd = U16Fast { buf: x_u16[_i], table: &table};
 
 			let (numbers, pa) = dd.decode_all_from_partial(&last_partial);
 			decoded.extend(numbers);
@@ -122,18 +128,18 @@ mod testing {
 }
 
 
-fn load_u16_from_bytes(bytes: &[u8]) -> u16 {
-	// with BE we need to swap the entire stream
-	// u64::from_be_bytes(bytes.try_into().unwrap())
+// fn load_u16_from_bytes(bytes: &[u8]) -> u16 {
+// 	// with BE we need to swap the entire stream
+// 	// u64::from_be_bytes(bytes.try_into().unwrap())
 	
-	// do le instead, i.e. the last byte `bytes[7]` is the first to be processed
-	u16::from_be_bytes(bytes.try_into().unwrap())
-}
+// 	// do le instead, i.e. the last byte `bytes[7]` is the first to be processed
+// 	u16::from_be_bytes(bytes.try_into().unwrap())
+// }
 
 /// Fibonacci decoder running on a byte stream. Collects u64s from the bytestream
 /// and decodes them
 pub struct U16DecoderFast < 'a, R:Read> {
-	u64stream: Chunks<R>,  /// a stream of u64s
+	u64stream: Flatten<U64BytesToU16<R>>,  /// a stream of u64s
 	decoder: U16Fast<'a>, /// each u64 gets loaded into here for decoding
 	partial: Partial,
 	n_u16s_consumed: usize, // keep track of how many u64 we consumed
@@ -144,11 +150,10 @@ impl <'a, R:Read> U16DecoderFast<'a, R> {
 	///
 	pub fn new(stream: R, table: &'a LookupVecNew<u16>) ->Self {
 
-		let mut it = Chunks::new(stream, 2);
+		let mut it = U64BytesToU16::new(stream).flatten();
 
 		// a bit odd, we need to fill int the first decoding manually
-		let bytes = it.next().unwrap().unwrap();
-		let el = load_u16_from_bytes(&bytes);
+		let el = it.next().unwrap();
 		let mut u64dec = U16Fast::new(el, table);
 		let (numbers, partial) = u64dec.decode_all_from_partial(&Default::default());
 
@@ -168,15 +173,15 @@ impl <'a, R:Read> U16DecoderFast<'a, R> {
 	/// (making sure every single bit has been processed).
 	/// Basically we must be at the end of the current u64 (or there's only 0 left)
 	/// and dec_status is empty too
-	pub fn get_inner(self) -> Result<R, Partial>  {
+	// pub fn get_inner(self) -> Result<R, Partial>  {
 
-		if self.is_clean() {
-			Ok(self.u64stream.into_inner())
-		} else {
-			panic!("unprocessed bits left {:?}", self.partial);
-			// return Err(DecodeError::PartiallyDecoded(self.dec_status))
-		}
-	}
+	// 	if self.is_clean() {
+	// 		Ok(self.u64stream. into_inner())
+	// 	} else {
+	// 		panic!("unprocessed bits left {:?}", self.partial);
+	// 		// return Err(DecodeError::PartiallyDecoded(self.dec_status))
+	// 	}
+	// }
 
 	/// checks whether the current status of the decoder is clean,
 	/// i.e. there's no Partial decoding and the rest of the current u64
@@ -200,20 +205,14 @@ impl <'a, R:Read> U16DecoderFast<'a, R> {
 
 		match self.u64stream.next() {
 			// managed to pull in another u64
-			Some(Ok(bytes16)) => {
+			Some(el) => {
 				// println!("\tLoading new u16: {bytes16:?}");
-				let el =load_u16_from_bytes(&bytes16);
 				// self.decoder = U16Fast::new(el); // TODO lots of allocations
 				self.decoder.buf = el; // TODO lots of allocations
 				// self.partial = partial; // carry over the current decoding status
 				self.n_u16s_consumed += 1;
 				Ok(())
 			},
-
-			// some error in the stream
-			Some(Err(e)) => {
-				panic!("not sure what happend. io error probably {:?}", e);
-			}
 
 			// we ran out of u64s! 
 			None => {
@@ -297,10 +296,11 @@ mod testing2 {
 			1,1,0,0,0,0,0,0, //1 
 			0,0,0,0,0,0,0,0, //2
 			]).to_bitvec();
-		let encoded = bits_to_fibonacci_generic_array(&bits);
-		println!("{:?}", encoded);
+		let bytes = bits_to_fibonacci_generic_array(&bits);
+		
+		println!("{:?}", bytes);
 		let table = LookupVecNew::new();
-		let mut dd = U16DecoderFast::new(encoded.as_slice(), &table);
+		let mut dd = U16DecoderFast::new(bytes.as_slice(), &table);
 		assert_eq!(
 			dd.next(),
 			Some(3)
@@ -348,8 +348,8 @@ mod testing2 {
 			dd.next(),
 			Some(4052739537881)
 		);
-		let x = dd.get_inner().unwrap();
-		assert_eq!(x, vec![192,0,0,0,0,0,0,0])
+		// let x = dd.get_inner().unwrap();
+		// assert_eq!(x, vec![192,0,0,0,0,0,0,0])
 	}
 	#[test]
 	fn tset_get_inner_flush_with_border(){
@@ -384,8 +384,8 @@ mod testing2 {
 			Some(1)
 		);
 		// essentialyl the next u64
-		let x = dd.get_inner().unwrap();
-		assert_eq!(x, vec![192, 0,0,0,0,0,0,0])
+		// let x = dd.get_inner().unwrap();
+		// assert_eq!(x, vec![192, 0,0,0,0,0,0,0])
 	}
 
 	#[test]
@@ -460,8 +460,8 @@ mod testing2 {
 			dd.next(),
 			Some(4052739537881)
 		);
-		let x = dd.get_inner().unwrap();
-		assert_eq!(x, vec![0,0,0,0,0,0,0, 192])
+		// let x = dd.get_inner().unwrap();
+		// assert_eq!(x, vec![0,0,0,0,0,0,0, 192])
 	}
 
 

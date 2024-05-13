@@ -3,7 +3,9 @@
 //! 
 //! 
 use std::io::Read;
-use crate::byte_decode::{bare_metal_64single::Dirty64Single, byte_manipulation::load_u64_from_bytes, chunker::Chunks, partial::Partial};
+use crate::byte_decode::{bare_metal_64single::Dirty64Single, byte_manipulation::load_u64_from_bytes, partial::Partial};
+
+use super::chunker::U64BytesToU64;
 
 // use super::FbDecNew;
 
@@ -11,7 +13,7 @@ use crate::byte_decode::{bare_metal_64single::Dirty64Single, byte_manipulation::
 /// Fibonacci decoder running on a byte stream. Collects u64s from the bytestream
 /// and decodes them
 pub struct U64Decoder <R:Read> {
-	u64stream: Chunks<R>,  /// a stream of u64s
+	u64stream: U64BytesToU64<R>,  /// a stream of u64s
 	decoder: Dirty64Single, /// each u64 gets loaded into here for decoding
 	dec_status: Partial,
 	n_u64s_consumed: usize // keep track of how many u64 we consumed
@@ -21,9 +23,8 @@ impl <R:Read> U64Decoder<R> {
 	///
 	pub fn new(stream: R) ->Self {
 
-		let mut it = Chunks::new(stream, 8);
-		let bytes = it.next().unwrap().unwrap();
-		let el = load_u64_from_bytes(&bytes);
+		let mut it = U64BytesToU64::new(stream);
+		let el = it.next().unwrap();
 		// println!("El loaded {}", el);
 		let u64dec = Dirty64Single::new(el);
 		U64Decoder {
@@ -77,20 +78,13 @@ impl <R:Read> U64Decoder<R> {
 
 		match self.u64stream.next() {
 			// managed to pull in another u64
-			Some(Ok(bytes8)) => {
+			Some(el) => {
 				// println!("\tLoading new u64");
-				let el =load_u64_from_bytes(&bytes8);
 				self.decoder = Dirty64Single::new(el); // TODO lots of allocations
 				self.dec_status = partial; // carry over the current decoding status
 				self.n_u64s_consumed += 1;
 				Ok(())
 			},
-
-			// some error in the stream
-			Some(Err(e)) => {
-				panic!("not sure what happend. io error probably {:?}", e);
-			}
-
 			// we ran out of u64s! 
 			None => {
 				// println!("\tRan out of u64, dec: {:?}", partial);
@@ -162,13 +156,6 @@ mod testing {
     use crate::utils::{bitstream_to_string_pretty, random_fibonacci_stream, create_bitvector};
 	use crate::byte_decode::u64_fibdecoder::U64Decoder;
 	
-	pub (crate) fn swap_endian(bytes: &[u8], wordsize: usize) -> Vec<u8>{
-		let mut swapped_endian: Vec<u8> = Vec::with_capacity(bytes.len());
-		for bytes in bytes.chunks(wordsize){
-			swapped_endian.extend(bytes.iter().rev());
-		}
-		swapped_endian
-	}
 
 	#[test]
 	fn test_get_inner(){
@@ -190,8 +177,7 @@ mod testing {
 			0,0,0,0,0,0,0,0, //7
 			0,0,0,0,0,0,0,0, //8  the u64 ends here!
 			]).to_bitvec();
-		let mut encoded = bits_to_fibonacci_generic_array(&bits);
-		encoded=swap_endian(&encoded, 8);
+		let encoded = bits_to_fibonacci_generic_array(&bits);
 
 		let mut dd = U64Decoder::new(encoded.as_slice());
 		assert_eq!(
@@ -221,8 +207,7 @@ mod testing {
 			0,0,0,0,0,0,0,0, //7
 			0,0,0,0,0,0,0,0, //8  the u64 ends here!
 			]).to_bitvec();
-		let mut encoded = bits_to_fibonacci_generic_array(&bits);
-		encoded=swap_endian(&encoded, 8);
+		let encoded = bits_to_fibonacci_generic_array(&bits);
 
 		let mut dd = U64Decoder::new(encoded.as_slice());
 		assert_eq!(
@@ -259,8 +244,7 @@ mod testing {
 			0,0,0,0,0,0,0,0, //7
 			0,0,0,0,0,0,0,0, //8  the u64 ends here!
 			]).to_bitvec();
-		let mut encoded = bits_to_fibonacci_generic_array(&bits);
-		encoded=swap_endian(&encoded, 8);
+		let encoded = bits_to_fibonacci_generic_array(&bits);
 
 		let mut dd = U64Decoder::new(encoded.as_slice());
 		assert_eq!(
@@ -298,8 +282,7 @@ mod testing {
 			0,0,0,0,0,0,0,0, //7
 			0,0,0,0,0,0,0,0, //8  the u64 ends here!
 			]).to_bitvec();
-		let mut encoded = bits_to_fibonacci_generic_array(&bits);
-		encoded=swap_endian(&encoded, 8);
+		let encoded = bits_to_fibonacci_generic_array(&bits);
 
 		let mut dd = U64Decoder::new(encoded.as_slice());
 		assert_eq!(
@@ -324,8 +307,7 @@ mod testing {
 			0,0,0,0,1,1,0,0, //8  the u64 ends here!
 			// this would be fine; the buffer is just zero padded!
 			]).to_bitvec();
-		let mut encoded = bits_to_fibonacci_generic_array(&bits);
-		encoded=swap_endian(&encoded, 8);
+		let encoded = bits_to_fibonacci_generic_array(&bits);
 
 		let mut dd = U64Decoder::new(encoded.as_slice());
 		assert_eq!(
@@ -356,8 +338,7 @@ mod testing {
 			0,0,0,0,1,1,1,0, //8  the u64 ends here!
 			// NOTE THE remaining bit in there
 			]).to_bitvec();
-		let mut encoded = bits_to_fibonacci_generic_array(&bits);
-		encoded=swap_endian(&encoded, 8);
+		let encoded = bits_to_fibonacci_generic_array(&bits);
 
 		let mut dd = U64Decoder::new(encoded.as_slice());
 		assert_eq!(
@@ -394,7 +375,6 @@ mod testing {
 			0,0,0,0,0,0,0,0, //8  the u64 ends here!
 			]).to_bitvec();
 		let mut encoded = bits_to_fibonacci_generic_array(&bits);
-		encoded=swap_endian(&encoded, 8);
 
 		let mut dd = U64Decoder::new(encoded.as_slice());
 		assert_eq!(
@@ -435,8 +415,8 @@ mod testing {
 			0,0,0,0,0,0,0,0, //7
 			0,0,0,0,0,0,0,0, //8  the u64 ends here!
 			]).to_bitvec();
-		let mut encoded = bits_to_fibonacci_generic_array(&bits);
-		encoded=swap_endian(&encoded, 8);
+		let encoded = bits_to_fibonacci_generic_array(&bits);
+		// encoded=swap_endian(&encoded, 8);
 
 		let mut dd = U64Decoder::new(encoded.as_slice());
 		assert_eq!(
@@ -462,16 +442,7 @@ mod testing {
         let dec = FibonacciDecoder::new(&bits, false);
         let x1: Vec<_> = dec.collect();
 		
-		println!("{}", bitstream_to_string_pretty(&bits, 8));
-		println!("{x1:?}");
-
-        let mut x_u8 = bits_to_fibonacci_generic_array::<u8>(&bits);
-		// need to pad to a multiple of 8
-		for _i in 0..8 - (x_u8.len() % 8) {
-			x_u8.push(0)
-		}
-		println!("{x_u8:?}");
-
+        let x_u8 = bits_to_fibonacci_generic_array(&bits);
 		let dd = U64Decoder::new(x_u8.as_slice());
 		let x2: Vec<_> = dd.collect();
       
