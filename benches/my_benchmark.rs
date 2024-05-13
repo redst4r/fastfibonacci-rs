@@ -6,15 +6,14 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion};
 // use fastfibonacci::bare_metal::decode_single_dirty;
 use fastfibonacci::bit_decode::fast::{LookupVec, fast_decode, get_u8_decoder, get_u16_decoder};
 use fastfibonacci::byte_decode::bare_metal_16single_faster::U16DecoderFast;
-use fastfibonacci::byte_decode::bare_metal_64::{read_bit_u64, Dirty64};
+use fastfibonacci::byte_decode::bare_metal_64::{Dirty64};
+use fastfibonacci::byte_decode::byte_manipulation::{bits_to_fibonacci_generic_array, read_bit_u64};
 use fastfibonacci::byte_decode::faster::{fast_decode_new, FastFibonacciDecoderNew, LookupVecNew};
 use fastfibonacci::bit_decode::fibonacci::{encode, FibonacciDecoder};
 use fastfibonacci::byte_decode::u64_fibdecoder::U64Decoder;
 use fastfibonacci::utils::random_fibonacci_stream;
 use fastfibonacci::bit_decode::{MyBitSlice, MyBitVector};
 
-use fastfibonacci::utils::bits_to_fibonacci_generic_array;
-// use fastfibonacci::random_fibonacci_stream;
 use fibonacci_codec::Encode;
 use rand::distributions::{Distribution, Uniform};
 
@@ -196,7 +195,7 @@ fn fibonacci_mybitwise(c: &mut Criterion) {
         }
         decoded
     }
-    c.bench_function(&format!("Decoding: U64 ITer"), |b| {
+    c.bench_function(&format!("Decoding: U64Decoder"), |b| {
         b.iter(|| dummy_u64_iter(black_box(&x)))
     });
 

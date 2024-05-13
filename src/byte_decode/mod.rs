@@ -17,7 +17,7 @@ pub mod u64_fibdecoder;
 pub mod faster;
 // pub mod generic_fibdecoder;
 pub mod bare_metal_16single_faster;
-
+pub mod byte_manipulation;
 // pub mod chunker_generic;
 
 /// Marker trait for Fibonacci decoders.

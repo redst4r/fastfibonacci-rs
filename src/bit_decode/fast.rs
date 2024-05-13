@@ -289,7 +289,7 @@ mod testing_lookups {
 mod testing_fast_decode {
     use bitvec::prelude::*;
     use super::*;
-    use crate::{utils::{create_bitvector, test::random_fibonacci_stream}, bit_decode::MyBitVector};
+    use crate::{bit_decode::MyBitVector, utils::{create_bitvector, random_fibonacci_stream}};
 
     #[test]
     fn test_fast_decode_correct_padding() {
@@ -383,7 +383,7 @@ mod testing_fast_decode {
     fn test_correctness_fast_decode_u8() {
         use crate::bit_decode::fibonacci::FibonacciDecoder;
         // use crate::fastutils::FFBitvec;
-        let b = random_fibonacci_stream(100000, 1, 1000);
+        let b = random_fibonacci_stream(100000, 1, 1000, 123);
         // let b = dummy_encode(vec![64, 11, 88]);
         // make a copy for fast decoder
         let mut b_fast: MyBitVector = BitVec::new();
@@ -405,7 +405,7 @@ mod testing_fast_decode {
     // #[test]
     #[allow(dead_code)]
     fn test_fast_speed() {
-        let b = random_fibonacci_stream(10_000_000, 100000, 1000000);
+        let b = random_fibonacci_stream(10_000_000, 100000, 1000000, 123);
         // make a copy for fast decoder
         let mut b_fast: MyBitVector = BitVec::new();
         for bit in b.iter().by_vals() {
@@ -425,7 +425,7 @@ mod testing_fast_decode {
     #[test]
     fn test_correctness_fast_decode() {
         use crate::bit_decode::fibonacci::FibonacciDecoder;
-        let b = random_fibonacci_stream(100000, 1, 1000);
+        let b = random_fibonacci_stream(100000, 1, 1000, 123);
         // make a copy for fast decoder
         let mut b_fast: BitVec<u8, MyBitOrder> = BitVec::new();
         for bit in b.iter().by_vals() {
@@ -826,8 +826,8 @@ mod test_iter {
     #[test]
     fn test_correctness_iter() {
         use crate::bit_decode::fibonacci::FibonacciDecoder;
-        use crate::utils::test::random_fibonacci_stream;
-        let b = random_fibonacci_stream(100000, 1, 1000);
+        use crate::utils::random_fibonacci_stream;
+        let b = random_fibonacci_stream(100000, 1, 1000, 123);
         // make a copy for fast decoder
         let mut b_fast: MyBitVector = BitVec::new();
         for bit in b.iter().by_vals() {

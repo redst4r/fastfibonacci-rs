@@ -5,54 +5,7 @@
 // use std::marker::PhantomData;
 
 use crate::{fastutils::fibonacci_left_shift, utils::FIB64};
-/*
-enum DecState {
-    Partial {
-        num: u64,
-        i_fibo: usize,
-        last_bit: u64
-    },
-    Complete(u64)
-}
-impl DecState {
-    pub fn update(mut self, bit: u64) -> Self {
-        match self {
-            DecState::Partial { mut num, mut i_fibo, last_bit } => {
-                num += bit * FIB64[i_fibo];  // todo: i_fibo cant be bigger than 64!!
-                i_fibo += 1;
-                if last_bit + bit >= 2 {
-                    DecState::Complete(num)
-                } else {
-                    DecState::Partial {
-                        num,
-                        i_fibo,
-                        last_bit: bit
-                    }
-                }
-            },
-            DecState::Complete(_) => todo!(),
-        }
-    }
-}
 
-#[test]
-fn test_de() {
-    let mut s = DecState::Partial{num:0, i_fibo:0, last_bit: 0};
-    let bits = vec![0,0,0,1, 0, 1, 1];
-
-    for b in bits {
-        match s.update(b) {
-            DecState::Partial { num, i_fibo, last_bit } => {
-                s = DecState::Partial { num, i_fibo, last_bit }
-            } ,
-            DecState::Complete(x) => {
-                println!("decoded {x}");
-
-                break;
-            },
-        }
-    }
-}*/
 
 /// A Partial Fibonacci-decoding result:
 /// The input stream finished before we could decode a complete integer.
@@ -71,12 +24,13 @@ pub (crate) enum DecResult {
 }
 
 impl Partial {
-	///
+	/// A partial decoding, `num` is the number decoded so far, we're in `i_fibo` bits and `last_bit` is the last bit we saw.
 	pub fn new(num: u64, i_fibo: usize, last_bit: u64) -> Self {
 		Self {num, i_fibo, last_bit}
 	}
 
-    ///
+    /// adding another bit to the decoding.
+    /// Will either return a sucessfukl decoding (if we hit 11) or an updated partial decoding.
     pub (crate) fn update(&mut self, bit: u64) -> DecResult{
         if self.last_bit + bit >= 2 {
             DecResult::Complete(self.num)
@@ -109,49 +63,53 @@ impl Partial {
     }
 
 }
+
 impl Default for Partial {
 	fn default() -> Self {
 		Self::new( 0, 0, 0 )
 	}
 }
 
-#[test]
-fn test_de_partial() {
-    let mut s:Partial = Default::default();
-    let bits = vec![0,1,0,1, 1, 1, 1];
+#[cfg(test)]
+mod testing {
+    use super::*;
+    #[test]
+    fn test_de_partial() {
+        let mut s:Partial = Default::default();
+        let bits = vec![0,1,0,1, 1, 1, 1];
 
-    let mut res=0;
-    for b in bits {
-        println!("{}", b);
-        match s.update(b) {
-            DecResult::Incomplete => {},
-            DecResult::Complete(number) =>{
-                println!("{}", number);
-                res = number;
-                break;
-            },
+        let mut res=0;
+        for b in bits {
+            // println!("{}", b);
+            match s.update(b) {
+                DecResult::Incomplete => {},
+                DecResult::Complete(number) =>{
+                    // println!("{}", number);
+                    res = number;
+                    break;
+                },
+            }
         }
+        assert_eq!(7, res);
     }
-    assert_eq!(7, res);
-}
+
+    #[test]
+    fn test_add_partial() {
+        // 6 = 1001_fib
+        let p_old = Partial::new(6, 4, 1);
+
+        // 00010001_fib = 39
+        let mut p2 = Partial::new(39, 8, 1);
 
 
-#[test]
-fn test_add_partial() {
-    // 6 = 1001_fib
-    let p_old = Partial::new(6, 4, 1);
+        p2.combine_partial(&p_old);
 
-    // 00010001_fib = 39
-    let mut p2 = Partial::new(39, 8, 1);
-
-
-    p2.combine_partial(&p_old);
-
-    // combined those would be 1+5+34+233 = 273
-    // todo the last bit of p1 and the first bit of p2 should never both the 1!!
-    // let added = combine_partial(p_old, p2);
-    assert_eq!(
-        p2,
-        Partial::new(273, 12, 1)
-    )
+        // combined those would be 1+5+34+233 = 273
+        // todo the last bit of p1 and the first bit of p2 should never both the 1!!
+        // let added = combine_partial(p_old, p2);
+        assert_eq!(
+            p2,
+            Partial::new(273, 12, 1)
+        )
+    }
 }

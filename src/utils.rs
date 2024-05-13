@@ -101,25 +101,6 @@ pub (crate) const FIB64: &[u64] = &[
     17_167_680_177_565,
 ];
 
-#[doc(hidden)]
-#[cfg(test)]
-pub mod test {
-    use crate::bit_decode::MyBitVector;
-    use rand::{distributions::Uniform, prelude::Distribution, thread_rng};
-    use crate::bit_decode::fibonacci::encode;
-
-    /// Generates a random stream of interger in `[min,max]` and return the Fibonacci
-    /// encoding of thise stream
-    pub fn random_fibonacci_stream(n_elements: usize, min: usize, max: usize) -> MyBitVector {
-        let data_dist = Uniform::from(min..max);
-        let mut rng = thread_rng();
-        let mut data: Vec<u64> = Vec::with_capacity(n_elements);
-        for _ in 0..n_elements {
-            data.push(data_dist.sample(&mut rng) as u64);
-        }
-        encode(&data)
-    }
-}
 
 #[allow(dead_code)]
 /// just for debugging purpose
@@ -165,31 +146,4 @@ pub fn create_bitvector(bits: Vec<usize>) -> MyBitVector {
         bitvector.push(b == 1);
     }
     bitvector
-}
-
-/// turns a bitstream into chunks of u8/u16/u32/u64
-/// Note: the last byte will be right-padded if the encoding doesnt fill the netire byte
-pub fn bits_to_fibonacci_generic_array<T:Integral>(b: &MyBitSlice) -> Vec<T>{
-
-    // const WORDSIZE: usize = std::mem::size_of::<u32>() * 8; // inbits
-    let wordsize = T::BITS as usize; // inbits
-
-	let mut x: Vec<T> = Vec::new();
-	for segment in b.chunks(wordsize){
-		// warning: the last chunk might be shortert than 8
-		// and load_be would pad it with zeros ON THE LEFT!!
-		// but we need RIGHT PADDING
-		let enc = if segment.len() < wordsize {
-			let mut topad = segment.to_owned();
-			for _i in 0..wordsize-segment.len(){
-				topad.push(false);
-			}
-			topad.load_be()
-		} else {
-			segment.load_be()
-		};
-
-		x.push(enc)
-	}
-	x
 }

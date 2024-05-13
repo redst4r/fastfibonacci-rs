@@ -27,6 +27,7 @@
 // use bitvec::field::BitField;
 // use funty::Integral;
 
+use crate::byte_decode::byte_manipulation::read_bit_u64;
 use crate::utils::FIB64;
 use crate::byte_decode::partial::Partial;
 
@@ -165,16 +166,15 @@ impl <'a> Dirty64 <'a> {
 
 #[cfg(test)]
 mod test {
-    use crate::{byte_decode::bare_metal_64::Dirty64, utils::{bits_to_fibonacci_generic_array, create_bitvector}};
+    use crate::{byte_decode::{bare_metal_64::Dirty64, byte_manipulation::bits_to_fibonacci_generic_array}, utils::{create_bitvector, random_fibonacci_stream}};
 	use super::*;
 
 	#[test]
 	fn test_correctness_dirty64(){
 		use crate::bit_decode::fibonacci::FibonacciDecoder;
-		use crate::utils::test::random_fibonacci_stream;
 		let n = 1_000_000;
 		// let N = 1000;
-		let data_encoded = random_fibonacci_stream(n, 1, 10000);
+		let data_encoded = random_fibonacci_stream(n, 1, 10000, 123);
 		let encoded_bytes = bits_to_fibonacci_generic_array::<u64>(&data_encoded);
 
 		let mut decoded = Vec::with_capacity(n);
@@ -283,18 +283,6 @@ mod test {
 	}
 }
 
-/// see https://togglebit.io/posts/rust-bitwise/
-/// However, this reads the bits from the left side
-/// i.e. pos=0 will read out the Most significant bit!
-#[inline]
-pub fn read_bit_u64(x: u64, pos: usize) -> bool {
-	// assert!(pos < 64);
-	const WORDSIZE:usize = std::mem::size_of::<u64>() * 8;
-	let shift_op = WORDSIZE - 1 - pos;
-	let thebit = (x >> shift_op) & 1;
-	thebit>0
-}
-
 ///
 #[inline]
 pub fn read_bit_u32(x: u32, pos: usize) -> bool {
@@ -305,63 +293,3 @@ pub fn read_bit_u32(x: u32, pos: usize) -> bool {
 	thebit>0
 }
 
-#[test]
-fn test_read_bit() {
-	assert_eq!(read_bit_u64(0b00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000, 0), false, "0 pos 0");
-	assert_eq!(read_bit_u64(0b00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000, 1), false, "0 pos 1");
-	assert_eq!(read_bit_u64(0b10000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000, 0), true, "2 pos 0");
-	assert_eq!(read_bit_u64(0b10000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000, 1), false, "2 pos 1");
-	assert_eq!(read_bit_u64(0b01000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000, 0), false, "2 pos 1");
-	assert_eq!(read_bit_u64(0b01000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000, 1), true, "2 pos 1");
-}
-
-// turns a bitstream into chunks of u64
-// /// Note: the last byte will be right-padded if the encoding doesnt fill the netire byte
-// pub fn bits_to_fibonacci_u64array(b: &MyBitSlice) -> Vec<u64>{
-
-//     const WORDSIZE: usize = std::mem::size_of::<u64>() * 8; // inbits
-// 	let mut x: Vec<u64> = Vec::new();
-// 	for segment in b.chunks(64){
-// 		// warning: the last chunk might be shortert than 8
-// 		// and load_be would pad it with zeros ON THE LEFT!!
-// 		// but we need RIGHT PADDING
-// 		let enc = if segment.len() < WORDSIZE {
-// 			let mut topad = segment.to_owned();
-// 			for _i in 0..WORDSIZE-segment.len(){
-// 				topad.push(false);
-// 			}
-// 			topad.load_be()
-// 		} else {
-// 			segment.load_be()
-// 		};
-
-// 		x.push(enc)
-// 	}
-// 	x
-// }
-
-
-// turns a bitstream into chunks of u32
-// Note: the last byte will be right-padded if the encoding doesnt fill the netire byte
-// pub fn bits_to_fibonacci_u32array(b: &MyBitSlice) -> Vec<u32>{
-
-//     const WORDSIZE: usize = std::mem::size_of::<u32>() * 8; // inbits
-// 	let mut x: Vec<u32> = Vec::new();
-// 	for segment in b.chunks(32){
-// 		// warning: the last chunk might be shortert than 8
-// 		// and load_be would pad it with zeros ON THE LEFT!!
-// 		// but we need RIGHT PADDING
-// 		let enc = if segment.len() < WORDSIZE {
-// 			let mut topad = segment.to_owned();
-// 			for _i in 0..WORDSIZE-segment.len(){
-// 				topad.push(false);
-// 			}
-// 			topad.load_be()
-// 		} else {
-// 			segment.load_be()
-// 		};
-
-// 		x.push(enc)
-// 	}
-// 	x
-// }

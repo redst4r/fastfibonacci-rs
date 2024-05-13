@@ -1,19 +1,12 @@
-//!
+//! Repeatedly reads 8bytes into a u64 and 
+//! decodes those using the [`Dirty64Single`].
 //! 
 //! 
 use std::io::Read;
-use crate::byte_decode::{bare_metal_64single::Dirty64Single, chunker::Chunks, partial::Partial};
+use crate::byte_decode::{bare_metal_64single::Dirty64Single, byte_manipulation::load_u64_from_bytes, chunker::Chunks, partial::Partial};
 
 // use super::FbDecNew;
 
-
-fn load_u64_from_bytes(bytes: &[u8]) -> u64 {
-	// with BE we need to swap the entire stream
-	// u64::from_be_bytes(bytes.try_into().unwrap())
-	
-	// do le instead, i.e. the last byte `bytes[7]` is the first to be processed
-	u64::from_le_bytes(bytes.try_into().unwrap())
-}
 
 /// Fibonacci decoder running on a byte stream. Collects u64s from the bytestream
 /// and decodes them
@@ -31,6 +24,7 @@ impl <R:Read> U64Decoder<R> {
 		let mut it = Chunks::new(stream, 8);
 		let bytes = it.next().unwrap().unwrap();
 		let el = load_u64_from_bytes(&bytes);
+		// println!("El loaded {}", el);
 		let u64dec = Dirty64Single::new(el);
 		U64Decoder {
 			u64stream: it, 
@@ -99,10 +93,10 @@ impl <R:Read> U64Decoder<R> {
 
 			// we ran out of u64s! 
 			None => {
-				println!("\tRan out of u64, dec: {:?}", partial);
+				// println!("\tRan out of u64, dec: {:?}", partial);
 				// if the partial decoding is just zeros; thats the padding which can be ignored/
 				// If we see this, we're truely done with decoding
-				if partial.last_bit == 0 && partial.num == 0 {
+				if partial.is_clean() {
 					Err("End of Decoding".to_string())
 				} else {
 					panic!("ran out of u64s to decode, but still have incomplete decoding {:?}", partial);
@@ -161,18 +155,11 @@ impl<R:Read> Iterator for U64Decoder<R> {
 	}
 }
 
-// impl<'a> FbDecNew<'a> for U64Decoder<'a> {
-// 	fn get_remaining_buffer(&self) -> &'a impl Read {
-// 		todo!()
-// 	}
 
-// 	fn get_bytes_processed(&self) -> usize {
-// 		todo!()
-// 	}
-// }
 #[cfg(test)]
 mod testing {
-    use crate::{utils::bits_to_fibonacci_generic_array, utils::create_bitvector};
+    use crate::byte_decode::byte_manipulation::bits_to_fibonacci_generic_array;
+    use crate::utils::{bitstream_to_string_pretty, random_fibonacci_stream, create_bitvector};
 	use crate::byte_decode::u64_fibdecoder::U64Decoder;
 	
 	pub (crate) fn swap_endian(bytes: &[u8], wordsize: usize) -> Vec<u8>{
@@ -290,8 +277,6 @@ mod testing {
 		)
 	}
 
-
-
 	#[test]
 	#[should_panic(expected = "unprocessed bits left")]
 	fn tset_get_inner_fail(){
@@ -324,7 +309,6 @@ mod testing {
 		let x = dd.get_inner().unwrap();
 		assert_eq!(x, vec![0,0,0,0,0,0,0, 192])
 	}
-
 
 	#[test]
 	fn test_dirty64_iter_decode_zero_pad() {
@@ -468,4 +452,29 @@ mod testing {
 			None
 		);
 	}
+
+    #[test]
+    fn test_correctness() {
+        use crate::bit_decode::fibonacci::FibonacciDecoder;
+        let bits = random_fibonacci_stream(100_000, 1, 1000, 123455);
+        
+		// ground thruth
+        let dec = FibonacciDecoder::new(&bits, false);
+        let x1: Vec<_> = dec.collect();
+		
+		println!("{}", bitstream_to_string_pretty(&bits, 8));
+		println!("{x1:?}");
+
+        let mut x_u8 = bits_to_fibonacci_generic_array::<u8>(&bits);
+		// need to pad to a multiple of 8
+		for _i in 0..8 - (x_u8.len() % 8) {
+			x_u8.push(0)
+		}
+		println!("{x_u8:?}");
+
+		let dd = U64Decoder::new(x_u8.as_slice());
+		let x2: Vec<_> = dd.collect();
+      
+        assert_eq!(x1, x2);
+    }
 }

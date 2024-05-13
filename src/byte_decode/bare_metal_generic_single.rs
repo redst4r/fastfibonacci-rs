@@ -1,11 +1,16 @@
 //!
+use std::io::Read;
+
 use funty::Integral;
-use crate::byte_decode::partial::Partial;
+use crate::{byte_decode::{byte_manipulation::bits_to_fibonacci_generic_array, partial::Partial}, utils::random_fibonacci_stream};
+
+use super::{byte_manipulation::load_u64_from_bytes, chunker::Chunks};
 
 ///
 #[derive(Debug)]
 pub struct DirtyGenericSingle<T:Integral> {
-	/// the current bits to decode, stored as a u64
+	/// the current bits to decode, stored as a u64.
+	/// The first bit we'll look at is the HIGHEST bit!
 	buf: T, 
 	/// which bit (of the 64) we have to decode next
 	bitpos: usize, 
@@ -128,10 +133,8 @@ impl <T:Integral> DirtyGenericSingle<T> {
 				},
 			}
 		}
-
 		(fully_decoded,last_partial )
 	}
-
 
 	/// checks if all trailing bits (including bits[self.bitpos]) are zero
 	/// Returns true also when all bits have been read, i.e. bitpos==64
@@ -149,7 +152,7 @@ impl <T:Integral> DirtyGenericSingle<T> {
 		self.bitpos >= (T::BITS as usize)
 	}
 
-    ///
+    /// reads a single bit at the given position
     #[inline]
     pub fn read_bit(x: T, pos: usize) -> bool {
         // assert!(pos < 64);
@@ -162,10 +165,35 @@ impl <T:Integral> DirtyGenericSingle<T> {
 
 #[cfg(test)]
 mod testing {
-	use crate::utils::bits_to_fibonacci_generic_array;
-	use crate::{bit_decode::fibonacci::FibonacciDecoder, utils::create_bitvector};
+	use crate::{bit_decode::fibonacci::FibonacciDecoder, byte_decode::byte_manipulation::bits_to_fibonacci_generic_array, utils::create_bitvector};
+	use crate::utils::random_fibonacci_stream;
 
 	use super::*;
+
+	#[test]
+	fn test_fixed_(){
+		// this corresponds to a single entry [7]
+		// 01011000_000...
+		let buf = load_u64_from_bytes(&vec![0,0,0,0,0,0,0,88]); 
+		let mut dd = DirtyGenericSingle { buf, bitpos:0};
+		let (numbers, pa) = dd.decode_all_from_partial(Default::default());
+		assert_eq!(numbers, vec![7]);
+		assert!(pa.is_clean());
+
+		let buf = load_u64_from_bytes(&vec![0,0,0,0,0,0,0,152]); 
+		let mut dd = DirtyGenericSingle { buf, bitpos:0};
+		let (numbers, pa) = dd.decode_all_from_partial(Default::default());
+		assert_eq!(numbers, vec![6]);
+		assert!(pa.is_clean());
+
+		let buf = load_u64_from_bytes(&vec![0,0,0,0,0,0,192,90]); 
+		let mut dd = DirtyGenericSingle { buf, bitpos:0};
+		let (numbers, pa) = dd.decode_all_from_partial(Default::default());
+		assert_eq!(numbers, vec![7,7]);
+		assert!(pa.is_clean());		
+	}
+
+	
 
 	#[test]
 	fn test_decode_all_from_partial(){
@@ -214,10 +242,9 @@ mod testing {
 
 	#[test]
 	fn test_correctness_dirty64(){
-		use crate::utils::test::random_fibonacci_stream;
 		let n = 1_000_000;
 		// let N = 1000;
-		let data_encoded = random_fibonacci_stream(n, 1, 10000);
+		let data_encoded = random_fibonacci_stream(n, 1, 10000, 123);
 		// let encoded_bytes = bits_to_fibonacci_u64array(&data_encoded);
 		let encoded_bytes = bits_to_fibonacci_generic_array::<u64>(&data_encoded);
         
@@ -244,10 +271,9 @@ mod testing {
 
 	#[test]
 	fn test_correctness_dirty32(){
-		use crate::utils::test::random_fibonacci_stream;
 		let n = 1_000_000;
 		// let N = 1000;
-		let data_encoded = random_fibonacci_stream(n, 1, 10000);
+		let data_encoded = random_fibonacci_stream(n, 1, 10000, 123);
 		// let encoded_bytes = bits_to_fibonacci_u64array(&data_encoded);
 		let encoded_bytes = bits_to_fibonacci_generic_array::<u32>(&data_encoded);
         
@@ -274,10 +300,9 @@ mod testing {
 
 	#[test]
 	fn test_correctness_dirty16(){
-		use crate::utils::test::random_fibonacci_stream;
 		let n = 1_000_000;
 		// let N = 1000;
-		let data_encoded = random_fibonacci_stream(n, 1, 10000);
+		let data_encoded = random_fibonacci_stream(n, 1, 10000, 123);
 		// let encoded_bytes = bits_to_fibonacci_u64array(&data_encoded);
 		let encoded_bytes = bits_to_fibonacci_generic_array::<u16>(&data_encoded);
         
@@ -304,10 +329,9 @@ mod testing {
 
 	#[test]
 	fn test_correctness_dirty8(){
-		use crate::utils::test::random_fibonacci_stream;
 		let n = 1_000_000;
 		// let N = 1000;
-		let data_encoded = random_fibonacci_stream(n, 1, 10000);
+		let data_encoded = random_fibonacci_stream(n, 1, 10000, 123);
 		// let encoded_bytes = bits_to_fibonacci_u64array(&data_encoded);
 		let encoded_bytes = bits_to_fibonacci_generic_array::<u8>(&data_encoded);
         
@@ -473,78 +497,173 @@ mod testing {
 		assert_eq!(d.bitpos, 64);
 
 	}
-
-	// #[test]
-	// fn test_decode_from_partial2() {
-	// 	let bits = create_bitvector(vec![ 
-	// 		0,1,1,0,0,1,1,0, //1 
-	// 		0,0,0,0,0,0,0,0, //2
-	// 		0,0,0,0,0,0,0,0, //3
-	// 		0,0,0,0,0,0,0,0, //4
-	// 		0,0,0,0,0,0,0,0, //5
-	// 		0,0,0,0,0,0,0,0, //6
-	// 		0,0,0,0,0,0,0,0, //7
-	// 		0,0,1,1,0,0,0,1, //8 
-	// 		])
-	// 	.to_bitvec();
-	// 	let u = bits_to_fibonacci_u64array(&bits)[0];
-	// 	let mut d = DirtyGenericSingle {buf:u, bitpos: 0};
-	// 	assert_eq!(
-	// 		d.decode_from_partial2(Default::default()),
-	// 		Ok(2)
-	// 	);
-	// 	assert_eq!(d.bitpos, 3);
-
-	// 	assert_eq!(
-	// 		d.decode_from_partial2(Default::default()),
-	// 		Ok(3)
-	// 	);
-	// 	assert_eq!(d.bitpos, 7);
-
-	// 	assert_eq!(
-	// 		d.decode_from_partial2(Default::default()),
-	// 		Ok(53316291173)
-	// 	);
-	// 	assert_eq!(d.bitpos, 60);
-
-	// 	assert_eq!(
-	// 		d.decode_from_partial2(Default::default()),
-	// 		Err(Partial::new(5, 4, 1))
-	// 	);
-	// 	assert_eq!(d.bitpos, 64);
-	// }
-
-	// /// ensuring that `decode_from_partial` and `decode_from_partial2` do the same thing.
-	// /// randlomly create a u64 and decode both ways
-	// #[test]
-	// fn test_partial2_randomly() {
-	// 	for _ in 0..10_000{
-	// 		let mut x: u64 = rand::random();
-	// 		if x > FIB64[FIB64.len()-1] {
-	// 			x = FIB64[FIB64.len()-1];
-	// 		}
-	// 		let mut d1 = DirtyGenericSingle {buf:x, bitpos: 0};
-	// 		let mut d2 = DirtyGenericSingle {buf:x, bitpos: 0};
-
-	// 		loop {
-	// 			let r1 = d1.decode_from_partial(Default::default());
-	// 			let r2 = d2.decode_from_partial2(Default::default());
-
-	// 			match (r1, r2) {
-	// 					(Ok(n), Ok(m)) => {assert_eq!(n,m)}, // same value decoded
-	// 					(Ok(_), Err(_)) => {assert_eq!(1,0)},
-	// 					(Err(_), Ok(_)) => {assert_eq!(1,0)},
-	// 					(Err(partde), Err(partial)) => {
-	// 						assert_eq!(partde.num, partial.num);
-	// 						assert_eq!(partde.i_fibo, partial.i_fibo);
-	// 						assert_eq!(partde.last_bit, partial.last_bit);
-	// 						break;
-	// 					},
-	// 				}
-	// 		}
-
-	// 	}
-
-	// }
 }
 
+/// Same as  U64Decoder, except using a generic single decoder
+/// for some reason this is much slower!
+pub struct U64DecoderGeneric <R:Read> {
+	u64stream: Chunks<R>,  /// a stream of u64s
+	decoder: DirtyGenericSingle<u64>, /// each u64 gets loaded into here for decoding
+	dec_status: Partial,
+	n_u64s_consumed: usize // keep track of how many u64 we consumed
+}
+
+impl <R:Read> U64DecoderGeneric<R> {
+	///
+	pub fn new(stream: R) ->Self {
+
+		let mut it = Chunks::new(stream, 8);
+		let bytes = it.next().unwrap().unwrap();
+		let el = load_u64_from_bytes(&bytes);
+		let u64dec = DirtyGenericSingle::new(el);
+		U64DecoderGeneric {
+			u64stream: it, 
+			decoder: u64dec, 
+			dec_status: Default::default(), 
+			n_u64s_consumed: 1
+		}
+	}
+
+	/// get the original byte-stream.
+	/// 
+	/// If there's any unfinished decoding, this will throw an error
+	/// (making sure every single bit has been processed).
+	/// Basically we must be at the end of the current u64 (or there's only 0 left)
+	/// and dec_status is empty too
+	pub fn get_inner(self) -> Result<R, Partial>  {
+
+		if self.is_clean() {
+			Ok(self.u64stream.into_inner())
+		} else {
+			panic!("unprocessed bits left");
+			// return Err(DecodeError::PartiallyDecoded(self.dec_status))
+		}
+	}
+
+	/// checks whether the current status of the decoder is clean,
+	/// i.e. there's no Partial decoding and the rest of the current u64
+	/// is all zero-bits
+	pub fn is_clean(&self) -> bool {
+		// cant be in the middle of a decoding
+		let empty_dec = Default::default();
+		if self.dec_status !=  empty_dec {
+			false
+		} else {
+			self.decoder.all_trailing_zeros()
+		}
+	}
+
+	/// returns how many u64s have been pulled from the stream (ie. 8x this is the number of bytes consumed)
+	pub fn get_consumed_u64s(&self) -> usize {
+		self.n_u64s_consumed
+	}
+
+	/// tries to pull in a new u64 number
+	/// SHOULD ONLY BE DONE WHEN finished with the current u64 in self.decoder
+	/// `partial` lets us carry over the decoding state from the pervious u64
+	fn pull_in_next_u64(&mut self, partial: Partial) -> Result<(), String> {
+
+		assert!(self.decoder.is_finished());
+
+		match self.u64stream.next() {
+			// managed to pull in another u64
+			Some(Ok(bytes8)) => {
+				// println!("\tLoading new u64");
+				let el =load_u64_from_bytes(&bytes8);
+				self.decoder = DirtyGenericSingle::new(el); // TODO lots of allocations
+				self.dec_status = partial; // carry over the current decoding status
+				self.n_u64s_consumed += 1;
+				Ok(())
+			},
+
+			// some error in the stream
+			Some(Err(e)) => {
+				panic!("not sure what happend. io error probably {:?}", e);
+			}
+
+			// we ran out of u64s! 
+			None => {
+				// println!("\tRan out of u64, dec: {:?}", partial);
+				// if the partial decoding is just zeros; thats the padding which can be ignored/
+				// If we see this, we're truely done with decoding
+				if partial.is_clean() {
+					Err("End of Decoding".to_string())
+				} else {
+					panic!("ran out of u64s to decode, but still have incomplete decoding {:?}", partial);
+				}
+			}
+		}		
+	}
+}
+
+impl<R:Read> Iterator for U64DecoderGeneric<R> {
+	type Item = u64;
+
+	fn next(&mut self) -> Option<Self::Item> {
+		// Options
+		// 1. we sucessfulled decoded a number (someweher inside the current u64)
+		// 2a. we came to the end of the u64 without decoding, but we can load more u64s
+		// 2b. we came to the end of the u64, but we're also at the end of the u64 stream
+		loop {
+			// in case the decoder is finished (the last number decoded exaclty flush withthe u64 border)
+			// try to pull in a new number
+			if self.decoder.is_finished() {
+				let fresh_partial = Default::default();
+				match self.pull_in_next_u64(fresh_partial) {
+					Ok(()) => { /* nothing, just continue the loop */},
+					Err(s) => {
+						if s == *"End of Decoding" {
+							return None
+						}
+					},
+				}			
+			}
+
+			// println!("{:?}", self.dec_status);
+			// try decoiding
+			match self.decoder.decode_from_partial(self.dec_status.clone()) {
+				Ok(n) => {
+					// println!("Success {n}");
+					// sucessfully decoded a number, initialize clean for the next round
+					self.dec_status = Default::default();
+					return Some(n)
+				},
+				// ran into the end of the current u64
+				Err(partial) => {
+					// println!("Partial {:?}", partial);
+					match self.pull_in_next_u64(partial) {
+						Ok(()) => { /* nothing, just continue the loop */},
+						Err(s) => {
+							if s == *"End of Decoding" {
+								return None
+							}
+						},
+					}
+				},
+			}
+		}
+	}
+}
+
+
+#[test]
+fn test_correctness() {
+	use crate::bit_decode::fibonacci::FibonacciDecoder;
+	let bits = random_fibonacci_stream(100_000, 1, 1000, 123455);
+	
+	// ground thruth
+	let dec = FibonacciDecoder::new(&bits, false);
+	let x1: Vec<_> = dec.collect();
+
+
+	let mut x_u8 = bits_to_fibonacci_generic_array::<u8>(&bits);
+	// need to pad to a multiple of 8
+	for _i in 0..8 - (x_u8.len() % 8) {
+		x_u8.push(0)
+	}
+
+	let dd = U64DecoderGeneric::new(x_u8.as_slice());
+	let x2: Vec<_> = dd.collect();
+  
+	assert_eq!(x1, x2);
+}

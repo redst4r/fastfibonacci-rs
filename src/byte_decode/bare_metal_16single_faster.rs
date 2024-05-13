@@ -59,8 +59,7 @@ impl <'a> U16Fast <'a> {
 
 #[cfg(test)]
 mod testing {
-	use crate::utils::bits_to_fibonacci_generic_array;
-	use crate::{bit_decode::fibonacci::FibonacciDecoder, utils::create_bitvector};
+	use crate::{bit_decode::fibonacci::FibonacciDecoder, byte_decode::byte_manipulation::bits_to_fibonacci_generic_array, utils::{create_bitvector, random_fibonacci_stream}};
 
 	use super::*;
 
@@ -95,10 +94,9 @@ mod testing {
 
 	#[test]
 	fn test_correctness_dirty64(){
-		use crate::utils::test::random_fibonacci_stream;
 		let n = 1_000_000;
 		// let N = 1000;
-		let data_encoded = random_fibonacci_stream(n, 1, 10000);
+		let data_encoded = random_fibonacci_stream(n, 1, 10000, 123);
 		// let encoded_bytes = bits_to_fibonacci_u64array(&data_encoded);
 		let encoded_bytes = bits_to_fibonacci_generic_array::<u16>(&data_encoded);
         let table = LookupVecNew::new();
@@ -282,7 +280,7 @@ impl<'a , R:Read> Iterator for U16DecoderFast<'a, R> {
 #[cfg(test)]
 mod testing2 {
 	use super::*;
-    use crate::utils::{bits_to_fibonacci_generic_array, create_bitvector};
+    use crate::{byte_decode::byte_manipulation::bits_to_fibonacci_generic_array, utils::create_bitvector};
 	// pub (crate) fn swap_endian(bytes: &[u8], wordsize: usize) -> Vec<u8>{
 	// 	let mut swapped_endian: Vec<u8> = Vec::with_capacity(bytes.len());
 	// 	for bytes in bytes.chunks(wordsize){

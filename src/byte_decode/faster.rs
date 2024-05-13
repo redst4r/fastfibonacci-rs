@@ -1,10 +1,14 @@
 //!
 use std::collections::VecDeque;
+use std::io::Read;
+use std::iter::Flatten;
 use std::marker::PhantomData;
 use funty::Integral;
 
 use crate::byte_decode::{bare_metal_generic_single::DirtyGenericSingle,  partial::Partial};
 use crate::fastutils::{fibonacci_left_shift, State};
+
+use super::chunker::{Chunks, ChunksU64ToU16, ChunksU64ToU8};
 
 /// Kind of a marker trait which we can use 
 /// for our lookup table
@@ -225,7 +229,7 @@ pub (crate) fn number_plus_partial(x: u64, p: &Partial) -> u64{
 
 #[cfg(test)]
 mod test {
-    use crate::utils::{bits_to_fibonacci_generic_array, create_bitvector, random_fibonacci_stream};
+    use crate::{byte_decode::byte_manipulation::bits_to_fibonacci_generic_array, utils::{create_bitvector, random_fibonacci_stream}};
 
     use super::*;
     #[test]
@@ -274,21 +278,47 @@ mod test {
 }
 
 
+
+/// Wether the byte stream originates from u64 or u32
+pub enum StreamType {
+    ///
+    U64,
+    ///
+    U32
+}
+/// Takes in a stream of bytes, decoding chunks of those using a lookup table.
 /// 
-pub struct FastFibonacciDecoderNew<'a, T> {
-    stream: Box<dyn Iterator<Item = T>>, // bitstream to decode
-    lookup_table: &'a LookupVecNew<T>,
-    current_buffer: VecDeque<Option<u64>>, // decoded numbers not yet emitted; once there's no new numbers, adds a `None` as terminator
+/// Things are complicated: The stream of bytes usually is usually in groups of 8 (u64s),
+/// (but sometimes can be u32), and comes in **LittleEndian**, i.e. the 8th byte needs to be 
+/// decoded first, then the 7th...
+/// [Dirty64Single] does it right automatically as it only operates on the u64 (not the bytes).
+/// However, with fast decoding we look at 1byte (u8) or two bytes (u16)
+/// 
+/// 
+pub struct FastFibonacciDecoderNewU8<'a, R:Read> {
+    //stream to decode, chunked into the right pieces to be fed into lookup table
+    stream: Flatten<ChunksU64ToU8<R>>, 
+    lookup_table: &'a LookupVecNew<u8>,
+    // decoded numbers not yet emitted; once there's no new numbers, adds a `None` as terminator
+    current_buffer: VecDeque<Option<u64>>,
     shifted_by_one: bool,
     partial: Partial,
 }
 
-impl<'a, T:Integral>  FastFibonacciDecoderNew<'a, T> {
-
+impl<'a, R:Read>  FastFibonacciDecoderNewU8<'a, R> {
     ///
-    pub fn new(stream: impl Iterator<Item = T> + 'static, lookup_table: &'a LookupVecNew<T>, shifted_by_one: bool) ->Self {
+    pub fn new(stream: R, lookup_table: &'a LookupVecNew<u8>, shifted_by_one: bool, streamtype: StreamType) ->Self {
+        let chunked_u8_stream = match streamtype {
+            StreamType::U64 => {
+                // things come in as 12345678|ABCDEFGH
+                // `8` is the byte that we need to look at first.
+                // we use the ChunksU64ToU8 to get the order of bytes right for decoding
+                ChunksU64ToU8::new(stream).flatten() // note: ChunksU64ToU8 returns [u8;8], but we need to emit byte by byte! hence the flatten
+            },
+            StreamType::U32 => todo!(),
+        };
         Self {
-            stream: Box::new(stream),
+            stream: chunked_u8_stream,
             lookup_table,
             current_buffer: VecDeque::new(),
             shifted_by_one,
@@ -345,7 +375,7 @@ impl<'a, T:Integral>  FastFibonacciDecoderNew<'a, T> {
     }
 }
 
-impl<'a, T:Integral> Iterator for FastFibonacciDecoderNew<'a, T> {
+impl<'a, R:Read> Iterator for FastFibonacciDecoderNewU8<'a, R> {
     type Item=u64;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -363,4 +393,149 @@ impl<'a, T:Integral> Iterator for FastFibonacciDecoderNew<'a, T> {
             el
         }
     }
+}
+
+
+#[test]
+fn test_fixed_(){
+    // this corresponds to a single entry [7]
+    // 01011000_000...
+    let bytes =vec![0,0,0,0,0,0,0,88]; 
+    let t: LookupVecNew<u8> = LookupVecNew::new();
+    let mut dd = FastFibonacciDecoderNewU8::new(bytes.as_slice(), &t, false, StreamType::U64);
+    let x = dd.next();
+    
+    assert_eq!(x, Some(7));
+
+
+    let bytes =vec![0,0,0,0,0,0,192,90]; 
+    let t: LookupVecNew<u8> = LookupVecNew::new();
+    let mut dd = FastFibonacciDecoderNewU8::new(bytes.as_slice(), &t, false, StreamType::U64);
+    let x = dd.next();
+    
+    assert_eq!(x, Some(7));
+    assert_eq!(x, Some(7));
+}
+
+
+/// 
+pub struct FastFibonacciDecoderNewU16<'a, R:Read> {
+    //stream to decode, chunked into the right pieces to be fed into lookup table
+    stream: Flatten<ChunksU64ToU16<R>>, 
+    lookup_table: &'a LookupVecNew<u16>,
+    // decoded numbers not yet emitted; once there's no new numbers, adds a `None` as terminator
+    current_buffer: VecDeque<Option<u64>>,
+    shifted_by_one: bool,
+    partial: Partial,
+}
+
+impl<'a, R:Read>  FastFibonacciDecoderNewU16<'a, R> {
+    ///
+    pub fn new(stream: R, lookup_table: &'a LookupVecNew<u16>, shifted_by_one: bool, streamtype: StreamType) ->Self {
+        let chunked_u16_stream = match streamtype {
+            StreamType::U64 => {
+                // things come in as 12345678|ABCDEFGH
+                // `8` is the byte that we need to look at first.
+                // we use the ChunksU64ToU8 to get the order of bytes right for decoding
+                ChunksU64ToU16::new(stream).flatten() // note: ChunksU64ToU8 returns [u8;8], but we need to emit byte by byte! hence the flatten
+            },
+            StreamType::U32 => todo!(),
+        };
+        Self {
+            stream: chunked_u16_stream,
+            lookup_table,
+            current_buffer: VecDeque::new(),
+            shifted_by_one,
+            partial: Default::default(),
+        }
+    }
+
+    /// pull another segment from the stream, decode
+    pub fn load_segment(&mut self) {
+
+        match self.stream.next() {
+            Some(segment_int) => {
+                // decode the segment
+
+                // need to pad
+                // actually dont!
+                // let segment_int_pad = padding(segment_int);
+                let segment_int_pad = segment_int;
+                let (numbers, p) = self.lookup_table.lookup(State(self.partial.last_bit as usize), segment_int_pad);
+
+                // now, we need to properly decode those numbers:
+                // if the previous segment left over something (see partial)
+                // we need to "add" this to numbers[0]
+                // if not, we need to merge p (the new partial decode from stream[i]) and partial (the old partial decode from stream(i-1))
+                if !numbers.is_empty() {
+                    // println!("Combining {numbers:?} with {partial:?}");
+                    // absorb `partial` (the old decoding) into the number
+                    // and keep the new decoding status as is
+                    let new_x = number_plus_partial(numbers[0], &self.partial);
+                    // println!("newx {new_x}");
+                    self.current_buffer.push_back(Some(new_x));
+                    self.current_buffer.extend(numbers[1..].iter().map(|&x| Some(x)));
+                    // decoded_numbers.extend(&numbers[1..]);
+
+
+                    // numbers[0] = new_x;
+                    self.partial = p.clone();
+                } else {
+                    // "add" p and partial; ORDER is important
+                    // partial = combine_partial(partial, p)
+                    let mut newp = p.clone();
+                    newp.combine_partial(&self.partial);
+                    self.partial = newp;
+                }
+            }
+            None => {
+                // no more segments in stream
+                // assert that there's no leftovers in the current decoding
+                // and add None to buffer
+                assert!(self.partial.is_clean());
+                self.current_buffer.push_back(None);
+            }
+        }
+    }
+}
+
+impl<'a, R:Read> Iterator for FastFibonacciDecoderNewU16<'a, R> {
+    type Item=u64;
+
+    fn next(&mut self) -> Option<Self::Item> {
+
+        // pull in new elements until we get something in the buffer to emit
+        while self.current_buffer.is_empty() {
+            self.load_segment()
+        }
+
+        let el = self.current_buffer.pop_front().unwrap(); // unwrap should be save, there HAS to be an element
+
+        if self.shifted_by_one {
+            el.map(|x| x - 1)
+        } else {
+            el
+        }
+    }
+}
+
+#[test]
+fn test_fixed_u16(){
+    // this corresponds to a single entry [7]
+    // 01011000_000...
+    let bytes =vec![0,0,0,0,0,0,0,88]; 
+    let t: LookupVecNew<u16> = LookupVecNew::new();
+    let mut dd = FastFibonacciDecoderNewU16::new(bytes.as_slice(), &t, false, StreamType::U64);
+    let x = dd.next();
+    
+    assert_eq!(x, Some(7));
+
+
+    let bytes =vec![0,0,0,0,0,0,192,90]; 
+    let t: LookupVecNew<u16> = LookupVecNew::new();
+    let mut dd = FastFibonacciDecoderNewU16::new(bytes.as_slice(), &t, false, StreamType::U64);
+    let x = dd.next();
+    
+    assert_eq!(x, Some(7));
+    assert_eq!(x, Some(7));
 }

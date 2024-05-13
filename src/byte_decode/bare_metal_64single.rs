@@ -2,7 +2,8 @@
 use crate::byte_decode::partial::Partial;
 use crate::utils::FIB64;
 
-use super::bare_metal_64::read_bit_u64;
+use super::byte_manipulation::read_bit_u64;
+
 const WORDSIZE_IN_BITS:usize = std::mem::size_of::<u64>() * 8; //sizeof(T) * 8;
 
 ///
@@ -156,10 +157,32 @@ impl Dirty64Single {
 
 #[cfg(test)]
 mod testing {
-	use crate::{bit_decode::fibonacci::FibonacciDecoder, utils::create_bitvector};
-	use crate::utils::bits_to_fibonacci_generic_array;
-
+	use crate::{bit_decode::fibonacci::FibonacciDecoder, byte_decode::byte_manipulation::{bits_to_fibonacci_generic_array, load_u64_from_bytes}, utils::{create_bitvector, random_fibonacci_stream}};
 	use super::*;
+
+	#[test]
+	fn test_fixed_(){
+		// this corresponds to a single entry [7]
+		// 01011000_000...
+		let buf = load_u64_from_bytes(&vec![0,0,0,0,0,0,0,88]); 
+		let mut dd = Dirty64Single { buf, bitpos:0};
+		let (numbers, pa) = dd.decode_all_from_partial(Default::default());
+		assert_eq!(numbers, vec![7]);
+		assert!(pa.is_clean());
+
+		let buf = load_u64_from_bytes(&vec![0,0,0,0,0,0,0,152]); 
+		let mut dd = Dirty64Single { buf, bitpos:0};
+		let (numbers, pa) = dd.decode_all_from_partial(Default::default());
+		assert_eq!(numbers, vec![6]);
+		assert!(pa.is_clean());
+
+		// [6,6]:  [0, 0, 0, 0, 0, 0, 192, 90] (u64: 6539226658941960192)
+		let buf = load_u64_from_bytes(&vec![0,0,0,0,0,0,192,90]); 
+		let mut dd = Dirty64Single { buf, bitpos:0};
+		let (numbers, pa) = dd.decode_all_from_partial(Default::default());
+		assert_eq!(numbers, vec![7,7 ]);
+		assert!(pa.is_clean());
+	}
 
 	#[test]
 	fn test_decode_all_from_partial(){
@@ -184,10 +207,9 @@ mod testing {
 
 	#[test]
 	fn test_correctness_dirty64(){
-		use crate::utils::test::random_fibonacci_stream;
 		let n = 1_00000;
 		// let N = 1000;
-		let data_encoded = random_fibonacci_stream(n, 1, 10000);
+		let data_encoded = random_fibonacci_stream(n, 1, 10000, 123);
 		let encoded_bytes = bits_to_fibonacci_generic_array::<u64>(&data_encoded);
 
 		// println!("{}", bitstream_to_string_pretty(&data_encoded, 64));
