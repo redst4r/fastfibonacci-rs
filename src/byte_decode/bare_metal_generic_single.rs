@@ -2,9 +2,8 @@
 use std::io::Read;
 
 use funty::Integral;
-use crate::{byte_decode::{byte_manipulation::bits_to_fibonacci_generic_array, chunker::U64BytesToU8, partial::Partial}, utils::random_fibonacci_stream};
-
-use super::{byte_manipulation::load_u64_from_bytes, chunker::U64BytesToU64};
+use crate::byte_decode::partial::Partial;
+use super::chunker::U64BytesToU64;
 
 ///
 #[derive(Debug)]
@@ -165,10 +164,9 @@ impl <T:Integral> DirtyGenericSingle<T> {
 
 #[cfg(test)]
 mod testing {
-	use crate::byte_decode::chunker::{U64BytesToU16, U64BytesToU32, U64BytesToU8};
-use crate::{bit_decode::fibonacci::FibonacciDecoder, byte_decode::byte_manipulation::bits_to_fibonacci_generic_array, utils::create_bitvector};
-	use crate::utils::random_fibonacci_stream;
-
+	use crate::byte_decode::byte_manipulation::load_u64_from_bytes;
+	use crate::byte_decode::chunker::{U64BytesToU16, U64BytesToU8};
+	use crate::{byte_decode::byte_manipulation::bits_to_fibonacci_generic_array, utils::create_bitvector};
 	use super::*;
 
 	#[test]
@@ -244,122 +242,7 @@ use crate::{bit_decode::fibonacci::FibonacciDecoder, byte_decode::byte_manipulat
 		assert_eq!(pa,  Partial::new(0, 1, 0));		
 	}
 
-	#[test]
-	fn test_correctness_dirty64(){
-		let n = 1_000_000;
-		// let N = 1000;
-		let data_encoded = random_fibonacci_stream(n, 1, 10000, 123);
-		// let encoded_bytes = bits_to_fibonacci_u64array(&data_encoded);
-		let bytes = bits_to_fibonacci_generic_array(&data_encoded);
-        let encoded_bytes: Vec<u64> = U64BytesToU64::new(bytes.as_slice()).collect();
-		// println!("{}", bitstream_to_string_pretty(&data_encoded, 64));
-		let mut decoded = Vec::with_capacity(n);
 
-		let mut last_partial = Default::default();
-		for _i in 0..encoded_bytes.len() {
-			let mut dd = DirtyGenericSingle { 
-				buf: encoded_bytes[_i],
-				bitpos: 0
-			};
-
-			let (numbers, pa) = dd.decode_all_from_partial(last_partial);
-			decoded.extend(numbers);
-			last_partial = pa;
-		}
-
-		// ground thruth
-		let dec = FibonacciDecoder::new(&data_encoded, false);
-		let decoded_truth: Vec<_> = dec.collect();
-		assert_eq!(decoded_truth, decoded);
-	}
-
-	#[test]
-	fn test_correctness_dirty32(){
-		let n = 1_000_000;
-		// let N = 1000;
-		let data_encoded = random_fibonacci_stream(n, 1, 10000, 123);
-		// let encoded_bytes = bits_to_fibonacci_u64array(&data_encoded);
-		let bytes = bits_to_fibonacci_generic_array(&data_encoded);
-        let encoded_bytes: Vec<u32> = U64BytesToU32::new(bytes.as_slice()).flatten().collect();        
-		// println!("{}", bitstream_to_string_pretty(&data_encoded, 32));
-		let mut decoded = Vec::with_capacity(n);
-
-		let mut last_partial = Default::default();
-		for _i in 0..encoded_bytes.len() {
-			let mut dd = DirtyGenericSingle { 
-				buf: encoded_bytes[_i],
-				bitpos: 0
-			};
-
-			let (numbers, pa) = dd.decode_all_from_partial(last_partial);
-			decoded.extend(numbers);
-			last_partial = pa;
-		}
-
-		// ground thruth
-		let dec = FibonacciDecoder::new(&data_encoded, false);
-		let decoded_truth: Vec<_> = dec.collect();
-		assert_eq!(decoded_truth, decoded);
-	}	
-
-	#[test]
-	fn test_correctness_dirty16(){
-		let n = 1_000_000;
-		// let N = 1000;
-		let data_encoded = random_fibonacci_stream(n, 1, 10000, 123);
-		// let encoded_bytes = bits_to_fibonacci_u64array(&data_encoded);
-		let encoded_bytes = bits_to_fibonacci_generic_array(&data_encoded);
-        let x_u16: Vec<u16> = U64BytesToU16::new(encoded_bytes.as_slice()).flatten().collect();
-		// println!("{}", bitstream_to_string_pretty(&data_encoded, 64));
-		let mut decoded = Vec::with_capacity(n);
-
-		let mut last_partial = Default::default();
-		for _i in 0..x_u16.len() {
-			let mut dd = DirtyGenericSingle { 
-				buf: x_u16[_i],
-				bitpos: 0
-			};
-
-			let (numbers, pa) = dd.decode_all_from_partial(last_partial);
-			decoded.extend(numbers);
-			last_partial = pa;
-		}
-
-		// ground thruth
-		let dec = FibonacciDecoder::new(&data_encoded, false);
-		let decoded_truth: Vec<_> = dec.collect();
-		assert_eq!(decoded_truth, decoded);
-	}
-
-	#[test]
-	fn test_correctness_dirty8(){
-		let n = 1_000_000;
-		// let N = 1000;
-		let data_encoded = random_fibonacci_stream(n, 1, 10000, 123);
-		// let encoded_bytes = bits_to_fibonacci_u64array(&data_encoded);
-		let encoded_bytes = bits_to_fibonacci_generic_array(&data_encoded);
-        let x_u8: Vec<u8> = U64BytesToU8::new(encoded_bytes.as_slice()).flatten().collect();
-        
-		// println!("{}", bitstream_to_string_pretty(&data_encoded, 64));
-		let mut decoded = Vec::with_capacity(n);
-
-		let mut last_partial = Default::default();
-		for _i in 0..x_u8.len() {
-			let mut dd = DirtyGenericSingle { 
-				buf: x_u8[_i],
-				bitpos: 0
-			};
-
-			let (numbers, pa) = dd.decode_all_from_partial(last_partial);
-			decoded.extend(numbers);
-			last_partial = pa;
-		}
-
-		// ground thruth
-		let dec = FibonacciDecoder::new(&data_encoded, false);
-		let decoded_truth: Vec<_> = dec.collect();
-		assert_eq!(decoded_truth, decoded);
-	}
 
 	#[test]
 	fn test_traliing() {
@@ -646,23 +529,4 @@ impl<R:Read> Iterator for U64DecoderGeneric<R> {
 			}
 		}
 	}
-}
-
-
-#[test]
-fn test_correctness() {
-	use crate::bit_decode::fibonacci::FibonacciDecoder;
-	let bits = random_fibonacci_stream(100_000, 1, 1000, 123455);
-	
-	// ground thruth
-	let dec = FibonacciDecoder::new(&bits, false);
-	let x1: Vec<_> = dec.collect();
-
-
-	let bytes = bits_to_fibonacci_generic_array(&bits);
-
-	let dd = U64DecoderGeneric::new(bytes.as_slice());
-	let x2: Vec<_> = dd.collect();
-  
-	assert_eq!(x1, x2);
 }

@@ -9,9 +9,9 @@
 use std::io::Read;
 // pub mod bare_metal;
 pub mod bare_metal_64;
-pub mod bare_metal_64single;
+// pub mod bare_metal_64single;
 pub mod bare_metal_generic_single;
-mod chunker;
+pub mod chunker;
 pub mod partial;
 pub mod u64_fibdecoder;
 pub mod faster;

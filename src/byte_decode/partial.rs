@@ -70,6 +70,12 @@ impl Default for Partial {
 	}
 }
 
+#[inline]
+// adding a partial decoding (from previous segment) to a fully decoded number (in the current segemnt)
+pub (crate) fn number_plus_partial(x: u64, p: &Partial) -> u64{
+    p.num + fibonacci_left_shift(x, p.i_fibo)
+}
+
 #[cfg(test)]
 mod testing {
     use super::*;

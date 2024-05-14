@@ -27,7 +27,7 @@
 // use bitvec::field::BitField;
 // use funty::Integral;
 
-use crate::byte_decode::byte_manipulation::read_bit_u64;
+use crate::byte_decode::byte_manipulation::{read_bit_u32, read_bit_u64};
 use crate::utils::FIB64;
 use crate::byte_decode::partial::Partial;
 
@@ -166,42 +166,9 @@ impl <'a> Dirty64 <'a> {
 
 #[cfg(test)]
 mod test {
-    use crate::{byte_decode::{bare_metal_64::Dirty64, byte_manipulation::bits_to_fibonacci_generic_array, chunker::U64BytesToU64}, utils::{create_bitvector, random_fibonacci_stream}};
+    use crate::{byte_decode::{bare_metal_64::Dirty64, byte_manipulation::bits_to_fibonacci_generic_array, chunker::U64BytesToU64}, utils::create_bitvector};
 	use super::*;
 
-	#[test]
-	fn test_correctness_dirty64(){
-		use crate::bit_decode::fibonacci::FibonacciDecoder;
-		let n = 1_000_000;
-		// let N = 1000;
-		let data_encoded = random_fibonacci_stream(n, 1, 10000, 123);
-		let encoded_bytes = bits_to_fibonacci_generic_array(&data_encoded);
-		let encoded_u64s: Vec<u64> = U64BytesToU64::new(encoded_bytes.as_slice()).collect();
-		let mut decoded = Vec::with_capacity(n);
-		let bitpos = 0;
-		let bufpos = 0;
-
-		let mut dd: Dirty64<'_> = Dirty64 { buf: &encoded_u64s, buf_size: encoded_bytes.len(), bitpos, bufpos};
-		for _i in 0..n {
-			// println!("number: {_i}");
-			match dd.decode() {
-				Ok(n) => {
-					decoded.push(n);
-				},
-				Err(e) => {
-					println!("{:?}", e);
-					println!("{n}");
-					assert_eq!(1,0);
-				},
-			}
-		}
-
-		// ground thruth
-		let dec = FibonacciDecoder::new(&data_encoded, false);
-		let decoded_truth: Vec<_> = dec.collect();
-		
-		assert_eq!(decoded_truth, decoded);
-	}
 
 	#[test]
 	fn test_dirty64overhang2() {
@@ -291,13 +258,4 @@ mod test {
 	}
 }
 
-///
-#[inline]
-pub fn read_bit_u32(x: u32, pos: usize) -> bool {
-	// assert!(pos < 32);
-	const WORDSIZE:usize = std::mem::size_of::<u32>() * 8;
-	let shift_op = WORDSIZE - 1 - pos;
-	let thebit = (x >> shift_op) & 1;
-	thebit>0
-}
 

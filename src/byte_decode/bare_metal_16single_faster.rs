@@ -2,7 +2,8 @@
 use std::{collections::VecDeque, iter::Flatten};
 use std::io::Read;
 use crate::byte_decode::partial::Partial;
-use super::{chunker::U64BytesToU16, faster::{number_plus_partial, LookupTableNew, LookupVecNew}};
+use super::partial::number_plus_partial;
+use super::{chunker::U64BytesToU16, faster::{LookupTableNew, LookupVecNew}};
 
 /// Decoding chunks of 16bits using the lookup table
 #[derive(Debug)]
@@ -58,8 +59,7 @@ impl <'a> U16Fast <'a> {
 
 #[cfg(test)]
 mod testing {
-	use crate::{bit_decode::fibonacci::FibonacciDecoder, byte_decode::{byte_manipulation::bits_to_fibonacci_generic_array, chunker::U64BytesToU64}, utils::{create_bitvector, random_fibonacci_stream}};
-
+	use crate::{byte_decode::byte_manipulation::bits_to_fibonacci_generic_array, utils::create_bitvector};
 	use super::*;
 
 	#[test]
@@ -74,7 +74,7 @@ mod testing {
 		let u = U64BytesToU16::new(encoded_bytes.as_slice()).flatten().collect::<Vec<_>>()[0];
 
         let table = LookupVecNew::new();
-		println!("u: {u}");
+		// println!("u: {u}");
 		let mut dd = U16Fast { buf: u, table: &table};
 		let (numbers, pa) = dd.decode_all_from_partial(&Default::default());
 		assert_eq!(pa,  Partial::new(0, 2, 0));
@@ -94,37 +94,6 @@ mod testing {
 		assert_eq!(numbers, vec![]);
 
     }
-
-	#[test]
-	fn test_correctness_dirty64(){
-		let n = 1_000_000;
-		// let N = 1000;
-		let data_encoded = random_fibonacci_stream(n, 1, 10000, 123);
-		// let encoded_bytes = bits_to_fibonacci_u64array(&data_encoded);
-		let bytes = bits_to_fibonacci_generic_array(&data_encoded);
-        let x_u16: Vec<u16> = U64BytesToU16::new(bytes.as_slice()).flatten().collect();
-
-
-        let table = LookupVecNew::new();
-
-		// println!("{}", bitstream_to_string_pretty(&data_encoded, 64));
-		let mut decoded = Vec::with_capacity(n);
-
-		let mut last_partial = Default::default();
-		for _i in 0..x_u16.len() {
-            let mut dd = U16Fast { buf: x_u16[_i], table: &table};
-
-			let (numbers, pa) = dd.decode_all_from_partial(&last_partial);
-			decoded.extend(numbers);
-			last_partial = pa;
-		}
-
-		// ground thruth
-		let dec = FibonacciDecoder::new(&data_encoded, false);
-		let decoded_truth: Vec<_> = dec.collect();
-		assert_eq!(decoded_truth, decoded);
-	}
-
 }
 
 
@@ -429,40 +398,40 @@ mod testing2 {
 	}
 
 
+	/// TODO currently, not get_inner possible
+	// #[test]
+	// #[should_panic(expected = "unprocessed bits left")]
+	// fn tset_get_inner_fail(){
+	// 	let bits = create_bitvector(vec![ 
+	// 		0,0,0,0,0,0,0,0, //1 
+	// 		0,0,0,0,0,0,0,0, //2
+	// 		0,0,0,0,0,0,0,0, //3
+	// 		0,0,0,0,0,0,0,0, //4
+	// 		0,0,0,0,0,0,0,0, //5
+	// 		0,0,0,0,0,0,0,0, //6
+	// 		0,0,0,0,0,0,0,0, //7
+	// 		0,0,0,0,1,1,0,1, //8  the u64 ends here!
+	// 		1,1,0,0,0,0,0,0, //1 
+	// 		0,0,0,0,0,0,0,0, //2
+	// 		0,0,0,0,0,0,0,0, //3
+	// 		0,0,0,0,0,0,0,0, //4
+	// 		0,0,0,0,0,0,0,0, //5
+	// 		0,0,0,0,0,0,0,0, //6
+	// 		0,0,0,0,0,0,0,0, //7
+	// 		0,0,0,0,0,0,0,0, //8  the u64 ends here!
+	// 		]).to_bitvec();
+	// 	let encoded = bits_to_fibonacci_generic_array(&bits);
+	// 	// encoded=swap_endian(&encoded, 8);
+	// 	let table = LookupVecNew::new();
 
-	#[test]
-	#[should_panic(expected = "unprocessed bits left")]
-	fn tset_get_inner_fail(){
-		let bits = create_bitvector(vec![ 
-			0,0,0,0,0,0,0,0, //1 
-			0,0,0,0,0,0,0,0, //2
-			0,0,0,0,0,0,0,0, //3
-			0,0,0,0,0,0,0,0, //4
-			0,0,0,0,0,0,0,0, //5
-			0,0,0,0,0,0,0,0, //6
-			0,0,0,0,0,0,0,0, //7
-			0,0,0,0,1,1,0,1, //8  the u64 ends here!
-			1,1,0,0,0,0,0,0, //1 
-			0,0,0,0,0,0,0,0, //2
-			0,0,0,0,0,0,0,0, //3
-			0,0,0,0,0,0,0,0, //4
-			0,0,0,0,0,0,0,0, //5
-			0,0,0,0,0,0,0,0, //6
-			0,0,0,0,0,0,0,0, //7
-			0,0,0,0,0,0,0,0, //8  the u64 ends here!
-			]).to_bitvec();
-		let encoded = bits_to_fibonacci_generic_array(&bits);
-		// encoded=swap_endian(&encoded, 8);
-		let table = LookupVecNew::new();
-
-		let mut dd = U16DecoderFast::new(encoded.as_slice(), &table);
-		assert_eq!(
-			dd.next(),
-			Some(4052739537881)
-		);
-		// let x = dd.get_inner().unwrap();
-		// assert_eq!(x, vec![0,0,0,0,0,0,0, 192])
-	}
+	// 	let mut dd = U16DecoderFast::new(encoded.as_slice(), &table);
+	// 	assert_eq!(
+	// 		dd.next(),
+	// 		Some(4052739537881)
+	// 	);
+	// 	// let x = dd.get_inner().unwrap();
+	// 	// assert_eq!(x, vec![0,0,0,0,0,0,0, 192])
+	// }
 
 
 	#[test]

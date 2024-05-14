@@ -6,15 +6,15 @@
 //! - Those bytes need to be read in LittleEndian
 //! - The bits in a byte need to be read LSB->MSB
 //! For example, the fibbonacci encoding of the numbers [4,8] would be
-//!   <--1---- <--2----
+//!   <--1-.-- <--2--.-
 //! 0b00001101_00000011_00000000_00000000_00000000_00000000_00000000_00000000
 //! 
-//!              1st byte
+//!  //          1st byte
 //!                  |
 //! a bytestream of [0, 0, 0, 0, 0, 0, 0, 88] (8 bytes of 6341068275337658368) 
 //! should decode into the number 7!
 //! 
-//!             fib  12358
+//! //          fib  12358
 //! in binary it is: 01011000_00000000000000000000000000000000000000000000000000000000
 //!                   | |8  binary
 //!                  64 16  
@@ -25,9 +25,7 @@
 //! 01011010_11000000000000000000000000000000000000000000000000000000
 //! 
 use bitvec::field::BitField;
-use funty::Integral;
-use crate::{bit_decode::MyBitSlice, utils::create_bitvector};
-
+use crate::bit_decode::MyBitSlice;
 use super::chunker::U64BytesToU64;
 
 

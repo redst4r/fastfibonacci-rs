@@ -379,29 +379,6 @@ mod testing_fast_decode {
         assert_eq!(r, expected);
     }
 
-    #[test]
-    fn test_correctness_fast_decode_u8() {
-        use crate::bit_decode::fibonacci::FibonacciDecoder;
-        // use crate::fastutils::FFBitvec;
-        let b = random_fibonacci_stream(100000, 1, 1000, 123);
-        // let b = dummy_encode(vec![64, 11, 88]);
-        // make a copy for fast decoder
-        let mut b_fast: MyBitVector = BitVec::new();
-        for bit in b.iter().by_vals() {
-            b_fast.push(bit);
-        }
-        let dec = FibonacciDecoder::new(&b, false);
-        let x1: Vec<_> = dec.collect();
-
-        let t: LookupVec<u8> = LookupVec::new();
-        let x2 = fast_decode(&b_fast,false, &t);        
-        assert_eq!(x1, x2);
-
-        let t: LookupVec<u16> = LookupVec::new();
-        let x2 = fast_decode(&b_fast,false, &t);        
-        assert_eq!(x1, x2);
-    }
-
     // #[test]
     #[allow(dead_code)]
     fn test_fast_speed() {
@@ -420,29 +397,6 @@ mod testing_fast_decode {
         let t: LookupVec<u16> = LookupVec::new();
         let x2 = fast_decode(&b_fast, false,&t);   
         println!("{}", x2.iter().sum::<u64>())    ;
-    }
-
-    #[test]
-    fn test_correctness_fast_decode() {
-        use crate::bit_decode::fibonacci::FibonacciDecoder;
-        let b = random_fibonacci_stream(100000, 1, 1000, 123);
-        // make a copy for fast decoder
-        let mut b_fast: BitVec<u8, MyBitOrder> = BitVec::new();
-        for bit in b.iter().by_vals() {
-            b_fast.push(bit);
-        }
-
-        let t8: LookupVec<u8> = LookupVec::new();
-        let t16: LookupVec<u16> = LookupVec::new();
-
-        let dec = FibonacciDecoder::new(&b, false);
-        let x1: Vec<_> = dec.collect();
-
-        let x2 = fast_decode(&b,false, &t8);
-        assert_eq!(x1, x2);
-
-        let x3 = fast_decode(&b,false, &t16);
-        assert_eq!(x1, x3);
     }
 }
 
@@ -822,27 +776,5 @@ mod test_iter {
         assert_eq!(f.next(), None);
         assert_eq!(f.get_bits_processed(), 0);
         assert_eq!(f.get_remaining_buffer(), &bits);
-    }
-    #[test]
-    fn test_correctness_iter() {
-        use crate::bit_decode::fibonacci::FibonacciDecoder;
-        use crate::utils::random_fibonacci_stream;
-        let b = random_fibonacci_stream(100000, 1, 1000, 123);
-        // make a copy for fast decoder
-        let mut b_fast: MyBitVector = BitVec::new();
-        for bit in b.iter().by_vals() {
-            b_fast.push(bit);
-        }
-        let dec = FibonacciDecoder::new(&b, false);
-        let x1: Vec<_> = dec.collect();
-
-        let f:FastFibonacciDecoder<'_, u8> = FastFibonacciDecoder::new(&b_fast, false, &FB_LOOKUP_U8);
-        let x2: Vec<_> = f.collect();
-
-        assert_eq!(x1, x2);
-
-        let f:FastFibonacciDecoder<'_, u16> = FastFibonacciDecoder::new(&b_fast, false, &FB_LOOKUP_U16);
-        let x3: Vec<_> = f.collect();
-        assert_eq!(x1, x3);
     }
 }

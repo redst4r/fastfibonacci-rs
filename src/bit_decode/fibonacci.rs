@@ -226,9 +226,7 @@ mod test {
 
     mod test_table {
         use crate::{bit_decode::fibonacci::{bits_from_table_internal, encode}, utils::FIB64, bit_decode::MyBitVector};
-
         use bitvec::vec::BitVec;
-        
 
         #[test]
         fn test_1() {

@@ -1,9 +1,9 @@
+//!
 use std::io::ErrorKind;
 use std::io::Read;
 use byteorder::LittleEndian;
 use byteorder::BigEndian;
 use byteorder::ReadBytesExt;
-
 use crate::byte_decode::byte_manipulation::read_bit_u32;
 
 /// Turns a bytestream into a stream of U64s
@@ -22,7 +22,7 @@ impl<R:Read> U64BytesToU64<R> {
 
         }
     }
-    // This could be useful if you want to try to recover from an error
+    /// This could be useful if you want to try to recover from an error
     pub fn into_inner(self) -> R {
         self.read
     }
@@ -168,7 +168,7 @@ impl<R:Read> U64BytesToU8<R> {
             // buf: Vec::with_capacity(8)}
     }
 
-    // This could be useful if you want to try to recover from an error
+    /// This could be useful if you want to try to recover from an error
     pub fn into_inner(self) -> R {
         // assert!(self.buf.is_empty());
         self.read
@@ -231,7 +231,7 @@ impl<R:Read> U64BytesToU16<R> {
         }
     }
 
-    // This could be useful if you want to try to recover from an error
+    /// This could be useful if you want to try to recover from an error
     pub fn into_inner(self) -> R {
         self.read
     }
@@ -305,7 +305,7 @@ fn test_chunks_u64_to_u16(){
 }
 
 
-
+///
 pub struct U64BytesToU32<R> {
     read: R,
     // each u64 will creatye a u8, but we emit them one by one
@@ -320,7 +320,7 @@ impl<R:Read> U64BytesToU32<R> {
             // buf: Vec::with_capacity(8)}
     }
 
-    // This could be useful if you want to try to recover from an error
+    /// This could be useful if you want to try to recover from an error
     pub fn into_inner(self) -> R {
         // assert!(self.buf.is_empty());
         self.read
@@ -354,9 +354,7 @@ impl<R:Read> Iterator for U64BytesToU32<R>
 }
 
 #[test]
-fn test_chunks_u64_to_u32(){
-    use crate::byte_decode::byte_manipulation::read_bit_u16;
-    
+fn test_chunks_u64_to_u32(){    
     let bytes = [4,0,3,0,2,0,1,0];
     let mut c = U64BytesToU32::new(bytes.as_slice());
 

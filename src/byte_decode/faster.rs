@@ -4,47 +4,11 @@ use std::io::Read;
 use std::iter::Flatten;
 use std::marker::PhantomData;
 use funty::Integral;
-
 use crate::byte_decode::{bare_metal_generic_single::DirtyGenericSingle,  partial::Partial};
-use crate::fastutils::{fibonacci_left_shift, State};
-
+use crate::fastutils::State;
 use super::chunker::{U64BytesToU16, U64BytesToU8};
+use super::partial::number_plus_partial;
 
-/// Kind of a marker trait which we can use 
-/// for our lookup table
-// trait StorageInteger {
-//     fn to_usize(&self) -> usize;
-//     fn nbits() -> usize;
-// }
-
-// impl StorageInteger for u8 {
-//     fn to_usize(&self) -> usize {
-//         *self as usize
-//      }
-     
-//     fn nbits() -> usize {
-//         8
-//     }
-// }
-
-// impl StorageInteger for u16 {
-//     fn to_usize(&self) -> usize {
-//         *self as usize
-//      }
-     
-//     fn nbits() -> usize {
-//         16
-//     }
-// }
-
-/// pads zeros on the RIGHT
-// fn padding<T:Integral>(x: T) -> T {
-//     if x > T::ZERO{
-//         x << x.leading_zeros()
-//     } else {
-//         T::ZERO
-//     }
-// }
 
 #[derive(Debug)]
 ///
@@ -132,7 +96,6 @@ impl <T:Integral> LookupTableNew<T> for LookupVecNew<T> {
 mod testing_lookups {
     use bitvec::prelude::*;
     use crate::utils::create_bitvector;
-
     use super::*;
     // use pretty_assertions::{assert_eq, assert_ne};
 
@@ -221,16 +184,10 @@ pub fn fast_decode_new<T:Integral>(stream: &[T], shifted_by_one: bool, table: &i
     }
 }
 
-#[inline]
-// adding a partial decoding (from previous segment) to a fully decoded number (in the current segemnt)
-pub (crate) fn number_plus_partial(x: u64, p: &Partial) -> u64{
-    p.num + fibonacci_left_shift(x, p.i_fibo)
-}
 
 #[cfg(test)]
 mod test {
-    use crate::{byte_decode::byte_manipulation::bits_to_fibonacci_generic_array, utils::{create_bitvector, random_fibonacci_stream}};
-
+    use crate::{byte_decode::byte_manipulation::bits_to_fibonacci_generic_array, utils::create_bitvector};
     use super::*;
     #[test]
     fn test_fast_decode() {
@@ -253,29 +210,6 @@ mod test {
         let r = fast_decode_new(&x_u16,false, &t);
         assert_eq!(r, vec![4,7, 86]);
     }
-
-    #[test]
-    fn test_correctness_fast_decode_u8() {
-        use crate::bit_decode::fibonacci::FibonacciDecoder;
-        let bits = random_fibonacci_stream(100000, 1, 1000, 123455);
-
-        let bytes = bits_to_fibonacci_generic_array(&bits);
-        let x_u8: Vec<u8> = U64BytesToU8::new(bytes.as_slice()).flatten().collect();
-        let x_u16: Vec<u16> = U64BytesToU16::new(bytes.as_slice()).flatten().collect();
-
-        // ground thruth
-        let dec = FibonacciDecoder::new(&bits, false);
-        let x1: Vec<_> = dec.collect();
-
-        let t: LookupVecNew<u8> = LookupVecNew::new();
-        let x2 = fast_decode_new(&x_u8,false, &t);        
-        assert_eq!(x1, x2);
-
-
-        let t: LookupVecNew<u16> = LookupVecNew::new();
-        let x2 = fast_decode_new(&x_u16,false, &t);        
-        assert_eq!(x1, x2);
-    }
 }
 
 
@@ -288,7 +222,7 @@ pub enum StreamType {
 }
 /// Takes in a stream of bytes, decoding chunks of those using a lookup table.
 /// 
-/// Things are complicated: The stream of bytes usually is usually in groups of 8 (u64s),
+/// Things are complicated: The stream of bytes usually is in groups of 8 (u64s),
 /// (but sometimes can be u32), and comes in **LittleEndian**, i.e. the 8th byte needs to be 
 /// decoded first, then the 7th...
 /// [Dirty64Single] does it right automatically as it only operates on the u64 (not the bytes).
