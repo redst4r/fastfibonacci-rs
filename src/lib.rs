@@ -107,24 +107,13 @@ mod fastutils;
 
 pub mod byte_decode;
 pub mod bit_decode;
-// pub mod faster;
-// pub mod nobitvec;
-// pub mod bare_metal;
-// pub mod bare_metal_64;
-// pub mod bare_metal_64single;
-// pub mod bare_metal_generic_single;
-// pub mod u64_fibdecoder;
-// pub (crate) mod u64reader;
-// pub (crate) mod chunker;
-// pub (crate) mod partial;
-
 
 // regular bit encoding/decoding
 pub use bit_decode::{FbDec, fibonacci::FibonacciDecoder, fibonacci::encode, fibonacci::decode};
-// fast bit-en/decoding
+// fast bit-decoding
 pub use bit_decode::fast::FastFibonacciDecoder;
 
 
-// regulat byte decoding
+// regular byte decoding
 pub use byte_decode::u64_fibdecoder::U64Decoder;
 pub use byte_decode::faster::fast_decode_new;

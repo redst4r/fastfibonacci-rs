@@ -1,4 +1,4 @@
-//!
+//! Fast fibonacci decoding using lookup tables.
 use std::collections::VecDeque;
 use std::io::Read;
 use std::iter::Flatten;
@@ -11,7 +11,8 @@ use super::partial::number_plus_partial;
 
 
 #[derive(Debug)]
-///
+/// A lookup table for fast-fibonacci decoding. For a given segment of bits (represented as a u8/u16, depending in T),
+/// look up what numbers those bits encode and what de partial decoding looks like
 pub struct LookupVecNew<T> {
     table_state0: Vec<(Vec<u64>, Partial)>,
     table_state1: Vec<(Vec<u64>, Partial)>,
@@ -215,9 +216,9 @@ mod test {
 
 /// Wether the byte stream originates from u64 or u32
 pub enum StreamType {
-    ///
+    /// u64 
     U64,
-    ///
+    ///  u32
     U32
 }
 /// Takes in a stream of bytes, decoding chunks of those using a lookup table.
@@ -240,7 +241,7 @@ pub struct FastFibonacciDecoderNewU8<'a, R:Read> {
 }
 
 impl<'a, R:Read>  FastFibonacciDecoderNewU8<'a, R> {
-    ///
+    /// Creates a new decoder
     pub fn new(stream: R, lookup_table: &'a LookupVecNew<u8>, shifted_by_one: bool, streamtype: StreamType) ->Self {
         let chunked_u8_stream = match streamtype {
             StreamType::U64 => {
@@ -254,7 +255,7 @@ impl<'a, R:Read>  FastFibonacciDecoderNewU8<'a, R> {
         Self {
             stream: chunked_u8_stream,
             lookup_table,
-            current_buffer: VecDeque::new(),
+            current_buffer: VecDeque::with_capacity(8),
             shifted_by_one,
             partial: Default::default(),
         }
@@ -354,7 +355,7 @@ fn test_fixed_(){
 }
 
 
-/// 
+/// A Fast decoder for the bytestream, using a u16-lookup table. See [`FastFibonacciDecoderNewU8`].
 pub struct FastFibonacciDecoderNewU16<'a, R:Read> {
     //stream to decode, chunked into the right pieces to be fed into lookup table
     stream: Flatten<U64BytesToU16<R>>, 
@@ -366,7 +367,7 @@ pub struct FastFibonacciDecoderNewU16<'a, R:Read> {
 }
 
 impl<'a, R:Read>  FastFibonacciDecoderNewU16<'a, R> {
-    ///
+    /// Create a new FastDecoder
     pub fn new(stream: R, lookup_table: &'a LookupVecNew<u16>, shifted_by_one: bool, streamtype: StreamType) ->Self {
         let chunked_u16_stream = match streamtype {
             StreamType::U64 => {
@@ -380,7 +381,7 @@ impl<'a, R:Read>  FastFibonacciDecoderNewU16<'a, R> {
         Self {
             stream: chunked_u16_stream,
             lookup_table,
-            current_buffer: VecDeque::new(),
+            current_buffer: VecDeque::with_capacity(8), // the maximum number of elements decocded at once is 8: 11111111_11111111
             shifted_by_one,
             partial: Default::default(),
         }
@@ -388,6 +389,9 @@ impl<'a, R:Read>  FastFibonacciDecoderNewU16<'a, R> {
 
     /// pull another segment from the stream, decode
     pub fn load_segment(&mut self) {
+
+        // as load_Segment only gets called when the buffer is empty
+        // assert_eq!(self.current_buffer.len(), 0);
 
         match self.stream.next() {
             Some(segment_int) => {
@@ -413,8 +417,6 @@ impl<'a, R:Read>  FastFibonacciDecoderNewU16<'a, R> {
                     self.current_buffer.extend(numbers[1..].iter().map(|&x| Some(x)));
                     // decoded_numbers.extend(&numbers[1..]);
 
-
-                    // numbers[0] = new_x;
                     self.partial = p.clone();
                 } else {
                     // "add" p and partial; ORDER is important
@@ -439,6 +441,7 @@ impl<'a, R:Read> Iterator for FastFibonacciDecoderNewU16<'a, R> {
     type Item=u64;
 
     fn next(&mut self) -> Option<Self::Item> {
+
 
         // pull in new elements until we get something in the buffer to emit
         while self.current_buffer.is_empty() {

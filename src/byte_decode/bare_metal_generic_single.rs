@@ -402,7 +402,7 @@ pub struct U64DecoderGeneric <R:Read> {
 }
 
 impl <R:Read> U64DecoderGeneric<R> {
-	///
+	/// create a new decoder
 	pub fn new(stream: R) ->Self {
 
 		let mut it = U64BytesToU64::new(stream);

@@ -116,7 +116,7 @@ pub struct U16DecoderFast < 'a, R:Read> {
 }
 
 impl <'a, R:Read> U16DecoderFast<'a, R> {
-	///
+	/// creates a new decoder for the `stream` using the given lookup table
 	pub fn new(stream: R, table: &'a LookupVecNew<u16>) ->Self {
 
 		let mut it = U64BytesToU16::new(stream).flatten();

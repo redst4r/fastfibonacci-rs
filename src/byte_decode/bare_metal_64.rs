@@ -97,16 +97,15 @@ impl <'a> Dirty32 <'a> {
 	}
 }
 
-
 /// Nicer version of `decode_single_dirty_64` using a struct
 pub struct Dirty64 <'a> {
-	///
+	/// the buffer storing the values to be decoded
 	pub buf: &'a [u64], 
-	///
+	/// length of self.buf
 	pub buf_size: usize, 
-	///
+	/// which bit to read in self.buf[self.bufpos]
 	pub bitpos: usize, 
-	///
+	/// Position in self.buf (points to the next element to be process)
 	pub bufpos: usize, 
 	// num: u64, 
 	// i_fibo: usize,

@@ -9,12 +9,13 @@ use fastfibonacci::byte_decode::bare_metal_16single_faster::U16DecoderFast;
 use fastfibonacci::byte_decode::bare_metal_64::Dirty64;
 use fastfibonacci::byte_decode::byte_manipulation::{bits_to_fibonacci_generic_array, read_bit_u64};
 use fastfibonacci::byte_decode::chunker::{U64BytesToU16, U64BytesToU64, U64BytesToU8};
-use fastfibonacci::byte_decode::faster::{fast_decode_new, FastFibonacciDecoderNewU8, LookupVecNew, StreamType};
+use fastfibonacci::byte_decode::faster::{fast_decode_new, FastFibonacciDecoderNewU16, FastFibonacciDecoderNewU8, LookupVecNew, StreamType};
 use fastfibonacci::bit_decode::fibonacci::{encode, FibonacciDecoder};
 use fastfibonacci::byte_decode::u64_fibdecoder::U64Decoder;
 use fastfibonacci::utils::random_fibonacci_stream;
 use fastfibonacci::bit_decode::{MyBitSlice, MyBitVector};
 
+use fastfibonacci::FastFibonacciDecoder;
 use fibonacci_codec::Encode;
 use rand::distributions::{Distribution, Uniform};
 
@@ -187,35 +188,35 @@ fn fibonacci_mybitwise(c: &mut Criterion) {
     });
 
 
-    fn dummy_u64_iter(data: &[u8]) -> Vec<u64>{
-        let dd = U64Decoder::new(data);
-        let mut decoded: Vec<_> = Vec::with_capacity(100_000);
+    // fn dummy_u64_iter(data: &[u8]) -> Vec<u64>{
+    //     let dd = U64Decoder::new(data);
+    //     let mut decoded: Vec<_> = Vec::with_capacity(100_000);
 
-        for el in dd.take(100_000) {
-            decoded.push(el)
-        }
-        decoded
-    }
-    c.bench_function(&format!("Decoding: U64Decoder"), |b| {
-        b.iter(|| dummy_u64_iter(black_box(&x)))
-    });
+    //     for el in dd.take(100_000) {
+    //         decoded.push(el)
+    //     }
+    //     decoded
+    // }
+    // c.bench_function(&format!("Decoding: U64Decoder"), |b| {
+    //     b.iter(|| dummy_u64_iter(black_box(&x)))
+    // });
 
     let bytes = bits_to_fibonacci_generic_array(&data_encoded);
 
     // new fast
     let table8: LookupVecNew<u8> = LookupVecNew::new();
     let x_u8: Vec<u8> = U64BytesToU8::new(bytes.as_slice()).flatten().collect();
-    c.bench_function(&format!("Decoding: NEW generic fast vec u8-decode"), |b| {
+    c.bench_function(&format!("Byte-fast-u8"), |b| {
         b.iter(|| fast_decode_new(black_box(x_u8.as_slice()),false, &table8))
     });
 
     let table16: LookupVecNew<u16> = LookupVecNew::new();
     let x_u16: Vec<u16> = U64BytesToU16::new(bytes.as_slice()).flatten().collect();
-    c.bench_function(&format!("Decoding: NEW  generic fast vec u16-decode"), |b| {
+    c.bench_function(&format!("Byte-fast-u16"), |b| {
         b.iter(|| fast_decode_new(black_box(&x_u16),false, &table16))
     });
 
-    c.bench_function(&format!("Decoding: NEW iterator u8"), |b| {
+    c.bench_function(&format!("Byte-fast-u8-iterator"), |b| {
         b.iter(||  FastFibonacciDecoderNewU8::new(
             bytes.as_slice(), 
             &table8, 
@@ -224,14 +225,56 @@ fn fibonacci_mybitwise(c: &mut Criterion) {
         ).collect::<Vec<u64>>())
     });
 
+    c.bench_function(&format!("Byte-fast-u16-iterator"), |b| {
+        b.iter(||  FastFibonacciDecoderNewU16::new(
+            bytes.as_slice(), 
+            &table16, 
+            false, 
+            StreamType::U64
+        ).collect::<Vec<u64>>())
+    });
 
-    let mut x_u8_padded = x_u8.clone();
-    if x_u8_padded.len() % 2 == 1{
-        x_u8_padded.push(0);
+
+    // let mut x_u8_padded = x_u8.clone();
+    // if x_u8_padded.len() % 2 == 1{
+    //     x_u8_padded.push(0);
+    // }
+
+    // c.bench_function(&format!("Decoding: FAST NEW iterator u16"), |b| {
+    //     b.iter(||  U16DecoderFast::new(x_u8_padded.as_slice(), &table16).collect::<Vec<u64>>())
+    // });
+
+
+    // make a copy for fast decoder
+    let mut data_fast: MyBitVector = BitVec::new();
+    for bit in data_encoded.iter().by_vals() {
+        data_fast.push(bit);
     }
 
-    c.bench_function(&format!("Decoding: FAST NEW iterator u16"), |b| {
-        b.iter(||  U16DecoderFast::new(x_u8_padded.as_slice(), &table16).collect::<Vec<u64>>())
+    let table8: LookupVec<u8> = LookupVec::new();
+    c.bench_function(&format!("Bit-fast-u8"), |b| {
+        b.iter(|| fast_decode(black_box(&data_fast),false, &table8))
+    });
+
+    let table16: LookupVec<u16> = LookupVec::new();
+    c.bench_function(&format!("Bit-fast-u16"), |b| {
+        b.iter(|| fast_decode(black_box(&data_fast),false, &table16))
+    });
+
+    c.bench_function(&format!("Bit-fast-u8-iterator"), |b| {
+        b.iter(||  FastFibonacciDecoder::new(
+            &data_encoded, 
+            false, 
+            &table8, 
+        ).collect::<Vec<u64>>())
+    });
+
+    c.bench_function(&format!("Bit-fast-u16-iterator"), |b| {
+        b.iter(||  FastFibonacciDecoder::new(
+            &data_encoded, 
+            false, 
+            &table16, 
+        ).collect::<Vec<u64>>())
     });
 
 
@@ -242,22 +285,6 @@ fn fibonacci_mybitwise(c: &mut Criterion) {
     }
     c.bench_function(&format!("Decoding: normal FibonacciDecoder"), |b| {
         b.iter(|| dummy(black_box(&data_encoded)))
-    });
-
-    // make a copy for fast decoder
-    let mut data_fast: MyBitVector = BitVec::new();
-    for bit in data_encoded.iter().by_vals() {
-        data_fast.push(bit);
-    }
-
-    let table8: LookupVec<u8> = LookupVec::new();
-    c.bench_function(&format!("Decoding: generic fast vec u8-decode"), |b| {
-        b.iter(|| fast_decode(black_box(&data_fast),false, &table8))
-    });
-
-    let table16: LookupVec<u16> = LookupVec::new();
-    c.bench_function(&format!("Decoding: generic fast vec u16-decode"), |b| {
-        b.iter(|| fast_decode(black_box(&data_fast),false, &table16))
     });
 }
 

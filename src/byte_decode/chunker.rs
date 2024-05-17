@@ -1,4 +1,4 @@
-//!
+//! Utilities to deal with bytestreams originating from streams of uints.
 use std::io::ErrorKind;
 use std::io::Read;
 use byteorder::LittleEndian;
@@ -27,8 +27,8 @@ impl<R:Read> U64BytesToU64<R> {
         self.read
     }
 }
-impl<R:Read> Iterator for U64BytesToU64<R>
-{
+
+impl<R:Read> Iterator for U64BytesToU64<R> {
     type Item = u64;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -42,7 +42,6 @@ impl<R:Read> Iterator for U64BytesToU64<R>
                 }
             },
         }
-         
     }
 }
 
@@ -176,8 +175,7 @@ impl<R:Read> U64BytesToU8<R> {
 }
 
 
-impl<R:Read> Iterator for U64BytesToU8<R>
-{
+impl<R:Read> Iterator for U64BytesToU8<R> {
     type Item = [u8;8];
     fn next(&mut self) -> Option<Self::Item> {
         // to proper way: load as little endian,
@@ -305,7 +303,8 @@ fn test_chunks_u64_to_u16(){
 }
 
 
-///
+/// An "adaptor" that turns a stream of bytes (originating from u64s)
+/// into chunks of u32s, keeping the byte order correct
 pub struct U64BytesToU32<R> {
     read: R,
     // each u64 will creatye a u8, but we emit them one by one

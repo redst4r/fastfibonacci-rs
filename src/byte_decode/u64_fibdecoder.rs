@@ -15,7 +15,7 @@ pub struct U64Decoder <R:Read> {
 }
 
 impl <R:Read> U64Decoder<R> {
-	///
+	/// Create a new decoder.
 	pub fn new(stream: R) ->Self {
 		let mut it = U64BytesToU64::new(stream);
 		let el = it.next().unwrap();
@@ -434,7 +434,7 @@ use super::byte_manipulation::read_bit_u64;
 
 const WORDSIZE_IN_BITS:usize = std::mem::size_of::<u64>() * 8; //sizeof(T) * 8;
 
-///
+/// Fibonacci-decodes the bits in a single u64
 #[derive(Debug)]
 pub struct Dirty64Single {
 	/// the current bits to decode, stored as a u64
@@ -443,7 +443,7 @@ pub struct Dirty64Single {
 	bitpos: usize, 
 }
 impl Dirty64Single {
-	///
+	/// Create a new decoder
 	pub fn new(buf: u64) -> Self {
 		Self {buf, bitpos: 0}
 	}

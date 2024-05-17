@@ -1,10 +1,8 @@
 //! Utility functions
-use bitvec::{field::BitField, order::BitOrder, slice::BitSlice, store::BitStore};
-use funty::Integral;
+use bitvec::{order::BitOrder, slice::BitSlice, store::BitStore};
 use itertools::Itertools;
 use rand::{distributions::{Distribution, Uniform}, rngs::StdRng, SeedableRng};
-
-use crate::{bit_decode::fibonacci::encode, bit_decode::{MyBitSlice, MyBitVector}};
+use crate::{bit_decode::fibonacci::encode, bit_decode::MyBitVector};
 
 /// Iterative fibonacci. just to get the first N fibonacci numbers
 ///
@@ -120,7 +118,7 @@ pub fn bitstream_to_string_pretty<T: BitStore, O: BitOrder>(buffer: &BitSlice<T,
     the_strings.iter().join("|")
 }
 
-///
+/// Create a random sequence of numbers, and encoded them via Fibonnaci. Used for testing.
 pub fn random_fibonacci_stream(n_elements: usize, min: usize, max: usize, seed: u64) -> MyBitVector {
     
     let data_dist = Uniform::from(min..max);

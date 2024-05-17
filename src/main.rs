@@ -8,7 +8,7 @@ use fastfibonacci::{byte_decode::{bare_metal_16single_faster::U16DecoderFast, ba
 use fastfibonacci::bit_decode::fast::{fast_decode, LookupVec};
 use fastfibonacci::utils::random_fibonacci_stream;
 
-///
+/// just for profiling / flamegraph
 pub fn main() {
 
     // let n = 50_000_000;
@@ -51,23 +51,23 @@ pub fn main() {
     // println!("bit-fast_decode {} in {:?}", ground_truth.len(), elapsed_time);
 
     
-    // // ------------------
-    // // byte-decode: fast u8
-    // // ------------------
-    // let x_u8: Vec<_> = U64BytesToU8::new(bytes.as_slice()).flatten().collect();
-    // let now = Instant::now();
-    // let ground_truth = fast_decode_new(&x_u8, false, &table8);
-    // let elapsed_time = now.elapsed();
-    // println!("byte-fast u8 {} in {:?}", ground_truth.len(), elapsed_time);
+    // ------------------
+    // byte-decode: fast u8
+    // ------------------
+    let x_u8: Vec<_> = U64BytesToU8::new(bytes.as_slice()).flatten().collect();
+    let now = Instant::now();
+    let ground_truth = fast_decode_new(&x_u8, false, &table8);
+    let elapsed_time = now.elapsed();
+    println!("byte-fast u8 {} in {:?}", ground_truth.len(), elapsed_time);
 
-    // // ------------------
-    // // byte-decode: fast u16
-    // // ------------------
-    // let x_u16: Vec<u16> = U64BytesToU16::new(bytes.as_slice()).flatten().collect();
-    // let now = Instant::now();
-    // let ground_truth = fast_decode_new(&x_u16, false, &table16);
-    // let elapsed_time = now.elapsed();
-    // println!("byte-fast u16 {} in {:?}", ground_truth.len(), elapsed_time);
+    // ------------------
+    // byte-decode: fast u16
+    // ------------------
+    let x_u16: Vec<u16> = U64BytesToU16::new(bytes.as_slice()).flatten().collect();
+    let now = Instant::now();
+    let ground_truth = fast_decode_new(&x_u16, false, &table16);
+    let elapsed_time = now.elapsed();
+    println!("byte-fast u16 {} in {:?}", ground_truth.len(), elapsed_time);
 
 
     // ------------------

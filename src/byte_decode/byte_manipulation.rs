@@ -132,8 +132,8 @@ fn read_bit_u64_lsb(x: u64, pos: usize) -> bool {
 	thebit>0
 }
 
-///
-#[inline]
+/// read a bit from a u16
+#[inline] 
 pub fn read_bit_u16(x: u16, pos: usize) -> bool {
     read_bit_u16_msb(x, pos)
 }
@@ -162,7 +162,7 @@ fn read_bit_u16_lsb(x: u16, pos: usize) -> bool {
 
 
 
-///
+/// read a bit from a u32
 #[inline]
 pub fn read_bit_u32(x: u32, pos: usize) -> bool {
     read_bit_u32_msb(x, pos)
@@ -212,7 +212,7 @@ fn read_bit_u32_msb(x: u32, pos: usize) -> bool {
 pub fn bits_to_fibonacci_generic_array(b: &MyBitSlice) -> Vec<u8>{
 
     // const WORDSIZE: usize = std::mem::size_of::<u32>() * 8; // inbits
-    let wordsize = 64 as usize; // inbits
+    let wordsize = 64_usize; // inbits
 
 	let mut x: Vec<u8> = Vec::new();
 	for segment in b.chunks(wordsize){
