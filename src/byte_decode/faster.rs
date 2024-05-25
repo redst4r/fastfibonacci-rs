@@ -8,6 +8,7 @@ use crate::byte_decode::{bare_metal_generic_single::DirtyGenericSingle,  partial
 use crate::fastutils::State;
 use super::chunker::{U64BytesToU16, U64BytesToU8};
 use super::partial::number_plus_partial;
+use once_cell::sync::Lazy;
 
 
 #[derive(Debug)]
@@ -128,6 +129,25 @@ mod testing_lookups {
         ); 
     }
 }
+
+
+/// Lazy LookupTable with u8 segment size.
+/// This table gets calculated once for the crate, can be reused many times for decoding.
+pub static FB_LOOKUP_NEW_U8: Lazy<LookupVecNew<u8>> = Lazy::new(|| {
+    println!("initializing fibonacci lookup");
+    let lookup = LookupVecNew::new();
+    println!("done initializing fibonacci lookup");
+    lookup
+});
+
+/// Lazy LookupTable with u16 segment size.
+/// This table gets calculated once for the crate, can be reused many times for decoding.
+pub static FB_LOOKUP_NEW_U16: Lazy<LookupVecNew<u16>> = Lazy::new(|| {
+    println!("initializing fibonacci lookup");
+    let lookup = LookupVecNew::new();
+    println!("done initializing fibonacci lookup");
+    lookup
+});
 
 /// Fast Fibonacci decoding of the entire bitstream using the precomputed lookup table.
 /// 
@@ -308,6 +328,10 @@ impl<'a, R:Read>  FastFibonacciDecoderNewU8<'a, R> {
             }
         }
     }
+    /// IS the decoder in a clean state, i.e. no unemitted items and no more partial decoding
+    pub fn is_clean(&self) -> bool {
+        self.current_buffer.is_empty() && self.partial.is_clean()
+    }
 }
 
 impl<'a, R:Read> Iterator for FastFibonacciDecoderNewU8<'a, R> {
@@ -330,7 +354,6 @@ impl<'a, R:Read> Iterator for FastFibonacciDecoderNewU8<'a, R> {
     }
 }
 
-
 #[test]
 fn test_fixed_(){
     // this corresponds to a single entry [7]
@@ -339,9 +362,7 @@ fn test_fixed_(){
     let t: LookupVecNew<u8> = LookupVecNew::new();
     let mut dd = FastFibonacciDecoderNewU8::new(bytes.as_slice(), &t, false, StreamType::U64);
     let x = dd.next();
-    
     assert_eq!(x, Some(7));
-
 
     let bytes =vec![0,0,0,0,0,0,192,90]; 
     let t: LookupVecNew<u8> = LookupVecNew::new();
@@ -435,7 +456,12 @@ impl<'a, R:Read>  FastFibonacciDecoderNewU16<'a, R> {
             }
         }
     }
+    /// IS the decoder in a clean state, i.e. no unemitted items and no more partial decoding
+    pub fn is_clean(&self) -> bool {
+        self.current_buffer.is_empty() && self.partial.is_clean()
+    }
 }
+
 
 impl<'a, R:Read> Iterator for FastFibonacciDecoderNewU16<'a, R> {
     type Item=u64;
