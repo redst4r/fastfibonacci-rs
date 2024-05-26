@@ -226,7 +226,7 @@ mod testing {
 		// assert_eq!(pa,  Partial::new(0, 25, 0));
 
 		// U16
-		let x_u16: Vec<u16> = U64BytesToU16::new(bytes.as_slice()).flatten().collect();
+		let x_u16: Vec<u16> = U64BytesToU16::new(bytes.as_slice()).collect();
 		let mut dd = DirtyGenericSingle { buf: x_u16[0], bitpos:0};
 		let (numbers, pa) = dd.decode_all_from_partial(Default::default());
 		assert_eq!(numbers, vec![2,3]);
@@ -234,7 +234,7 @@ mod testing {
 
 
 		// U8
-		let x_u8: Vec<u8> = U64BytesToU8::new(bytes.as_slice()).flatten().collect();
+		let x_u8: Vec<u8> = U64BytesToU8::new(bytes.as_slice()).collect();
 
 		let mut dd = DirtyGenericSingle { buf: x_u8[0], bitpos:0};
 		let (numbers, pa) = dd.decode_all_from_partial(Default::default());

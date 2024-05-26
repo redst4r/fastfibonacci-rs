@@ -71,7 +71,7 @@ mod testing {
 			0,0,0,0,1,1,0,0, //8  
 		]).to_bitvec();
 		let encoded_bytes = bits_to_fibonacci_generic_array(&bits);
-		let u = U64BytesToU16::new(encoded_bytes.as_slice()).flatten().collect::<Vec<_>>()[0];
+		let u = U64BytesToU16::new(encoded_bytes.as_slice()).collect::<Vec<_>>()[0];
 
         let table = LookupVecNew::new();
 		// println!("u: {u}");
@@ -86,7 +86,7 @@ mod testing {
 			0,0,0,0,0,0,0,0, //2
 		]).to_bitvec();
 		let encoded_bytes = bits_to_fibonacci_generic_array(&bits);
-		let u = U64BytesToU16::new(encoded_bytes.as_slice()).flatten().collect::<Vec<_>>()[0];
+		let u = U64BytesToU16::new(encoded_bytes.as_slice()).collect::<Vec<_>>()[0];
 
 		let mut dd = U16Fast { buf: u, table: &table};
 		let (numbers, pa) = dd.decode_all_from_partial(&Default::default());
@@ -108,7 +108,7 @@ mod testing {
 /// Fibonacci decoder running on a byte stream. Collects u64s from the bytestream
 /// and decodes them
 pub struct U16DecoderFast < 'a, R:Read> {
-	u64stream: Flatten<U64BytesToU16<R>>,  /// a stream of u64s
+	u64stream: U64BytesToU16<R>,  /// a stream of u64s
 	decoder: U16Fast<'a>, /// each u64 gets loaded into here for decoding
 	partial: Partial,
 	n_u16s_consumed: usize, // keep track of how many u64 we consumed
@@ -119,7 +119,7 @@ impl <'a, R:Read> U16DecoderFast<'a, R> {
 	/// creates a new decoder for the `stream` using the given lookup table
 	pub fn new(stream: R, table: &'a LookupVecNew<u16>) ->Self {
 
-		let mut it = U64BytesToU16::new(stream).flatten();
+		let mut it = U64BytesToU16::new(stream);
 
 		// a bit odd, we need to fill int the first decoding manually
 		let el = it.next().unwrap();

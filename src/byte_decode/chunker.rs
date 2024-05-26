@@ -6,6 +6,55 @@ use byteorder::BigEndian;
 use byteorder::ReadBytesExt;
 use crate::byte_decode::byte_manipulation::read_bit_u32;
 
+pub (crate) trait IntoU8Transform<R> {
+    fn next_u8(&mut self) -> Option<u8>; 
+    fn get_consumed_bytes(&self) -> usize;
+}
+
+impl <R:Read> IntoU8Transform<R> for U64BytesToU8<R> {
+    fn next_u8(&mut self) -> Option<u8> {
+        self.next()
+    }
+    
+    fn get_consumed_bytes(&self) -> usize {
+        self.bytes_consumed
+    }
+    
+}
+
+impl <R:Read> IntoU8Transform<R> for U32BytesToU8<R> {
+    fn next_u8(&mut self) -> Option<u8> {
+        self.next()
+    }
+    fn get_consumed_bytes(&self) -> usize {
+        self.bytes_consumed
+    }
+}
+
+pub (crate) trait IntoU16Transform<R> {
+    fn next_u16(&mut self) -> Option<u16>; 
+    fn get_consumed_bytes(&self) -> usize;
+
+}
+
+impl <R:Read> IntoU16Transform<R> for U64BytesToU16<R> {
+    fn next_u16(&mut self) -> Option<u16> {
+        self.next()
+    }
+    fn get_consumed_bytes(&self) -> usize {
+        self.bytes_consumed
+    }
+}
+
+impl <R:Read> IntoU16Transform<R> for U32BytesToU16<R> {
+    fn next_u16(&mut self) -> Option<u16> {
+        self.next()
+    }
+    fn get_consumed_bytes(&self) -> usize {
+        self.bytes_consumed
+    }
+}
+
 /// Turns a bytestream into a stream of U64s
 /// assumes little endian bytestream.
 /// 
@@ -65,91 +114,6 @@ mod test2 {
     }
 }
 
-/// Turns a bytestream (R:Read) into chunks of `size`,
-///  each iteratation yielding a Vec<u8>. The last chunk can be shorter than `size`
-// pub struct Chunks<R> {
-//     read: R,
-//     size: usize,
-//     hint: (usize, Option<usize>),
-// }
-
-// impl<R> Chunks<R> {
-
-//     /// Create a new Chunker, splitting the stream `read` into chunks of `size`
-//     pub fn new(read: R, size: usize) -> Self {
-//         Self {
-//             read,
-//             size,
-//             hint: (0, None),
-//         }
-//     }
-
-//     // This could be useful if you want to try to recover from an error
-//     pub fn into_inner(self) -> R {
-//         self.read
-//     }
-// }
-
-// impl<R:Read> Iterator for Chunks<R>
-// {
-//     type Item = io::Result<Vec<u8>>;
-
-//     fn next(&mut self) -> Option<Self::Item> {
-//         let mut chunk = Vec::with_capacity(self.size);
-//         match self.read
-//             .by_ref()
-//             .take(chunk.capacity() as u64)
-//             .read_to_end(&mut chunk)
-//         {
-//             Ok(n) => {
-//                 if n != 0 {
-//                     Some(Ok(chunk))
-//                 } else {
-//                     None
-//                 }
-//             }
-//             Err(e) => Some(Err(e)),
-//         }
-//     }
-
-//     fn size_hint(&self) -> (usize, Option<usize>) {
-//         self.hint
-//     }
-// }
-
-// /// Extending the `Read` trait whith chunking,
-// /// enabling it for anything that impleements `Read`
-// trait ReadPlus: Read {
-//     fn chunks(self, size: usize) -> Chunks<Self>
-//     where
-//         Self: Sized,
-//     {
-//         Chunks::new(self, size)
-//     }
-// }
-
-// impl<T: ?Sized> ReadPlus for T where T: Read {}
-
-// #[cfg(test)]
-// mod test {
-//     use super::*;
-//     #[test]
-//     fn test_chunk(){
-//         let bytes = vec![0_u8, 1, 0, 3];
-
-//         let mut c = Chunks::new(bytes.as_slice(), 2);
-
-//         assert_eq!(
-//             c.next().unwrap().unwrap(),
-//             vec![0, 1]
-//         );
-//         assert_eq!(
-//             c.next().unwrap().unwrap(),
-//             vec![0, 3]
-//         );
-//     }
-// }
-
 /// Consumes a bytestream (groups of 8, from u64s), returning it ready for FastFibnoacci decoding
 /// in 1byte segments
 /// (due to the way things work with Endianess, it essentially revserses each 8byte chunk)
@@ -157,13 +121,16 @@ pub struct U64BytesToU8<R> {
     read: R,
     // each u64 will creatye a u8, but we emit them one by one
     // buf: Vec<u8>
+    buf: [u8; 8],
+    pos: usize,
+    bytes_consumed: usize,
 }
 
 impl<R:Read> U64BytesToU8<R> {
 
     /// Create a new Chunker, splitting the stream `read` into chunks of `size`
     pub fn new(read: R) -> Self {
-        Self { read,}
+        Self { read, buf: [0_u8;8], pos: 8, bytes_consumed: 0}  // initialized with zeros, but pos is set to 8 so the first `next` will pull in new data
             // buf: Vec::with_capacity(8)}
     }
 
@@ -174,50 +141,55 @@ impl<R:Read> U64BytesToU8<R> {
     }
 }
 
-
 impl<R:Read> Iterator for U64BytesToU8<R> {
-    type Item = [u8;8];
+    type Item = u8;
     fn next(&mut self) -> Option<Self::Item> {
-        // to proper way: load as little endian,
-        // then invert 
-        let u = self.read.read_u64::<LittleEndian>();
 
-        match u {
-            Ok(n) => {
-                let reversed_bytes = n.to_be_bytes();
-                Some(reversed_bytes)
-            },
-            Err(e) => {
-                match e.kind() {
-                    ErrorKind::UnexpectedEof => None,
-                    _ => panic!("io error"),
+        if self.pos >= self.buf.len() {
+            // load a new u64 from stream
+            match self.read.read_u64::<LittleEndian>() {
+                Ok(n) => {
+                    let reversed_bytes = n.to_be_bytes();
+                    self.buf = reversed_bytes;
+                    self.pos = 0;
+                    self.bytes_consumed += 8;
+                },
+                Err(e) => {
+                    match e.kind() {
+                        ErrorKind::UnexpectedEof => return None,
+                        _ => panic!("io error"),
+                    }
                 }
             }
         }
+
+        let el = self.buf[self.pos];
+        self.pos += 1;
+        Some(el)
+        
     }
 }
 
 #[test]
 fn test_chunks_u64_to_u8(){
     let bytes = [1,2,3,4,5,6,7,8, 10,11,12,13,14,15,16,17,];
-    let mut c = U64BytesToU8::new(bytes.as_slice());
+    let c = U64BytesToU8::new(bytes.as_slice());
+    
+    let x: Vec<_> = c.collect();
     assert_eq!(
-        c.next(),
-        Some([8,7,6,5,4,3,2,1])
-    );
-    assert_eq!(
-        c.next(),
-        Some([17,16,15,14,13,12,11,10])
+        x,
+        [8,7,6,5,4,3,2,1,17,16,15,14,13,12,11,10]
     );
 }
-
-
 
 /// Consumes a bytestream, returning it ready for FastFibnoacci decoding
 /// in 2byte segments
 /// (due to the way things work with Endianess, it essentially revserses each 8byte chunk)
 pub struct U64BytesToU16<R> {
     read: R,
+    buf: [u16; 4],
+    pos: usize,
+    bytes_consumed: usize,
 }
 
 impl<R:Read> U64BytesToU16<R> {
@@ -226,6 +198,9 @@ impl<R:Read> U64BytesToU16<R> {
     pub fn new(read: R) -> Self {
         Self {
             read,
+            buf: [0_u16; 4],
+            pos: 4,
+            bytes_consumed: 0
         }
     }
 
@@ -237,55 +212,63 @@ impl<R:Read> U64BytesToU16<R> {
 
 
 impl<R> Iterator for U64BytesToU16<R>
-where
-    R: Read,
-{
-    type Item = [u16;4];
+where R: Read, {
+    type Item = u16;
 
     fn next(&mut self) -> Option<Self::Item> {
 
-        // to proper way: load as little endian,
-        // then invert 
-        let u = self.read.read_u64::<LittleEndian>();
+        if self.pos >= self.buf.len() {
 
-        match u {
-            Ok(n) => {
-                let reversed_bytes = n.to_be_bytes();
-                let mut buf = [0_u16; 4];
-                reversed_bytes.as_slice().read_u16_into::<BigEndian>(&mut buf).unwrap();
-                Some(buf)
-            },
-            Err(e) => {
-                match e.kind() {
-                    ErrorKind::UnexpectedEof => None,
-                    _ => panic!("io error"),
+            // to proper way: load as little endian,
+            // then invert 
+            let u = self.read.read_u64::<LittleEndian>();
+            match u {
+                Ok(n) => {
+                    let reversed_bytes = n.to_be_bytes();
+                    let mut buf = [0_u16; 4];
+                    reversed_bytes.as_slice().read_u16_into::<BigEndian>(&mut buf).unwrap();
+                    self.buf = buf;
+                    self.pos = 0;
+                    self.bytes_consumed += 8;
+                },
+                Err(e) => {
+                    match e.kind() {
+                        ErrorKind::UnexpectedEof => return None,
+                        _ => panic!("io error"),
+                    }
                 }
-            },
-        }
+            }
+        };
+        let el = self.buf[self.pos];
+        self.pos += 1;
+        Some(el)
+
+
     }
 }
-
-
 
 #[test]
 fn test_chunks_u64_to_u16(){
     use crate::byte_decode::byte_manipulation::read_bit_u16;
     
     let bytes = [4,0,3,0,2,0,1,0];
-    let mut c = U64BytesToU16::new(bytes.as_slice());
+    let c = U64BytesToU16::new(bytes.as_slice());
 
+    let x: Vec<_> = c.collect();
     assert_eq!(
-        c.next(),
-        Some([1,2,3,4])
+        x,
+        [1,2,3,4]
     );
 
     //this encodes [7,7]: 01011010_11
     let bytes = [0,0,0,0,0,0,192,90];
-    let mut c = U64BytesToU16::new(bytes.as_slice());
+    let c = U64BytesToU16::new(bytes.as_slice());
+
+    let x: Vec<_> = c.collect();
 
     assert_eq!(
-        c.next(),
-        Some([23232,0,0,0])
+        x,
+       [23232,0,0,0]
     );
 
     let u = 23232;
@@ -303,19 +286,105 @@ fn test_chunks_u64_to_u16(){
 }
 
 
-/// An "adaptor" that turns a stream of bytes (originating from u64s)
-/// into chunks of u32s, keeping the byte order correct
-pub struct U64BytesToU32<R> {
+// /// An "adaptor" that turns a stream of bytes (originating from u64s)
+// /// into chunks of u32s, keeping the byte order correct
+// pub struct U64BytesToU32<R> {
+//     read: R,
+//     // each u64 will creatye a u8, but we emit them one by one
+//     // buf: Vec<u8>
+// }
+
+// impl<R:Read> U64BytesToU32<R> {
+
+//     /// Create a new Chunker, splitting the stream `read` into chunks of `size`
+//     pub fn new(read: R) -> Self {
+//         Self { read,}
+//             // buf: Vec::with_capacity(8)}
+//     }
+
+//     /// This could be useful if you want to try to recover from an error
+//     pub fn into_inner(self) -> R {
+//         // assert!(self.buf.is_empty());
+//         self.read
+//     }
+// }
+
+
+// impl<R:Read> Iterator for U64BytesToU32<R> {
+//     type Item = [u32;2];
+//     fn next(&mut self) -> Option<Self::Item> {
+//         // to proper way: load as little endian,
+//         // then invert 
+//         let u = self.read.read_u64::<LittleEndian>();
+
+//         match u {
+//             Ok(n) => {
+//                 let reversed_bytes = n.to_be_bytes();
+//                 let mut buf = [0_u32; 2];
+//                 reversed_bytes.as_slice().read_u32_into::<BigEndian>(&mut buf).unwrap();
+//                 Some(buf)
+//             },
+//             Err(e) => {
+//                 match e.kind() {
+//                     ErrorKind::UnexpectedEof => None,
+//                     _ => panic!("io error"),
+//                 }
+//             }
+//         }
+//     }
+// }
+
+// #[test]
+// fn test_chunks_u64_to_u32(){    
+//     let bytes = [4,0,3,0,2,0,1,0];
+//     let mut c = U64BytesToU32::new(bytes.as_slice());
+
+//     assert_eq!(
+//         c.next(),
+//         Some([65538, 196612])
+//     );
+
+//     //this encodes [7,7]: 01011010_11
+//     let bytes = [0,0,0,0,0,0,192,90];
+//     let mut c = U64BytesToU32::new(bytes.as_slice());
+
+//     assert_eq!(
+//         c.next(),
+//         Some([1522532352,0])
+//     );
+
+//     let u = 1522532352;
+//     assert_eq!(read_bit_u32(u, 0), false);
+//     assert_eq!(read_bit_u32(u, 1), true);
+//     assert_eq!(read_bit_u32(u, 2), false);
+//     assert_eq!(read_bit_u32(u, 3), true);
+//     assert_eq!(read_bit_u32(u, 4), true);
+//     assert_eq!(read_bit_u32(u, 5), false);
+//     assert_eq!(read_bit_u32(u, 6), true);
+//     assert_eq!(read_bit_u32(u, 7), false);
+//     assert_eq!(read_bit_u32(u, 8), true);
+//     assert_eq!(read_bit_u32(u, 9), true);
+//     // println!("{:?}", c.dummy())
+// }
+
+
+
+/// Consumes a bytestream (groups of 8, from u64s), returning it ready for FastFibnoacci decoding
+/// in 1byte segments
+/// (due to the way things work with Endianess, it essentially revserses each 8byte chunk)
+pub struct U32BytesToU8<R> {
     read: R,
     // each u64 will creatye a u8, but we emit them one by one
-    // buf: Vec<u8>
+    buf: [u8; 4],
+    pos: usize,
+    bytes_consumed: usize
 }
 
-impl<R:Read> U64BytesToU32<R> {
+impl<R:Read> U32BytesToU8<R> {
 
     /// Create a new Chunker, splitting the stream `read` into chunks of `size`
     pub fn new(read: R) -> Self {
-        Self { read,}
+        Self { read, buf: [0_u8;4], pos: 4, bytes_consumed: 0}
             // buf: Vec::with_capacity(8)}
     }
 
@@ -326,61 +395,142 @@ impl<R:Read> U64BytesToU32<R> {
     }
 }
 
-
-impl<R:Read> Iterator for U64BytesToU32<R>
-{
-    type Item = [u32;2];
+impl<R:Read> Iterator for U32BytesToU8<R> {
+    type Item = u8;
     fn next(&mut self) -> Option<Self::Item> {
-        // to proper way: load as little endian,
-        // then invert 
-        let u = self.read.read_u64::<LittleEndian>();
 
-        match u {
-            Ok(n) => {
-                let reversed_bytes = n.to_be_bytes();
-                let mut buf = [0_u32; 2];
-                reversed_bytes.as_slice().read_u32_into::<BigEndian>(&mut buf).unwrap();
-                Some(buf)
-            },
-            Err(e) => {
-                match e.kind() {
-                    ErrorKind::UnexpectedEof => None,
-                    _ => panic!("io error"),
+        if self.pos >= self.buf.len() {
+            // load a new u64 from stream
+            match self.read.read_u32::<LittleEndian>() {
+                Ok(n) => {
+                    let reversed_bytes = n.to_be_bytes();
+                    self.buf = reversed_bytes;
+                    self.pos = 0;
+                    self.bytes_consumed += 4;
+
+                },
+                Err(e) => {
+                    match e.kind() {
+                        ErrorKind::UnexpectedEof => return None,
+                        _ => panic!("io error"),
+                    }
                 }
             }
         }
+
+        let el = self.buf[self.pos];
+        self.pos += 1;
+        Some(el)
+
+    }
+}
+
+
+#[test]
+fn test_chunks_u32_to_u8(){
+    let bytes = [1,2,3,4,5,6,7,8, 10,11,12,13,14,15,16,17,];
+    let c = U32BytesToU8::new(bytes.as_slice());
+    let x: Vec<_> = c.collect();
+    assert_eq!(
+        x,
+        [4,3,2,1, 8,7,6,5,13,12,11,10, 17,16,15,14]
+    );
+}
+
+
+/// Consumes a bytestream (groups of 8, from u64s), returning it ready for FastFibnoacci decoding
+/// in 1byte segments
+/// (due to the way things work with Endianess, it essentially revserses each 8byte chunk)
+pub struct U32BytesToU16<R> {
+    read: R,
+    // each u64 will creatye a u8, but we emit them one by one
+    buf: [u16; 2],
+    pos: usize,
+    bytes_consumed: usize,
+}
+
+impl<R:Read> U32BytesToU16<R> {
+
+    /// Create a new Chunker, splitting the stream `read` into chunks of `size`
+    pub fn new(read: R) -> Self {
+        Self { read, buf: [0_u16; 2], pos: 2, bytes_consumed: 0}
+            // buf: Vec::with_capacity(8)}
+    }
+
+    /// This could be useful if you want to try to recover from an error
+    pub fn into_inner(self) -> R {
+        // assert!(self.buf.is_empty());
+        self.read
+    }
+}
+
+impl<R:Read> Iterator for U32BytesToU16<R> {
+    type Item = u16;
+    fn next(&mut self) -> Option<Self::Item> {
+
+        if self.pos >= self.buf.len() {
+
+            // to proper way: load as little endian,
+            // then invert 
+            let u = self.read.read_u32::<LittleEndian>();
+            match u {
+                Ok(n) => {
+                    let reversed_bytes = n.to_be_bytes();
+                    let mut buf = [0_u16; 2];
+                    reversed_bytes.as_slice().read_u16_into::<BigEndian>(&mut buf).unwrap();
+                    self.buf = buf;
+                    self.pos = 0;
+                    self.bytes_consumed += 4;
+                },
+                Err(e) => {
+                    match e.kind() {
+                        ErrorKind::UnexpectedEof => return None,
+                        _ => panic!("io error"),
+                    }
+                },
+            }
+        };
+        let el = self.buf[self.pos];
+        self.pos += 1;
+        Some(el)
+
     }
 }
 
 #[test]
-fn test_chunks_u64_to_u32(){    
+fn test_chunks_u32_to_u16(){
+    use crate::byte_decode::byte_manipulation::read_bit_u16;
+    
     let bytes = [4,0,3,0,2,0,1,0];
-    let mut c = U64BytesToU32::new(bytes.as_slice());
+    let c = U32BytesToU16::new(bytes.as_slice());
 
+    let x: Vec<_> = c.collect();
     assert_eq!(
-        c.next(),
-        Some([65538, 196612])
+        x, 
+        [3,4, 1,2]
     );
 
     //this encodes [7,7]: 01011010_11
     let bytes = [0,0,0,0,0,0,192,90];
-    let mut c = U64BytesToU32::new(bytes.as_slice());
+    let c = U32BytesToU16::new(bytes.as_slice());
+    let x: Vec<_> = c.collect();
 
     assert_eq!(
-        c.next(),
-        Some([1522532352,0])
+        x,
+        [0,0,23232,0]
     );
 
-    let u = 1522532352;
-    assert_eq!(read_bit_u32(u, 0), false);
-    assert_eq!(read_bit_u32(u, 1), true);
-    assert_eq!(read_bit_u32(u, 2), false);
-    assert_eq!(read_bit_u32(u, 3), true);
-    assert_eq!(read_bit_u32(u, 4), true);
-    assert_eq!(read_bit_u32(u, 5), false);
-    assert_eq!(read_bit_u32(u, 6), true);
-    assert_eq!(read_bit_u32(u, 7), false);
-    assert_eq!(read_bit_u32(u, 8), true);
-    assert_eq!(read_bit_u32(u, 9), true);
+
+    let u = 23232;
+    assert_eq!(read_bit_u16(u, 0), false);
+    assert_eq!(read_bit_u16(u, 1), true);
+    assert_eq!(read_bit_u16(u, 2), false);
+    assert_eq!(read_bit_u16(u, 3), true);
+    assert_eq!(read_bit_u16(u, 4), true);
+    assert_eq!(read_bit_u16(u, 5), false);
+    assert_eq!(read_bit_u16(u, 6), true);
+    assert_eq!(read_bit_u16(u, 7), false);
+    assert_eq!(read_bit_u16(u, 8), true);
+    assert_eq!(read_bit_u16(u, 9), true);
     // println!("{:?}", c.dummy())
 }

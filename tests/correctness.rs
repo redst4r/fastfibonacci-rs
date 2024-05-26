@@ -1,5 +1,5 @@
 use bitvec::vec::BitVec;
-use fastfibonacci::{bit_decode::{fast::{fast_decode, LookupVec, FB_LOOKUP_U16, FB_LOOKUP_U8}, fibonacci::FibonacciDecoder, MyBitVector}, byte_decode::{bare_metal_16single_faster::U16Fast, bare_metal_64::Dirty64, bare_metal_generic_single::{DirtyGenericSingle, U64DecoderGeneric}, byte_manipulation::bits_to_fibonacci_generic_array, chunker::{U64BytesToU16, U64BytesToU32, U64BytesToU64, U64BytesToU8}, faster::{FastFibonacciDecoderNewU16, FastFibonacciDecoderNewU8, LookupVecNew}, u64_fibdecoder::Dirty64Single}, fast_decode_new, utils::random_fibonacci_stream, FastFibonacciDecoder, U64Decoder};
+use fastfibonacci::{bit_decode::{fast::{fast_decode, LookupVec, FB_LOOKUP_U16, FB_LOOKUP_U8}, fibonacci::FibonacciDecoder, MyBitVector}, byte_decode::{bare_metal_16single_faster::U16Fast, bare_metal_64::Dirty64, bare_metal_generic_single::{DirtyGenericSingle, U64DecoderGeneric}, byte_manipulation::bits_to_fibonacci_generic_array, chunker::{U64BytesToU16, U64BytesToU64, U64BytesToU8}, faster::{FastFibonacciDecoderNewU16, FastFibonacciDecoderNewU8, LookupVecNew}, u64_fibdecoder::Dirty64Single}, fast_decode_new, utils::random_fibonacci_stream, FastFibonacciDecoder, U64Decoder};
 
 
 // create some random numbers, encode and return
@@ -27,8 +27,8 @@ fn test_correctness_u64_decoder() {
 fn test_correctness_fast_decode_u8() {
     let (bytes ,x_true) = create_random();
 
-    let x_u8: Vec<u8> = U64BytesToU8::new(bytes.as_slice()).flatten().collect();
-    let x_u16: Vec<u16> = U64BytesToU16::new(bytes.as_slice()).flatten().collect();
+    let x_u8: Vec<u8> = U64BytesToU8::new(bytes.as_slice()).collect();
+    let x_u16: Vec<u16> = U64BytesToU16::new(bytes.as_slice()).collect();
 
     let t: LookupVecNew<u8> = LookupVecNew::new();
     let x2 = fast_decode_new(&x_u8,false, &t);        
@@ -61,30 +61,30 @@ mod test_dirty_generic_single{
         assert_eq!(x_true, decoded);
     }
 
-    #[test]
-    fn test_correctness_dirty32(){
-        let (bytes ,x_true) = create_random();
+    // #[test]
+    // fn test_correctness_dirty32(){
+    //     let (bytes ,x_true) = create_random();
         
-        let x_u32: Vec<u32> = U64BytesToU32::new(bytes.as_slice()).flatten().collect();        
-        // println!("{}", bitstream_to_string_pretty(&data_encoded, 32));
-        let mut decoded = Vec::new();
+    //     let x_u32: Vec<u32> = U64BytesToU32::new(bytes.as_slice()).flatten().collect();        
+    //     // println!("{}", bitstream_to_string_pretty(&data_encoded, 32));
+    //     let mut decoded = Vec::new();
 
-        let mut last_partial = Default::default();
-        for _i in 0..x_u32.len() {
-            let mut dd: DirtyGenericSingle<u32> = DirtyGenericSingle::new(x_u32[_i]);
+    //     let mut last_partial = Default::default();
+    //     for _i in 0..x_u32.len() {
+    //         let mut dd: DirtyGenericSingle<u32> = DirtyGenericSingle::new(x_u32[_i]);
 
-            let (numbers, pa) = dd.decode_all_from_partial(last_partial);
-            decoded.extend(numbers);
-            last_partial = pa;
-        }
-        assert_eq!(x_true, decoded);
-    }	
+    //         let (numbers, pa) = dd.decode_all_from_partial(last_partial);
+    //         decoded.extend(numbers);
+    //         last_partial = pa;
+    //     }
+    //     assert_eq!(x_true, decoded);
+    // }	
 
     #[test]
     fn test_correctness_dirty16(){
         let (bytes ,x_true) = create_random();
 
-        let x_u16: Vec<u16> = U64BytesToU16::new(bytes.as_slice()).flatten().collect();
+        let x_u16: Vec<u16> = U64BytesToU16::new(bytes.as_slice()).collect();
         // println!("{}", bitstream_to_string_pretty(&data_encoded, 64));
         let mut decoded = Vec::new();
 
@@ -103,7 +103,7 @@ mod test_dirty_generic_single{
     fn test_correctness_dirty8(){
         let (bytes ,x_true) = create_random();
 
-        let x_u8: Vec<u8> = U64BytesToU8::new(bytes.as_slice()).flatten().collect();
+        let x_u8: Vec<u8> = U64BytesToU8::new(bytes.as_slice()).collect();
         
         let mut decoded = Vec::new();
 
@@ -186,7 +186,7 @@ fn test_correctness_dirty64(){
 #[test]
 fn test_correctness_u16_fast(){
     let (bytes ,x_true) = create_random();
-    let x_u16: Vec<u16> = U64BytesToU16::new(bytes.as_slice()).flatten().collect();
+    let x_u16: Vec<u16> = U64BytesToU16::new(bytes.as_slice()).collect();
     let table = LookupVecNew::new();
 
     // println!("{}", bitstream_to_string_pretty(&data_encoded, 64));

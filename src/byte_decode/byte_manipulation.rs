@@ -25,7 +25,7 @@
 //! 01011010_11000000000000000000000000000000000000000000000000000000
 //! 
 use bitvec::field::BitField;
-use crate::bit_decode::MyBitSlice;
+use crate::{bit_decode::MyBitSlice, utils::create_bitvector};
 use super::chunker::U64BytesToU64;
 
 
@@ -234,6 +234,59 @@ pub fn bits_to_fibonacci_generic_array(b: &MyBitSlice) -> Vec<u8>{
         }
 	}
 	x
+}
+
+/// 
+pub fn bits_to_fibonacci_generic_array_u32(b: &MyBitSlice) -> Vec<u8>{
+
+    // const WORDSIZE: usize = std::mem::size_of::<u32>() * 8; // inbits
+    let wordsize = 32_usize; // inbits
+
+	let mut x: Vec<u8> = Vec::new();
+	for segment in b.chunks(wordsize){
+		// warning: the last chunk might be shortert than 8
+		// and load_be would pad it with zeros ON THE LEFT!!
+		// but we need RIGHT PADDING
+		let enc:u32 = if segment.len() < wordsize {
+			let mut topad = segment.to_owned();
+			for _i in 0..wordsize-segment.len(){
+				topad.push(false);
+			}
+			topad.load_be()  // REALLY ODD! we need to use bigEndian here, otherwise it doesnt not work out (see [bits_to_bytes] test)
+		} else {
+			segment.load_be()
+		};
+        
+        for byte in enc.to_le_bytes(){
+		    x.push(byte)
+        }
+	}
+	x
+}
+
+// #[test]
+// fn test_generic_u32 {
+    // 00111101011101101101101101101111
+// }
+
+#[test]
+fn bits_to_bytes_u32() {
+    
+    // this is the number 7 in fibonacci
+    let bits = create_bitvector(vec![
+        0,1,0,1,1,0,0,0,
+        0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,
+        //
+        0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,
+        ]);
+
+    let bytes = bits_to_fibonacci_generic_array_u32(&bits);
+    assert_eq!(bytes, vec![0,0,0,88_u8,0,0,0, 0]);
 }
 
 #[cfg(test)]

@@ -6,7 +6,7 @@ use std::marker::PhantomData;
 use funty::Integral;
 use crate::byte_decode::{bare_metal_generic_single::DirtyGenericSingle,  partial::Partial};
 use crate::fastutils::State;
-use super::chunker::{U64BytesToU16, U64BytesToU8};
+use super::chunker::{IntoU16Transform, IntoU8Transform, U32BytesToU16, U32BytesToU8, U64BytesToU16, U64BytesToU8};
 use super::partial::number_plus_partial;
 use once_cell::sync::Lazy;
 
@@ -220,8 +220,8 @@ mod test {
             0,1,1,1,0,0,1,0]).to_bitvec();
 
         let bytes = bits_to_fibonacci_generic_array(&bits);
-        let x_u8: Vec<u8> = U64BytesToU8::new(bytes.as_slice()).flatten().collect();
-        let x_u16: Vec<u16> = U64BytesToU16::new(bytes.as_slice()).flatten().collect();
+        let x_u8: Vec<u8> = U64BytesToU8::new(bytes.as_slice()).collect();
+        let x_u16: Vec<u16> = U64BytesToU16::new(bytes.as_slice()).collect();
 
         let t: LookupVecNew<u8> = LookupVecNew::new();
         let r = fast_decode_new(&x_u8,false, &t);
@@ -252,29 +252,27 @@ pub enum StreamType {
 /// 
 pub struct FastFibonacciDecoderNewU8<'a, R:Read> {
     //stream to decode, chunked into the right pieces to be fed into lookup table
-    stream: Flatten<U64BytesToU8<R>>, 
+    stream: Box<dyn IntoU8Transform<R> +'a>, //U64BytesToU8<R>, 
     lookup_table: &'a LookupVecNew<u8>,
     // decoded numbers not yet emitted; once there's no new numbers, adds a `None` as terminator
     current_buffer: VecDeque<Option<u64>>,
     shifted_by_one: bool,
     partial: Partial,
-
-    // TODO: this counting of consumed bytes is ugly and error prone
-    // should really be done inside U64BytesToU16
-    consumed_bytes: usize,
 }
 
-impl<'a, R:Read>  FastFibonacciDecoderNewU8<'a, R> {
+impl<'a, R:Read+'a>  FastFibonacciDecoderNewU8<'a, R> {
     /// Creates a new decoder
     pub fn new(stream: R, lookup_table: &'a LookupVecNew<u8>, shifted_by_one: bool, streamtype: StreamType) ->Self {
-        let chunked_u8_stream = match streamtype {
+        let chunked_u8_stream: Box<dyn IntoU8Transform<R>> = match streamtype {
             StreamType::U64 => {
                 // things come in as 12345678|ABCDEFGH
                 // `8` is the byte that we need to look at first.
                 // we use the ChunksU64ToU8 to get the order of bytes right for decoding
-                U64BytesToU8::new(stream).flatten() // note: ChunksU64ToU8 returns [u8;8], but we need to emit byte by byte! hence the flatten
+                Box::new(U64BytesToU8::new(stream))
             },
-            StreamType::U32 => todo!(),
+            StreamType::U32 => {
+                Box::new(U32BytesToU8::new(stream))
+            },
         };
         Self {
             stream: chunked_u8_stream,
@@ -282,16 +280,14 @@ impl<'a, R:Read>  FastFibonacciDecoderNewU8<'a, R> {
             current_buffer: VecDeque::with_capacity(8),
             shifted_by_one,
             partial: Default::default(),
-            consumed_bytes: 0,
         }
     }
 
     /// pull another segment from the stream, decode
     pub fn load_segment(&mut self) {
 
-        match self.stream.next() {
+        match self.stream.next_u8() {
             Some(segment_int) => {
-                self.consumed_bytes += 1;
                 // decode the segment
 
                 // need to pad
@@ -337,11 +333,7 @@ impl<'a, R:Read>  FastFibonacciDecoderNewU8<'a, R> {
 
     /// number of bytes consumed from the stream
     pub fn get_consumed_bytes(&self) -> usize {
-        // NOTE: self.consumed_bytes returns olny the actual number of next calls
-        // on the flattened iterator. The inner iterator (which we cant get to)
-        // always has a multiple of 8 bytes
-        // todo: this only works for the u64 steam!! becuase of the round 8
-        self.consumed_bytes.next_multiple_of(8)
+        return self.stream.get_consumed_bytes()
     }
 
     /// IS the decoder in a clean state, i.e. no unemitted items and no more partial decoding
@@ -350,7 +342,7 @@ impl<'a, R:Read>  FastFibonacciDecoderNewU8<'a, R> {
     }
 }
 
-impl<'a, R:Read> Iterator for FastFibonacciDecoderNewU8<'a, R> {
+impl<'a, R:Read+'a> Iterator for FastFibonacciDecoderNewU8<'a, R> {
     type Item=u64;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -389,6 +381,21 @@ fn test_fixed_(){
     assert_eq!(x, Some(7));
     let x = dd.next();
     assert_eq!(x, None);
+
+    // interpreting it as u32
+    let bytes =vec![0,0,0,88,0,0,0,0]; 
+    let t: LookupVecNew<u8> = LookupVecNew::new();
+    let mut dd = FastFibonacciDecoderNewU8::new(bytes.as_slice(), &t, false, StreamType::U32);
+    assert_eq!(dd.next(), Some(7));
+    assert_eq!(dd.next(), None);
+
+    // interpreting it as u32
+    let bytes =vec![0,0,192,90,0,0,0,0]; 
+    let t: LookupVecNew<u8> = LookupVecNew::new();
+    let mut dd = FastFibonacciDecoderNewU8::new(bytes.as_slice(), &t, false, StreamType::U32);
+    assert_eq!(dd.next(), Some(7));
+    assert_eq!(dd.next(), Some(7));
+    assert_eq!(dd.next(), None);
 }
 
 #[test]
@@ -418,39 +425,46 @@ fn test_bytes_consumed_u8() {
     assert_eq!(dd.next(), None);
 
 
+    let bytes =vec![0,0,0,88,0,0,0,88, 0,0,0,0, 0,0,0,88]; 
 
     let mut dd = FastFibonacciDecoderNewU8::new(bytes.as_slice(), &t, false, StreamType::U32);
     let x = dd.next();
     assert_eq!(x, Some(7));
     assert_eq!(dd.get_consumed_bytes(), 4);
+    dd.next();
+    assert_eq!(x, Some(7));
+    assert_eq!(dd.get_consumed_bytes(), 8);
+    dd.next();
+    // assert_eq!(x, Some(7));
+    assert_eq!(dd.get_consumed_bytes(), 16);
+
+
 }
 
 /// A Fast decoder for the bytestream, using a u16-lookup table. See [`FastFibonacciDecoderNewU8`].
 pub struct FastFibonacciDecoderNewU16<'a, R:Read> {
     //stream to decode, chunked into the right pieces to be fed into lookup table
-    stream: Flatten<U64BytesToU16<R>>, 
+    stream: Box<dyn IntoU16Transform<R> +'a>, //U64BytesToU16<R>, 
     lookup_table: &'a LookupVecNew<u16>,
     // decoded numbers not yet emitted; once there's no new numbers, adds a `None` as terminator
     current_buffer: VecDeque<Option<u64>>,
     shifted_by_one: bool,
     partial: Partial,
-
-    // TODO: this counting of consumed bytes is ugly and error prone
-    // should really be done inside U64BytesToU16
-    consumed_bytes: usize,
 }
 
-impl<'a, R:Read>  FastFibonacciDecoderNewU16<'a, R> {
+impl<'a, R:Read+'a>  FastFibonacciDecoderNewU16<'a, R> {
     /// Create a new FastDecoder
     pub fn new(stream: R, lookup_table: &'a LookupVecNew<u16>, shifted_by_one: bool, streamtype: StreamType) ->Self {
-        let chunked_u16_stream = match streamtype {
+        let chunked_u16_stream: Box<dyn IntoU16Transform<R>> = match streamtype {
             StreamType::U64 => {
                 // things come in as 12345678|ABCDEFGH
                 // `8` is the byte that we need to look at first.
                 // we use the ChunksU64ToU8 to get the order of bytes right for decoding
-                U64BytesToU16::new(stream).flatten() // note: ChunksU64ToU8 returns [u8;8], but we need to emit byte by byte! hence the flatten
+                Box::new(U64BytesToU16::new(stream))
             },
-            StreamType::U32 => todo!(),
+            StreamType::U32 => {
+                Box::new(U32BytesToU16::new(stream))
+            },
         };
         Self {
             stream: chunked_u16_stream,
@@ -458,8 +472,6 @@ impl<'a, R:Read>  FastFibonacciDecoderNewU16<'a, R> {
             current_buffer: VecDeque::with_capacity(8), // the maximum number of elements decocded at once is 8: 11111111_11111111
             shifted_by_one,
             partial: Default::default(),
-            consumed_bytes: 0,
-
         }
     }
 
@@ -469,9 +481,8 @@ impl<'a, R:Read>  FastFibonacciDecoderNewU16<'a, R> {
         // as load_Segment only gets called when the buffer is empty
         // assert_eq!(self.current_buffer.len(), 0);
 
-        match self.stream.next() {
+        match self.stream.next_u16() {
             Some(segment_int) => {
-                self.consumed_bytes += 2;  // u16 is two bytes
                 // decode the segment
 
                 // need to pad
@@ -515,11 +526,7 @@ impl<'a, R:Read>  FastFibonacciDecoderNewU16<'a, R> {
 
     /// number of bytes consumed out of the stream
     pub fn get_consumed_bytes(&self) -> usize {
-        // NOTE: self.consumed_bytes returns olny the actual number of next calls
-        // on the flattened iterator. The inner iterator (which we cant get to)
-        // always has a multiple of 8 bytes
-        // todo: this only works for the u64 steam!! becuase of the round 8
-        self.consumed_bytes.next_multiple_of(8)
+        self.stream.get_consumed_bytes()
     }
     
     /// IS the decoder in a clean state, i.e. no unemitted items and no more partial decoding
@@ -529,7 +536,7 @@ impl<'a, R:Read>  FastFibonacciDecoderNewU16<'a, R> {
 }
 
 
-impl<'a, R:Read> Iterator for FastFibonacciDecoderNewU16<'a, R> {
+impl<'a, R:Read+'a> Iterator for FastFibonacciDecoderNewU16<'a, R> {
     type Item=u64;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -600,7 +607,13 @@ fn test_bytes_consumed_u16() {
 
     assert_eq!(dd.next(), None);
 
+    let bytes =vec![0,0,0,88,0,0,0,88, 0,0,0,0,0,0,0,88]; 
     let mut dd = FastFibonacciDecoderNewU16::new(bytes.as_slice(), &t, false, StreamType::U32);
     assert_eq!(dd.next(), Some(7));
     assert_eq!(dd.get_consumed_bytes(), 4);
+    dd.next();
+    assert_eq!(dd.get_consumed_bytes(), 8);
+    dd.next();
+    assert_eq!(dd.get_consumed_bytes(), 16);
+
 }
