@@ -63,6 +63,11 @@ impl <R:Read> U64Decoder<R> {
 		self.n_u64s_consumed
 	}
 
+	/// returns how many u64s have been pulled from the stream (ie. 8x this is the number of bytes consumed)
+	pub fn get_consumed_bytes(&self) -> usize {
+		self.n_u64s_consumed * 8  // since each u64 has 8 bytes
+	}
+
 	/// tries to pull in a new u64 number
 	/// SHOULD ONLY BE DONE WHEN finished with the current u64 in self.decoder
 	/// `partial` lets us carry over the decoding state from the pervious u64

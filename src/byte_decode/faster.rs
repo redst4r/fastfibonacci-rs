@@ -258,6 +258,10 @@ pub struct FastFibonacciDecoderNewU8<'a, R:Read> {
     current_buffer: VecDeque<Option<u64>>,
     shifted_by_one: bool,
     partial: Partial,
+
+    // TODO: this counting of consumed bytes is ugly and error prone
+    // should really be done inside U64BytesToU16
+    consumed_bytes: usize,
 }
 
 impl<'a, R:Read>  FastFibonacciDecoderNewU8<'a, R> {
@@ -278,6 +282,7 @@ impl<'a, R:Read>  FastFibonacciDecoderNewU8<'a, R> {
             current_buffer: VecDeque::with_capacity(8),
             shifted_by_one,
             partial: Default::default(),
+            consumed_bytes: 0,
         }
     }
 
@@ -286,6 +291,7 @@ impl<'a, R:Read>  FastFibonacciDecoderNewU8<'a, R> {
 
         match self.stream.next() {
             Some(segment_int) => {
+                self.consumed_bytes += 1;
                 // decode the segment
 
                 // need to pad
@@ -328,6 +334,16 @@ impl<'a, R:Read>  FastFibonacciDecoderNewU8<'a, R> {
             }
         }
     }
+
+    /// number of bytes consumed from the stream
+    pub fn get_consumed_bytes(&self) -> usize {
+        // NOTE: self.consumed_bytes returns olny the actual number of next calls
+        // on the flattened iterator. The inner iterator (which we cant get to)
+        // always has a multiple of 8 bytes
+        // todo: this only works for the u64 steam!! becuase of the round 8
+        self.consumed_bytes.next_multiple_of(8)
+    }
+
     /// IS the decoder in a clean state, i.e. no unemitted items and no more partial decoding
     pub fn is_clean(&self) -> bool {
         self.current_buffer.is_empty() && self.partial.is_clean()
@@ -361,8 +377,8 @@ fn test_fixed_(){
     let bytes =vec![0,0,0,0,0,0,0,88]; 
     let t: LookupVecNew<u8> = LookupVecNew::new();
     let mut dd = FastFibonacciDecoderNewU8::new(bytes.as_slice(), &t, false, StreamType::U64);
-    let x = dd.next();
-    assert_eq!(x, Some(7));
+    assert_eq!(dd.next(), Some(7));
+    assert_eq!(dd.next(), None);
 
     let bytes =vec![0,0,0,0,0,0,192,90]; 
     let t: LookupVecNew<u8> = LookupVecNew::new();
@@ -375,6 +391,39 @@ fn test_fixed_(){
     assert_eq!(x, None);
 }
 
+#[test]
+fn test_bytes_consumed_u8() {
+    // this corresponds to a single entry [7]
+    // 01011000_000...
+    let bytes =vec![0,0,0,0,0,0,0,88]; 
+    let t: LookupVecNew<u8> = LookupVecNew::new();
+    let mut dd = FastFibonacciDecoderNewU8::new(bytes.as_slice(), &t, false, StreamType::U64);
+    let x = dd.next();
+    assert_eq!(x, Some(7));
+    assert_eq!(dd.get_consumed_bytes(), 8);
+
+    let bytes =vec![0,0,0,0,0,0,0,88, 0,0,0,0,0,0,0,88]; 
+    let mut dd = FastFibonacciDecoderNewU8::new(bytes.as_slice(), &t, false, StreamType::U64);
+
+    assert_eq!(dd.next(), Some(7));
+    assert_eq!(dd.get_consumed_bytes(), 8);
+
+    // assert_eq!(dd.next(), Some(7));
+    dd.next();
+    assert_eq!(dd.get_consumed_bytes(), 16);
+
+    dd.next();
+    assert_eq!(dd.get_consumed_bytes(), 16);
+
+    assert_eq!(dd.next(), None);
+
+
+
+    let mut dd = FastFibonacciDecoderNewU8::new(bytes.as_slice(), &t, false, StreamType::U32);
+    let x = dd.next();
+    assert_eq!(x, Some(7));
+    assert_eq!(dd.get_consumed_bytes(), 4);
+}
 
 /// A Fast decoder for the bytestream, using a u16-lookup table. See [`FastFibonacciDecoderNewU8`].
 pub struct FastFibonacciDecoderNewU16<'a, R:Read> {
@@ -385,6 +434,10 @@ pub struct FastFibonacciDecoderNewU16<'a, R:Read> {
     current_buffer: VecDeque<Option<u64>>,
     shifted_by_one: bool,
     partial: Partial,
+
+    // TODO: this counting of consumed bytes is ugly and error prone
+    // should really be done inside U64BytesToU16
+    consumed_bytes: usize,
 }
 
 impl<'a, R:Read>  FastFibonacciDecoderNewU16<'a, R> {
@@ -405,6 +458,8 @@ impl<'a, R:Read>  FastFibonacciDecoderNewU16<'a, R> {
             current_buffer: VecDeque::with_capacity(8), // the maximum number of elements decocded at once is 8: 11111111_11111111
             shifted_by_one,
             partial: Default::default(),
+            consumed_bytes: 0,
+
         }
     }
 
@@ -416,6 +471,7 @@ impl<'a, R:Read>  FastFibonacciDecoderNewU16<'a, R> {
 
         match self.stream.next() {
             Some(segment_int) => {
+                self.consumed_bytes += 2;  // u16 is two bytes
                 // decode the segment
 
                 // need to pad
@@ -456,6 +512,16 @@ impl<'a, R:Read>  FastFibonacciDecoderNewU16<'a, R> {
             }
         }
     }
+
+    /// number of bytes consumed out of the stream
+    pub fn get_consumed_bytes(&self) -> usize {
+        // NOTE: self.consumed_bytes returns olny the actual number of next calls
+        // on the flattened iterator. The inner iterator (which we cant get to)
+        // always has a multiple of 8 bytes
+        // todo: this only works for the u64 steam!! becuase of the round 8
+        self.consumed_bytes.next_multiple_of(8)
+    }
+    
     /// IS the decoder in a clean state, i.e. no unemitted items and no more partial decoding
     pub fn is_clean(&self) -> bool {
         self.current_buffer.is_empty() && self.partial.is_clean()
@@ -507,4 +573,34 @@ fn test_fixed_u16(){
 
     let x = dd.next();
     assert_eq!(x, None);
+}
+
+#[test]
+fn test_bytes_consumed_u16() {
+    // this corresponds to a single entry [7]
+    // 01011000_000...
+    let bytes =vec![0,0,0,0,0,0,0,88]; 
+    let t: LookupVecNew<u16> = LookupVecNew::new();
+    let mut dd = FastFibonacciDecoderNewU16::new(bytes.as_slice(), &t, false, StreamType::U64);
+    assert_eq!(dd.next(), Some(7));
+    assert_eq!(dd.get_consumed_bytes(), 8);
+
+    let bytes =vec![0,0,0,0,0,0,0,88, 0,0,0,0,0,0,0,88]; 
+    let mut dd = FastFibonacciDecoderNewU16::new(bytes.as_slice(), &t, false, StreamType::U64);
+
+    assert_eq!(dd.next(), Some(7));
+    assert_eq!(dd.get_consumed_bytes(), 8);
+
+    // assert_eq!(dd.next(), Some(7));
+    dd.next();
+    assert_eq!(dd.get_consumed_bytes(), 16);
+
+    dd.next();
+    assert_eq!(dd.get_consumed_bytes(), 16);
+
+    assert_eq!(dd.next(), None);
+
+    let mut dd = FastFibonacciDecoderNewU16::new(bytes.as_slice(), &t, false, StreamType::U32);
+    assert_eq!(dd.next(), Some(7));
+    assert_eq!(dd.get_consumed_bytes(), 4);
 }
