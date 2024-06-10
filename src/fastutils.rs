@@ -2,14 +2,6 @@ use std::collections::HashMap;
 use bitvec::{store::BitStore, order::BitOrder, slice::BitSlice};
 use crate::{utils::FIB64, bit_decode::fibonacci::encode};
 
-// // the type of bitstream we expect as input!
-// pub(crate) type MyBitOrder = Msb0;
-// pub(crate) type FFStore = u8;
-// pub(crate) type FFBitslice = BitSlice<FFStore, MyBitOrder>;
-// #[allow(dead_code)]
-// pub(crate) type FFBitvec = BitVec<FFStore, MyBitOrder>;
-
-
 /// `State` is used to remember the position in the bitvector and the partically decoded number.
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Copy)]
 pub struct State(pub usize);
@@ -130,17 +122,6 @@ fn extended_fibonacci_right_shift_slow(x: u64, k: usize) -> u64 {
     pos_acc + neg_acc
 }
 
-// fn fibonacci_left_shift_naive(number_in_binary: u64 ,k: usize) -> u64 {
-//     panic!("Buggy, doesnt yield the same as fibonacci_left_shift()");
-//     let bitrepresnetation = number_in_binary.view_bits::<Lsb0>();
-//     let mut accumulator = 0_u64;
-//     for (idx, current_bit) in bitrepresnetation.iter().by_vals().enumerate() {
-//         if current_bit {
-//             accumulator += FIB64[idx+k];
-//         }
-//     }
-//     accumulator
-// }
 
 /// precompuated EXTENDED fibbonaci left shift by 1
 /// n >> 1  = FIB_LEFT_1[n]

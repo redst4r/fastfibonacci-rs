@@ -7,18 +7,14 @@
 //! 
 
 use std::io::Read;
-// pub mod bare_metal;
-pub mod bare_metal_64;
-// pub mod bare_metal_64single;
+pub mod bare_metal_3264_stream;
 pub mod bare_metal_generic_single;
 pub mod chunker;
 pub mod partial;
 pub mod u64_fibdecoder;
 pub mod faster;
-// pub mod generic_fibdecoder;
 pub mod bare_metal_16single_faster;
 pub mod byte_manipulation;
-// pub mod chunker_generic;
 
 /// Marker trait for Fibonacci decoders.
 /// This is an iterator over u64 (the decoded integers),

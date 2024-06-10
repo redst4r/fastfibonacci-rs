@@ -1,17 +1,18 @@
-//!
+//! As opposed to [`crate::byte_decode::bare_metal_3264_stream`], this
+//! decodes only a single number (u32/u64) rather than a stream.
 use std::io::Read;
 
 use funty::Integral;
 use crate::byte_decode::partial::Partial;
 use super::chunker::U64BytesToU64;
 
-///
+/// Takes a single number (`T`: u32/u64) and fibonacci decodes it.
 #[derive(Debug)]
 pub struct DirtyGenericSingle<T:Integral> {
-	/// the current bits to decode, stored as a u64.
+	/// the current bits to decode, stored as a u32/u64.
 	/// The first bit we'll look at is the HIGHEST bit!
 	buf: T, 
-	/// which bit (of the 64) we have to decode next
+	/// which bit (of the 32/64) we have to decode next
 	bitpos: usize, 
 }
 impl <T:Integral> DirtyGenericSingle<T> {
@@ -100,7 +101,6 @@ impl <T:Integral> DirtyGenericSingle<T> {
 		while self.bitpos < T::BITS as usize {
 			let bit = Self::read_bit(self.buf, self.bitpos) as u64;
 			self.bitpos += 1;
-			// println!("{bit}");
 			match partial.update(bit) {
 				crate::byte_decode::partial::DecResult::Incomplete => {  /*println!("{:?}", partial) */},
 				crate::byte_decode::partial::DecResult::Complete(n) => {
@@ -120,7 +120,6 @@ impl <T:Integral> DirtyGenericSingle<T> {
 		let mut last_partial = partial;
 
 		while !self.is_finished() {
-			// println!("number: {_i}");
 			match self.decode_from_partial(last_partial) {
 				Ok(n) => {
 					fully_decoded.push(n);

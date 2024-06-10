@@ -60,8 +60,7 @@ impl <R:Read> IntoU16Transform<R> for U32BytesToU16<R> {
     }
 }
 
-/// Turns a bytestream into a stream of U64s
-/// assumes little endian bytestream.
+/// Turns a bytestream (&[u8]) into a stream of U64s. Assumes little endian bytestream.
 /// 
 /// Note, if the stream is NOT a multiple of 8bytes, it'll drop the remainder!
 pub struct U64BytesToU64<R> {

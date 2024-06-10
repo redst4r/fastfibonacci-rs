@@ -635,10 +635,8 @@ impl<'a, T:Integral> Iterator for FastFibonacciDecoder<'a, T> {
 
 #[cfg(test)]
 mod test_iter {
-    use crate::{utils::create_bitvector, bit_decode::MyBitVector};
-
     use super::*;
-    use bitvec::vec::BitVec;
+    use crate::utils::create_bitvector;
     use pretty_assertions::assert_eq;
 
     #[test]

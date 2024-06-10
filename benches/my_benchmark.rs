@@ -6,7 +6,7 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion};
 // use fastfibonacci::bare_metal::decode_single_dirty;
 use fastfibonacci::bit_decode::fast::{LookupVec, fast_decode, get_u8_decoder, get_u16_decoder};
 use fastfibonacci::byte_decode::bare_metal_16single_faster::U16DecoderFast;
-use fastfibonacci::byte_decode::bare_metal_64::Dirty64;
+use fastfibonacci::byte_decode::bare_metal_3264_stream::Dirty64;
 use fastfibonacci::byte_decode::byte_manipulation::{bits_to_fibonacci_generic_array, read_bit_u64};
 use fastfibonacci::byte_decode::chunker::{U64BytesToU16, U64BytesToU64, U64BytesToU8};
 use fastfibonacci::byte_decode::faster::{fast_decode_new, FastFibonacciDecoderNewU16, FastFibonacciDecoderNewU8, LookupVecNew, StreamType};

@@ -1,37 +1,10 @@
-//!
-
-// #[test]
-// fn testing_stuff(){
-// 	let bytes = vec![
-// 		0_u8,1,2,3,4,5,6,7,
-// 		8   ,9,1,2,3,4,5,6,
-// 		8   ,9,1,2,3,4,5,6,
-// 		8   ,9,1,2,3,4,5,6,
-// 		0, 0, 0, 0, 0, 0, 0, 0];
-
-// 	let v = vec![1, 2, 3, 4, 5, 6, 7, 8, 9];
-    
-// 	let chunks: Vec<Vec<i32>> = v.chunks(3).map(|c| c.to_vec()).collect();
-
-// 	let fh = File::open("/tmp/test.txt").unwrap();
-// 	let r = BufReader::new(fh);
-
-
-// 	for b in r.bytes()..chunks(8).map(|chunk| chunk.collect()){
-// 		let c: Vec<_> = b.collect();
-// 		let x = u64::from_be_bytes(c.try_into().unwrap());
-// 		println!("{}", x);
-// 	}
-// }
-
-// use bitvec::field::BitField;
-// use funty::Integral;
+//! Contains Dirty32 and Dirty64, which both take a stream of u32/u64 and fibonacci-decode those numbers bit by bit
 
 use crate::byte_decode::byte_manipulation::{read_bit_u32, read_bit_u64};
 use crate::utils::FIB64;
 use crate::byte_decode::partial::Partial;
 
-/// Nicer version of `decode_single_dirty_64` using a struct
+/// Fib-Decode a single u32 
 pub struct Dirty32 <'a> {
 	///
 	pub buf: &'a [u32], 
@@ -165,9 +138,8 @@ impl <'a> Dirty64 <'a> {
 
 #[cfg(test)]
 mod test {
-    use crate::{byte_decode::{bare_metal_64::Dirty64, byte_manipulation::bits_to_fibonacci_generic_array, chunker::U64BytesToU64}, utils::create_bitvector};
+    use crate::{byte_decode::{byte_manipulation::bits_to_fibonacci_generic_array, chunker::U64BytesToU64}, utils::create_bitvector};
 	use super::*;
-
 
 	#[test]
 	fn test_dirty64overhang2() {
