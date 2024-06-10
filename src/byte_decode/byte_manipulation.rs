@@ -25,7 +25,7 @@
 //! 01011010_11000000000000000000000000000000000000000000000000000000
 //! 
 use bitvec::field::BitField;
-use crate::{bit_decode::MyBitSlice, utils::create_bitvector};
+use crate::bit_decode::MyBitSlice;
 use super::chunker::U64BytesToU64;
 
 
@@ -271,7 +271,7 @@ pub fn bits_to_fibonacci_generic_array_u32(b: &MyBitSlice) -> Vec<u8>{
 
 #[test]
 fn bits_to_bytes_u32() {
-    
+    use crate::utils::create_bitvector;
     // this is the number 7 in fibonacci
     let bits = create_bitvector(vec![
         0,1,0,1,1,0,0,0,

@@ -205,13 +205,13 @@ fn fibonacci_mybitwise(c: &mut Criterion) {
 
     // new fast
     let table8: LookupVecNew<u8> = LookupVecNew::new();
-    let x_u8: Vec<u8> = U64BytesToU8::new(bytes.as_slice()).flatten().collect();
+    let x_u8: Vec<u8> = U64BytesToU8::new(bytes.as_slice()).collect();
     c.bench_function(&format!("Byte-fast-u8"), |b| {
         b.iter(|| fast_decode_new(black_box(x_u8.as_slice()),false, &table8))
     });
 
     let table16: LookupVecNew<u16> = LookupVecNew::new();
-    let x_u16: Vec<u16> = U64BytesToU16::new(bytes.as_slice()).flatten().collect();
+    let x_u16: Vec<u16> = U64BytesToU16::new(bytes.as_slice()).collect();
     c.bench_function(&format!("Byte-fast-u16"), |b| {
         b.iter(|| fast_decode_new(black_box(&x_u16),false, &table16))
     });

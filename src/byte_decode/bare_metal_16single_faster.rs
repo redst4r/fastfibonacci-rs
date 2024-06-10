@@ -1,5 +1,5 @@
 //!
-use std::{collections::VecDeque, iter::Flatten};
+use std::collections::VecDeque;
 use std::io::Read;
 use crate::byte_decode::partial::Partial;
 use super::partial::number_plus_partial;

@@ -4,10 +4,14 @@ use std::io::Read;
 use byteorder::LittleEndian;
 use byteorder::BigEndian;
 use byteorder::ReadBytesExt;
-use crate::byte_decode::byte_manipulation::read_bit_u32;
 
+
+/// Marks any Transformer that turns things into a u8 stream
 pub (crate) trait IntoU8Transform<R> {
+    /// yield the next u8
     fn next_u8(&mut self) -> Option<u8>; 
+
+    // how many u8 have been yieled
     fn get_consumed_bytes(&self) -> usize;
 }
 
@@ -31,6 +35,7 @@ impl <R:Read> IntoU8Transform<R> for U32BytesToU8<R> {
     }
 }
 
+/// Marks any Transformer that turns things into a u16 stream
 pub (crate) trait IntoU16Transform<R> {
     fn next_u16(&mut self) -> Option<u16>; 
     fn get_consumed_bytes(&self) -> usize;
@@ -66,10 +71,7 @@ pub struct U64BytesToU64<R> {
 impl<R:Read> U64BytesToU64<R> {
     /// Create a new Chunker, splitting the stream `read` into chunks of `size`
     pub fn new(read: R) -> Self {
-        Self {
-            read,
-
-        }
+        Self { read }
     }
     /// This could be useful if you want to try to recover from an error
     pub fn into_inner(self) -> R {
@@ -94,25 +96,6 @@ impl<R:Read> Iterator for U64BytesToU64<R> {
     }
 }
 
-#[cfg(test)]
-mod test2 {
-    use super::*;
-    #[test]
-    fn test_bytes_to_u64(){
-        let bytes = vec![1_u8, 0, 0, 0,0,0,0,0];
-
-        let mut c = U64BytesToU64::new(bytes.as_slice());
-
-        assert_eq!(
-            c.next(),
-            Some(1)
-        );
-        assert_eq!(
-            c.next(),
-            None
-        );
-    }
-}
 
 /// Consumes a bytestream (groups of 8, from u64s), returning it ready for FastFibnoacci decoding
 /// in 1byte segments
@@ -166,21 +149,9 @@ impl<R:Read> Iterator for U64BytesToU8<R> {
         let el = self.buf[self.pos];
         self.pos += 1;
         Some(el)
-        
     }
 }
 
-#[test]
-fn test_chunks_u64_to_u8(){
-    let bytes = [1,2,3,4,5,6,7,8, 10,11,12,13,14,15,16,17,];
-    let c = U64BytesToU8::new(bytes.as_slice());
-    
-    let x: Vec<_> = c.collect();
-    assert_eq!(
-        x,
-        [8,7,6,5,4,3,2,1,17,16,15,14,13,12,11,10]
-    );
-}
 
 /// Consumes a bytestream, returning it ready for FastFibnoacci decoding
 /// in 2byte segments
@@ -216,9 +187,7 @@ where R: Read, {
     type Item = u16;
 
     fn next(&mut self) -> Option<Self::Item> {
-
         if self.pos >= self.buf.len() {
-
             // to proper way: load as little endian,
             // then invert 
             let u = self.read.read_u64::<LittleEndian>();
@@ -242,130 +211,8 @@ where R: Read, {
         let el = self.buf[self.pos];
         self.pos += 1;
         Some(el)
-
-
     }
 }
-
-#[test]
-fn test_chunks_u64_to_u16(){
-    use crate::byte_decode::byte_manipulation::read_bit_u16;
-    
-    let bytes = [4,0,3,0,2,0,1,0];
-    let c = U64BytesToU16::new(bytes.as_slice());
-
-    let x: Vec<_> = c.collect();
-    assert_eq!(
-        x,
-        [1,2,3,4]
-    );
-
-    //this encodes [7,7]: 01011010_11
-    let bytes = [0,0,0,0,0,0,192,90];
-    let c = U64BytesToU16::new(bytes.as_slice());
-
-    let x: Vec<_> = c.collect();
-
-    assert_eq!(
-        x,
-       [23232,0,0,0]
-    );
-
-    let u = 23232;
-    assert_eq!(read_bit_u16(u, 0), false);
-    assert_eq!(read_bit_u16(u, 1), true);
-    assert_eq!(read_bit_u16(u, 2), false);
-    assert_eq!(read_bit_u16(u, 3), true);
-    assert_eq!(read_bit_u16(u, 4), true);
-    assert_eq!(read_bit_u16(u, 5), false);
-    assert_eq!(read_bit_u16(u, 6), true);
-    assert_eq!(read_bit_u16(u, 7), false);
-    assert_eq!(read_bit_u16(u, 8), true);
-    assert_eq!(read_bit_u16(u, 9), true);
-    // println!("{:?}", c.dummy())
-}
-
-
-// /// An "adaptor" that turns a stream of bytes (originating from u64s)
-// /// into chunks of u32s, keeping the byte order correct
-// pub struct U64BytesToU32<R> {
-//     read: R,
-//     // each u64 will creatye a u8, but we emit them one by one
-//     // buf: Vec<u8>
-// }
-
-// impl<R:Read> U64BytesToU32<R> {
-
-//     /// Create a new Chunker, splitting the stream `read` into chunks of `size`
-//     pub fn new(read: R) -> Self {
-//         Self { read,}
-//             // buf: Vec::with_capacity(8)}
-//     }
-
-//     /// This could be useful if you want to try to recover from an error
-//     pub fn into_inner(self) -> R {
-//         // assert!(self.buf.is_empty());
-//         self.read
-//     }
-// }
-
-
-// impl<R:Read> Iterator for U64BytesToU32<R> {
-//     type Item = [u32;2];
-//     fn next(&mut self) -> Option<Self::Item> {
-//         // to proper way: load as little endian,
-//         // then invert 
-//         let u = self.read.read_u64::<LittleEndian>();
-
-//         match u {
-//             Ok(n) => {
-//                 let reversed_bytes = n.to_be_bytes();
-//                 let mut buf = [0_u32; 2];
-//                 reversed_bytes.as_slice().read_u32_into::<BigEndian>(&mut buf).unwrap();
-//                 Some(buf)
-//             },
-//             Err(e) => {
-//                 match e.kind() {
-//                     ErrorKind::UnexpectedEof => None,
-//                     _ => panic!("io error"),
-//                 }
-//             }
-//         }
-//     }
-// }
-
-// #[test]
-// fn test_chunks_u64_to_u32(){    
-//     let bytes = [4,0,3,0,2,0,1,0];
-//     let mut c = U64BytesToU32::new(bytes.as_slice());
-
-//     assert_eq!(
-//         c.next(),
-//         Some([65538, 196612])
-//     );
-
-//     //this encodes [7,7]: 01011010_11
-//     let bytes = [0,0,0,0,0,0,192,90];
-//     let mut c = U64BytesToU32::new(bytes.as_slice());
-
-//     assert_eq!(
-//         c.next(),
-//         Some([1522532352,0])
-//     );
-
-//     let u = 1522532352;
-//     assert_eq!(read_bit_u32(u, 0), false);
-//     assert_eq!(read_bit_u32(u, 1), true);
-//     assert_eq!(read_bit_u32(u, 2), false);
-//     assert_eq!(read_bit_u32(u, 3), true);
-//     assert_eq!(read_bit_u32(u, 4), true);
-//     assert_eq!(read_bit_u32(u, 5), false);
-//     assert_eq!(read_bit_u32(u, 6), true);
-//     assert_eq!(read_bit_u32(u, 7), false);
-//     assert_eq!(read_bit_u32(u, 8), true);
-//     assert_eq!(read_bit_u32(u, 9), true);
-//     // println!("{:?}", c.dummy())
-// }
 
 
 
@@ -385,7 +232,6 @@ impl<R:Read> U32BytesToU8<R> {
     /// Create a new Chunker, splitting the stream `read` into chunks of `size`
     pub fn new(read: R) -> Self {
         Self { read, buf: [0_u8;4], pos: 4, bytes_consumed: 0}
-            // buf: Vec::with_capacity(8)}
     }
 
     /// This could be useful if you want to try to recover from an error
@@ -421,21 +267,10 @@ impl<R:Read> Iterator for U32BytesToU8<R> {
         let el = self.buf[self.pos];
         self.pos += 1;
         Some(el)
-
     }
 }
 
 
-#[test]
-fn test_chunks_u32_to_u8(){
-    let bytes = [1,2,3,4,5,6,7,8, 10,11,12,13,14,15,16,17,];
-    let c = U32BytesToU8::new(bytes.as_slice());
-    let x: Vec<_> = c.collect();
-    assert_eq!(
-        x,
-        [4,3,2,1, 8,7,6,5,13,12,11,10, 17,16,15,14]
-    );
-}
 
 
 /// Consumes a bytestream (groups of 8, from u64s), returning it ready for FastFibnoacci decoding
@@ -454,7 +289,6 @@ impl<R:Read> U32BytesToU16<R> {
     /// Create a new Chunker, splitting the stream `read` into chunks of `size`
     pub fn new(read: R) -> Self {
         Self { read, buf: [0_u16; 2], pos: 2, bytes_consumed: 0}
-            // buf: Vec::with_capacity(8)}
     }
 
     /// This could be useful if you want to try to recover from an error
@@ -493,44 +327,123 @@ impl<R:Read> Iterator for U32BytesToU16<R> {
         let el = self.buf[self.pos];
         self.pos += 1;
         Some(el)
-
     }
 }
 
-#[test]
-fn test_chunks_u32_to_u16(){
-    use crate::byte_decode::byte_manipulation::read_bit_u16;
-    
-    let bytes = [4,0,3,0,2,0,1,0];
-    let c = U32BytesToU16::new(bytes.as_slice());
 
-    let x: Vec<_> = c.collect();
-    assert_eq!(
-        x, 
-        [3,4, 1,2]
-    );
+#[cfg(test)]
+mod test {
+    use super::*;
 
-    //this encodes [7,7]: 01011010_11
-    let bytes = [0,0,0,0,0,0,192,90];
-    let c = U32BytesToU16::new(bytes.as_slice());
-    let x: Vec<_> = c.collect();
+    #[test]
+    fn test_bytes_to_u64(){
+        let bytes = vec![1_u8, 0, 0, 0,0,0,0,0];
 
-    assert_eq!(
-        x,
-        [0,0,23232,0]
-    );
+        let mut c = U64BytesToU64::new(bytes.as_slice());
 
+        assert_eq!(
+            c.next(),
+            Some(1)
+        );
+        assert_eq!(
+            c.next(),
+            None
+        );
+    }
 
-    let u = 23232;
-    assert_eq!(read_bit_u16(u, 0), false);
-    assert_eq!(read_bit_u16(u, 1), true);
-    assert_eq!(read_bit_u16(u, 2), false);
-    assert_eq!(read_bit_u16(u, 3), true);
-    assert_eq!(read_bit_u16(u, 4), true);
-    assert_eq!(read_bit_u16(u, 5), false);
-    assert_eq!(read_bit_u16(u, 6), true);
-    assert_eq!(read_bit_u16(u, 7), false);
-    assert_eq!(read_bit_u16(u, 8), true);
-    assert_eq!(read_bit_u16(u, 9), true);
-    // println!("{:?}", c.dummy())
+    #[test]
+    fn test_chunks_u64_to_u8(){
+        let bytes = [1,2,3,4,5,6,7,8, 10,11,12,13,14,15,16,17,];
+        let c = U64BytesToU8::new(bytes.as_slice());
+        
+        let x: Vec<_> = c.collect();
+        assert_eq!(
+            x,
+            [8,7,6,5,4,3,2,1,17,16,15,14,13,12,11,10]
+        );
+    }
+
+    #[test]
+    fn test_chunks_u64_to_u16(){
+        use crate::byte_decode::byte_manipulation::read_bit_u16;
+        
+        let bytes = [4,0,3,0,2,0,1,0];
+        let c = U64BytesToU16::new(bytes.as_slice());
+
+        let x: Vec<_> = c.collect();
+        assert_eq!(
+            x,
+            [1,2,3,4]
+        );
+
+        //this encodes [7,7]: 01011010_11
+        let bytes = [0,0,0,0,0,0,192,90];
+        let c = U64BytesToU16::new(bytes.as_slice());
+
+        let x: Vec<_> = c.collect();
+
+        assert_eq!(
+            x,
+        [23232,0,0,0]
+        );
+
+        let u = 23232;
+        assert_eq!(read_bit_u16(u, 0), false);
+        assert_eq!(read_bit_u16(u, 1), true);
+        assert_eq!(read_bit_u16(u, 2), false);
+        assert_eq!(read_bit_u16(u, 3), true);
+        assert_eq!(read_bit_u16(u, 4), true);
+        assert_eq!(read_bit_u16(u, 5), false);
+        assert_eq!(read_bit_u16(u, 6), true);
+        assert_eq!(read_bit_u16(u, 7), false);
+        assert_eq!(read_bit_u16(u, 8), true);
+        assert_eq!(read_bit_u16(u, 9), true);
+        // println!("{:?}", c.dummy())
+    }
+    #[test]
+    fn test_chunks_u32_to_u8(){
+        let bytes = [1,2,3,4,5,6,7,8, 10,11,12,13,14,15,16,17,];
+        let c = U32BytesToU8::new(bytes.as_slice());
+        let x: Vec<_> = c.collect();
+        assert_eq!(
+            x,
+            [4,3,2,1, 8,7,6,5,13,12,11,10, 17,16,15,14]
+        );
+    }
+    #[test]
+    fn test_chunks_u32_to_u16(){
+        use crate::byte_decode::byte_manipulation::read_bit_u16;
+        
+        let bytes = [4,0,3,0,2,0,1,0];
+        let c = U32BytesToU16::new(bytes.as_slice());
+
+        let x: Vec<_> = c.collect();
+        assert_eq!(
+            x, 
+            [3,4, 1,2]
+        );
+
+        //this encodes [7,7]: 01011010_11
+        let bytes = [0,0,0,0,0,0,192,90];
+        let c = U32BytesToU16::new(bytes.as_slice());
+        let x: Vec<_> = c.collect();
+
+        assert_eq!(
+            x,
+            [0,0,23232,0]
+        );
+
+        let u = 23232;
+        assert_eq!(read_bit_u16(u, 0), false);
+        assert_eq!(read_bit_u16(u, 1), true);
+        assert_eq!(read_bit_u16(u, 2), false);
+        assert_eq!(read_bit_u16(u, 3), true);
+        assert_eq!(read_bit_u16(u, 4), true);
+        assert_eq!(read_bit_u16(u, 5), false);
+        assert_eq!(read_bit_u16(u, 6), true);
+        assert_eq!(read_bit_u16(u, 7), false);
+        assert_eq!(read_bit_u16(u, 8), true);
+        assert_eq!(read_bit_u16(u, 9), true);
+    }
+
 }

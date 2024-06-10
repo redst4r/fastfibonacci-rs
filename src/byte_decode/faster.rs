@@ -1,7 +1,6 @@
 //! Fast fibonacci decoding using lookup tables.
 use std::collections::VecDeque;
 use std::io::Read;
-use std::iter::Flatten;
 use std::marker::PhantomData;
 use funty::Integral;
 use crate::byte_decode::{bare_metal_generic_single::DirtyGenericSingle,  partial::Partial};
@@ -333,7 +332,7 @@ impl<'a, R:Read+'a>  FastFibonacciDecoderNewU8<'a, R> {
 
     /// number of bytes consumed from the stream
     pub fn get_consumed_bytes(&self) -> usize {
-        return self.stream.get_consumed_bytes()
+        self.stream.get_consumed_bytes()
     }
 
     /// IS the decoder in a clean state, i.e. no unemitted items and no more partial decoding

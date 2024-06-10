@@ -1,11 +1,7 @@
 //! Decoding a fibonacci number in several steps.
 //! Each step will create/update a Partial decoding result
 //! and finally, once 11 is encountered will result in a decoded number
-
-// use std::marker::PhantomData;
-
 use crate::{fastutils::fibonacci_left_shift, utils::FIB64};
-
 
 /// A Partial Fibonacci-decoding result:
 /// The input stream finished before we could decode a complete integer.
