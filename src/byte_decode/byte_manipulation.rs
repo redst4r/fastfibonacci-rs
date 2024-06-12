@@ -26,7 +26,7 @@
 //! 
 use bitvec::field::BitField;
 use crate::bit_decode::MyBitSlice;
-use super::chunker::U64BytesToU64;
+use super::bytestream_transform::U64BytesToU64;
 
 
 /// load a series of 8 bytes into a u64
@@ -207,11 +207,10 @@ fn read_bit_u32_msb(x: u32, pos: usize) -> bool {
 // 	x
 // }
 
-/// turns a bitstream into a u64/u32 representation
+/// turns a bitstream into a u64 representation (a sequence of 8-byte groups)
 /// Note: the last byte will be right-padded if the encoding doesnt fill the netire byte
-pub fn bits_to_fibonacci_generic_array(b: &MyBitSlice) -> Vec<u8>{
+pub fn bits_to_fibonacci_generic_array_u64(b: &MyBitSlice) -> Vec<u8>{
 
-    // const WORDSIZE: usize = std::mem::size_of::<u32>() * 8; // inbits
     let wordsize = 64_usize; // inbits
 
 	let mut x: Vec<u8> = Vec::new();
@@ -236,10 +235,10 @@ pub fn bits_to_fibonacci_generic_array(b: &MyBitSlice) -> Vec<u8>{
 	x
 }
 
-/// 
+/// turns a bitstream into a u32 representation (a sequence of 4-byte groups)
+/// Note: the last byte will be right-padded if the encoding doesnt fill the netire byte
 pub fn bits_to_fibonacci_generic_array_u32(b: &MyBitSlice) -> Vec<u8>{
 
-    // const WORDSIZE: usize = std::mem::size_of::<u32>() * 8; // inbits
     let wordsize = 32_usize; // inbits
 
 	let mut x: Vec<u8> = Vec::new();
@@ -264,10 +263,6 @@ pub fn bits_to_fibonacci_generic_array_u32(b: &MyBitSlice) -> Vec<u8>{
 	x
 }
 
-// #[test]
-// fn test_generic_u32 {
-    // 00111101011101101101101101101111
-// }
 
 #[test]
 fn bits_to_bytes_u32() {
@@ -308,10 +303,10 @@ mod testing {
             0,0,0,0,0,0,0,0,
             ]);
 
-        let bytes = bits_to_fibonacci_generic_array(&bits);
+        let bytes = bits_to_fibonacci_generic_array_u64(&bits);
         assert_eq!(bytes, vec![0,0,0,0,0,0,0,88_u8]);
 
-        let bytes = bits_to_fibonacci_generic_array(&bits);
+        let bytes = bits_to_fibonacci_generic_array_u64(&bits);
         let xu64: Vec<_> = U64BytesToU64::new(bytes.as_slice()).collect();
         assert_eq!(xu64, vec![6341068275337658368]);
     
@@ -327,7 +322,7 @@ mod testing {
         ]);
 
         assert_eq!(
-            bits_to_fibonacci_generic_array(&bits),
+            bits_to_fibonacci_generic_array_u64(&bits),
             vec![0, 0, 0, 0, 0, 0, 0, 128]
         );
 
@@ -336,7 +331,7 @@ mod testing {
             1,0,0,0,0,0,0,0,
         ]);        
         assert_eq!(
-            bits_to_fibonacci_generic_array(&bits[..8]),
+            bits_to_fibonacci_generic_array_u64(&bits[..8]),
             vec![0, 0, 0, 0, 0, 0, 0, 128]
         );
 
@@ -348,7 +343,7 @@ mod testing {
             0,0,0,0,0,0,0,0,
         ]); 
         assert_eq!(
-            bits_to_fibonacci_generic_array(&bits),
+            bits_to_fibonacci_generic_array_u64(&bits),
             vec![0, 0, 0, 0, 0, 0, 0, 128]
         );
     }

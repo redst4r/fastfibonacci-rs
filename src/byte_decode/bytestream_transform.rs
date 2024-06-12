@@ -1,4 +1,7 @@
 //! Utilities to deal with bytestreams originating from streams of uints.
+//! 
+//! Assumes that the bytes in the intput stream actualyl come from a stream
+//! of u32/u64 and hence the bytes need to be reordered in groups of 4/8 
 use std::io::ErrorKind;
 use std::io::Read;
 use byteorder::LittleEndian;
@@ -23,7 +26,6 @@ impl <R:Read> IntoU8Transform<R> for U64BytesToU8<R> {
     fn get_consumed_bytes(&self) -> usize {
         self.bytes_consumed
     }
-    
 }
 
 impl <R:Read> IntoU8Transform<R> for U32BytesToU8<R> {
@@ -39,7 +41,6 @@ impl <R:Read> IntoU8Transform<R> for U32BytesToU8<R> {
 pub (crate) trait IntoU16Transform<R> {
     fn next_u16(&mut self) -> Option<u16>; 
     fn get_consumed_bytes(&self) -> usize;
-
 }
 
 impl <R:Read> IntoU16Transform<R> for U64BytesToU16<R> {
@@ -60,7 +61,7 @@ impl <R:Read> IntoU16Transform<R> for U32BytesToU16<R> {
     }
 }
 
-/// Turns a bytestream (&[u8]) into a stream of U64s. Assumes little endian bytestream.
+/// Turns a bytestream (&[u8], or any `Read`) into a stream of U64s. Assumes little endian bytestream.
 /// 
 /// Note, if the stream is NOT a multiple of 8bytes, it'll drop the remainder!
 pub struct U64BytesToU64<R> {
@@ -268,8 +269,6 @@ impl<R:Read> Iterator for U32BytesToU8<R> {
         Some(el)
     }
 }
-
-
 
 
 /// Consumes a bytestream (groups of 8, from u64s), returning it ready for FastFibnoacci decoding

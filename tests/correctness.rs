@@ -1,12 +1,12 @@
 use bitvec::vec::BitVec;
-use fastfibonacci::{bit_decode::{fast::{fast_decode, LookupVec, FB_LOOKUP_U16, FB_LOOKUP_U8}, fibonacci::FibonacciDecoder, MyBitVector}, byte_decode::{bare_metal_16single_faster::U16Fast, bare_metal_3264_stream::Dirty64, bare_metal_generic_single::{DirtyGenericSingle, U64DecoderGeneric}, byte_manipulation::bits_to_fibonacci_generic_array, chunker::{U64BytesToU16, U64BytesToU64, U64BytesToU8}, faster::{FastFibonacciDecoderNewU16, FastFibonacciDecoderNewU8, LookupVecNew}, u64_fibdecoder::Dirty64Single}, fast_decode_new, utils::random_fibonacci_stream, FastFibonacciDecoder, U64Decoder};
+use fastfibonacci::{bit_decode::{fast::{fast_decode, LookupVec, FB_LOOKUP_U16, FB_LOOKUP_U8}, fibonacci::FibonacciDecoder, MyBitVector}, byte_decode::{bare_metal_16single_faster::U16Fast, bare_metal_3264_stream::Dirty64, bare_metal_generic_single::{DirtyGenericSingle, U64DecoderGeneric}, byte_manipulation::bits_to_fibonacci_generic_array_u64, bytestream_transform::{U64BytesToU16, U64BytesToU64, U64BytesToU8}, faster::{FastFibonacciDecoderNewU16, FastFibonacciDecoderNewU8, LookupVecNew}, u64_fibdecoder::Dirty64Single}, fast_decode_new, utils::random_fibonacci_stream, FastFibonacciDecoder, U64Decoder};
 
 
 // create some random numbers, encode and return
 // as u8 bytestream and the true decoding
 fn create_random() -> (Vec<u8>, Vec<u64>){
     let bits = random_fibonacci_stream(100_000, 1, 10000, 123455);
-    let bytes = bits_to_fibonacci_generic_array(&bits);
+    let bytes = bits_to_fibonacci_generic_array_u64(&bits);
 
     // ground thruth
     let dec = FibonacciDecoder::new(&bits, false);

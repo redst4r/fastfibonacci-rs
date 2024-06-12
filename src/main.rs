@@ -4,7 +4,7 @@
 // use fastfibonacci::{utils::bits_to_fibonacci_bytes, utils::random_fibonacci_stream};
 
 use std::time::Instant;
-use fastfibonacci::{byte_decode::{bare_metal_16single_faster::U16DecoderFast, bare_metal_generic_single::U64DecoderGeneric, byte_manipulation::bits_to_fibonacci_generic_array, chunker::{U64BytesToU16, U64BytesToU8}, faster::{fast_decode_new, FastFibonacciDecoderNewU16, FastFibonacciDecoderNewU8, LookupVecNew}}, FastFibonacciDecoder, U64Decoder};
+use fastfibonacci::byte_decode::{byte_manipulation::bits_to_fibonacci_generic_array_u64, bytestream_transform::{U64BytesToU16, U64BytesToU8}, faster::{fast_decode_new, FastFibonacciDecoderNewU16, FastFibonacciDecoderNewU8, LookupVecNew}};
 // use fastfibonacci::bit_decode::fast::{fast_decode, LookupVec};
 use fastfibonacci::utils::random_fibonacci_stream;
 
@@ -16,7 +16,7 @@ pub fn main() {
     let data = random_fibonacci_stream(n, 1, 10000, 23);
 
     // regular U64Decode
-    let bytes = bits_to_fibonacci_generic_array(&data);
+    let bytes = bits_to_fibonacci_generic_array_u64(&data);
     assert_eq!(bytes.len() % 8, 0);
 
     let table8: LookupVecNew<u8> = LookupVecNew::new();

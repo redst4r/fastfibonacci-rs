@@ -3,7 +3,7 @@
 //! 
 use std::io::Read;
 use crate::byte_decode::partial::Partial;
-use super::chunker::U64BytesToU64;
+use super::bytestream_transform::U64BytesToU64;
 
 /// Fibonacci decoder running on a byte stream. Collects u64s from the bytestream
 /// and decodes them
@@ -151,7 +151,7 @@ impl<R:Read> Iterator for U64Decoder<R> {
 
 #[cfg(test)]
 mod testing {
-    use crate::byte_decode::byte_manipulation::bits_to_fibonacci_generic_array;
+    use crate::byte_decode::byte_manipulation::bits_to_fibonacci_generic_array_u64;
     use crate::utils::create_bitvector;
 	use crate::byte_decode::u64_fibdecoder::U64Decoder;
 	
@@ -176,7 +176,7 @@ mod testing {
 			0,0,0,0,0,0,0,0, //7
 			0,0,0,0,0,0,0,0, //8  the u64 ends here!
 			]).to_bitvec();
-		let encoded = bits_to_fibonacci_generic_array(&bits);
+		let encoded = bits_to_fibonacci_generic_array_u64(&bits);
 
 		let mut dd = U64Decoder::new(encoded.as_slice());
 		assert_eq!(
@@ -206,7 +206,7 @@ mod testing {
 			0,0,0,0,0,0,0,0, //7
 			0,0,0,0,0,0,0,0, //8  the u64 ends here!
 			]).to_bitvec();
-		let encoded = bits_to_fibonacci_generic_array(&bits);
+		let encoded = bits_to_fibonacci_generic_array_u64(&bits);
 
 		let mut dd = U64Decoder::new(encoded.as_slice());
 		assert_eq!(
@@ -243,7 +243,7 @@ mod testing {
 			0,0,0,0,0,0,0,0, //7
 			0,0,0,0,0,0,0,0, //8  the u64 ends here!
 			]).to_bitvec();
-		let encoded = bits_to_fibonacci_generic_array(&bits);
+		let encoded = bits_to_fibonacci_generic_array_u64(&bits);
 
 		let mut dd = U64Decoder::new(encoded.as_slice());
 		assert_eq!(
@@ -281,7 +281,7 @@ mod testing {
 			0,0,0,0,0,0,0,0, //7
 			0,0,0,0,0,0,0,0, //8  the u64 ends here!
 			]).to_bitvec();
-		let encoded = bits_to_fibonacci_generic_array(&bits);
+		let encoded = bits_to_fibonacci_generic_array_u64(&bits);
 
 		let mut dd = U64Decoder::new(encoded.as_slice());
 		assert_eq!(
@@ -306,7 +306,7 @@ mod testing {
 			0,0,0,0,1,1,0,0, //8  the u64 ends here!
 			// this would be fine; the buffer is just zero padded!
 			]).to_bitvec();
-		let encoded = bits_to_fibonacci_generic_array(&bits);
+		let encoded = bits_to_fibonacci_generic_array_u64(&bits);
 
 		let mut dd = U64Decoder::new(encoded.as_slice());
 		assert_eq!(
@@ -337,7 +337,7 @@ mod testing {
 			0,0,0,0,1,1,1,0, //8  the u64 ends here!
 			// NOTE THE remaining bit in there
 			]).to_bitvec();
-		let encoded = bits_to_fibonacci_generic_array(&bits);
+		let encoded = bits_to_fibonacci_generic_array_u64(&bits);
 
 		let mut dd = U64Decoder::new(encoded.as_slice());
 		assert_eq!(
@@ -373,7 +373,7 @@ mod testing {
 			0,0,0,0,0,0,0,0, //7
 			0,0,0,0,0,0,0,0, //8  the u64 ends here!
 			]).to_bitvec();
-		let encoded = bits_to_fibonacci_generic_array(&bits);
+		let encoded = bits_to_fibonacci_generic_array_u64(&bits);
 
 		let mut dd = U64Decoder::new(encoded.as_slice());
 		assert_eq!(
@@ -414,7 +414,7 @@ mod testing {
 			0,0,0,0,0,0,0,0, //7
 			0,0,0,0,0,0,0,0, //8  the u64 ends here!
 			]).to_bitvec();
-		let encoded = bits_to_fibonacci_generic_array(&bits);
+		let encoded = bits_to_fibonacci_generic_array_u64(&bits);
 		// encoded=swap_endian(&encoded, 8);
 
 		let mut dd = U64Decoder::new(encoded.as_slice());
@@ -590,7 +590,7 @@ impl Dirty64Single {
 
 #[cfg(test)]
 mod testing_dirty_single {
-	use crate::{byte_decode::{byte_manipulation::{bits_to_fibonacci_generic_array, load_u64_from_bytes}, chunker::U64BytesToU64}, utils::{create_bitvector}};
+	use crate::{byte_decode::{byte_manipulation::{bits_to_fibonacci_generic_array_u64, load_u64_from_bytes}, bytestream_transform::U64BytesToU64}, utils::{create_bitvector}};
 	use super::*;
 
 	#[test]
@@ -630,7 +630,7 @@ mod testing_dirty_single {
 			0,0,1,1,0,0,0,1, //8 
 			])
 		.to_bitvec();
-		let bytes = bits_to_fibonacci_generic_array(&bits);
+		let bytes = bits_to_fibonacci_generic_array_u64(&bits);
 		let encoded_u64s: Vec<u64> = U64BytesToU64::new(bytes.as_slice()).collect();
 		
 		let mut dd = Dirty64Single { buf: encoded_u64s[0], bitpos:0};
@@ -653,7 +653,7 @@ mod testing_dirty_single {
 			0,0,0,0,1,1,0,0, //8  the u64 ends here! this needs to return a PartialDecode num=2, i_fibo=2, lastbit = 1
 			])
 		.to_bitvec();
-		let encoded_bytes = bits_to_fibonacci_generic_array(&bits);
+		let encoded_bytes = bits_to_fibonacci_generic_array_u64(&bits);
 		let encoded_u64s: Vec<u64> = U64BytesToU64::new(encoded_bytes.as_slice()).collect();
 
 
@@ -682,7 +682,7 @@ mod testing_dirty_single {
 			0,0,0,0,1,1,0,0, //8  the u64 ends here! this needs to return a PartialDecode num=2, i_fibo=2, lastbit = 1
 			])
 		.to_bitvec();
-		let encoded_bytes = bits_to_fibonacci_generic_array(&bits);
+		let encoded_bytes = bits_to_fibonacci_generic_array_u64(&bits);
 		let encoded_u64s: Vec<u64> = U64BytesToU64::new(encoded_bytes.as_slice()).collect();
 
 
@@ -712,7 +712,7 @@ mod testing_dirty_single {
 			0,0,0,0,1,1,0,1, //8  the u64 ends here! this needs to return a PartialDecode num=2, i_fibo=2, lastbit = 1
 			])
 		.to_bitvec();
-		let encoded_bytes = bits_to_fibonacci_generic_array(&bits);
+		let encoded_bytes = bits_to_fibonacci_generic_array_u64(&bits);
 		let encoded_u64s: Vec<u64> = U64BytesToU64::new(encoded_bytes.as_slice()).collect();
 
 		let mut dd = Dirty64Single { buf: encoded_u64s[0],  bitpos: 0};
@@ -737,7 +737,7 @@ mod testing_dirty_single {
 			0,0,0,0,0,0,0,0, //8
 			])
 		.to_bitvec();
-		let encoded_bytes = bits_to_fibonacci_generic_array(&bits);
+		let encoded_bytes = bits_to_fibonacci_generic_array_u64(&bits);
 		let encoded_u64s: Vec<u64> = U64BytesToU64::new(encoded_bytes.as_slice()).collect();
 
 		let mut dd = Dirty64Single { buf: encoded_u64s[0], bitpos:0};
@@ -761,7 +761,7 @@ mod testing_dirty_single {
 			0,0,1,1,0,0,0,1, //8 
 			])
 		.to_bitvec();
-		let encoded_bytes = bits_to_fibonacci_generic_array(&bits);
+		let encoded_bytes = bits_to_fibonacci_generic_array_u64(&bits);
 		let encoded_u64s: Vec<u64> = U64BytesToU64::new(encoded_bytes.as_slice()).collect();
 
 		let mut d = Dirty64Single {buf: encoded_u64s[0], bitpos: 0};
@@ -804,7 +804,7 @@ mod testing_dirty_single {
 			0,0,1,1,0,0,0,1, //8 
 			])
 		.to_bitvec();
-		let encoded_bytes = bits_to_fibonacci_generic_array(&bits);
+		let encoded_bytes = bits_to_fibonacci_generic_array_u64(&bits);
 		let encoded_u64s: Vec<u64> = U64BytesToU64::new(encoded_bytes.as_slice()).collect();
 
 		let mut d = Dirty64Single {buf:encoded_u64s[0], bitpos: 0};

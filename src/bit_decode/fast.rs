@@ -403,18 +403,18 @@ mod testing_fast_decode {
 /// Lazy LookupTable with u8 segment size.
 /// This table gets calculated once for the crate, can be reused many times for decoding.
 pub static FB_LOOKUP_U8: Lazy<LookupVec<u8>> = Lazy::new(|| {
-    println!("initializing fibonacci lookup");
+    println!("FB_LOOKUP_U8: initializing fibonacci lookup");
     let lookup = LookupVec::new();
-    println!("done initializing fibonacci lookup");
+    println!("FB_LOOKUP_U8: done initializing fibonacci lookup");
     lookup
 });
 
 /// Lazy LookupTable with u16 segment size.
 /// This table gets calculated once for the crate, can be reused many times for decoding.
 pub static FB_LOOKUP_U16: Lazy<LookupVec<u16>> = Lazy::new(|| {
-    println!("initializing fibonacci lookup");
+    println!("FB_LOOKUP_U16: initializing fibonacci lookup");
     let lookup = LookupVec::new();
-    println!("done initializing fibonacci lookup");
+    println!("FB_LOOKUP_U16: done initializing fibonacci lookup");
     lookup
 });
 

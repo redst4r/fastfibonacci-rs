@@ -1,9 +1,9 @@
-//!
+//! Fibonacci-decodes a single `u16` via a lookup table
 use std::collections::VecDeque;
 use std::io::Read;
 use crate::byte_decode::partial::Partial;
 use super::partial::number_plus_partial;
-use super::{chunker::U64BytesToU16, faster::{LookupTableNew, LookupVecNew}};
+use super::{bytestream_transform::U64BytesToU16, faster::{LookupTableNew, LookupVecNew}};
 
 /// Decoding chunks of 16bits using the lookup table
 #[derive(Debug)]
@@ -15,7 +15,7 @@ pub struct U16Fast<'a> {
     table: &'a LookupVecNew<u16>,
 }
 impl <'a> U16Fast <'a> {
-	///
+	/// A new U`6 decoder`
 	pub fn new(buf: u16, table: &'a LookupVecNew<u16>) -> Self {
 		Self {buf, table }
 	}
@@ -39,17 +39,11 @@ impl <'a> U16Fast <'a> {
             // absorb `partial` (the old decoding) into the number
             // and keep the new decoding status as is
             let new_x = number_plus_partial(numbers[0], partial);
-            // println!("newx {new_x}");
             decoded_numbers.push(new_x);
-
             decoded_numbers.extend(&numbers[1..]);
-
-
-            // numbers[0] = new_x;
             (decoded_numbers, new_partial.clone() )
         } else {
             // "add" p and partial; ORDER is important
-            // partial = combine_partial(partial, p)
             let mut newp = new_partial.clone();
             newp.combine_partial(partial);
             (decoded_numbers, newp )
@@ -59,7 +53,7 @@ impl <'a> U16Fast <'a> {
 
 #[cfg(test)]
 mod testing {
-	use crate::{byte_decode::byte_manipulation::bits_to_fibonacci_generic_array, utils::create_bitvector};
+	use crate::{byte_decode::byte_manipulation::bits_to_fibonacci_generic_array_u64, utils::create_bitvector};
 	use super::*;
 
 	#[test]
@@ -70,7 +64,7 @@ mod testing {
 			0,0,1,1,0,0,0,0, //7
 			0,0,0,0,1,1,0,0, //8  
 		]).to_bitvec();
-		let encoded_bytes = bits_to_fibonacci_generic_array(&bits);
+		let encoded_bytes = bits_to_fibonacci_generic_array_u64(&bits);
 		let u = U64BytesToU16::new(encoded_bytes.as_slice()).collect::<Vec<_>>()[0];
 
         let table = LookupVecNew::new();
@@ -85,7 +79,7 @@ mod testing {
 			0,1,0,0,0,0,0,0, //1 
 			0,0,0,0,0,0,0,0, //2
 		]).to_bitvec();
-		let encoded_bytes = bits_to_fibonacci_generic_array(&bits);
+		let encoded_bytes = bits_to_fibonacci_generic_array_u64(&bits);
 		let u = U64BytesToU16::new(encoded_bytes.as_slice()).collect::<Vec<_>>()[0];
 
 		let mut dd = U16Fast { buf: u, table: &table};
@@ -95,15 +89,6 @@ mod testing {
 
     }
 }
-
-
-// fn load_u16_from_bytes(bytes: &[u8]) -> u16 {
-// 	// with BE we need to swap the entire stream
-// 	// u64::from_be_bytes(bytes.try_into().unwrap())
-	
-// 	// do le instead, i.e. the last byte `bytes[7]` is the first to be processed
-// 	u16::from_be_bytes(bytes.try_into().unwrap())
-// }
 
 /// Fibonacci decoder running on a byte stream. Collects u64s from the bytestream
 /// and decodes them
@@ -236,26 +221,11 @@ impl<'a , R:Read> Iterator for U16DecoderFast<'a, R> {
 	}
 }
 
-// impl<'a> FbDecNew<'a> for U64Decoder<'a> {
-// 	fn get_remaining_buffer(&self) -> &'a impl Read {
-// 		todo!()
-// 	}
 
-// 	fn get_bytes_processed(&self) -> usize {
-// 		todo!()
-// 	}
-// }
 #[cfg(test)]
 mod testing2 {
 	use super::*;
-    use crate::{byte_decode::byte_manipulation::bits_to_fibonacci_generic_array, utils::create_bitvector};
-	// pub (crate) fn swap_endian(bytes: &[u8], wordsize: usize) -> Vec<u8>{
-	// 	let mut swapped_endian: Vec<u8> = Vec::with_capacity(bytes.len());
-	// 	for bytes in bytes.chunks(wordsize){
-	// 		swapped_endian.extend(bytes.iter().rev());
-	// 	}
-	// 	swapped_endian
-	// }
+    use crate::{byte_decode::byte_manipulation::bits_to_fibonacci_generic_array_u64, utils::create_bitvector};
 
 	#[test]
 	fn test_simple(){
@@ -265,7 +235,7 @@ mod testing2 {
 			1,1,0,0,0,0,0,0, //1 
 			0,0,0,0,0,0,0,0, //2
 			]).to_bitvec();
-		let bytes = bits_to_fibonacci_generic_array(&bits);
+		let bytes = bits_to_fibonacci_generic_array_u64(&bits);
 		
 		println!("{:?}", bytes);
 		let table = LookupVecNew::new();
@@ -308,7 +278,7 @@ mod testing2 {
 			0,0,0,0,0,0,0,0, //7
 			0,0,0,0,0,0,0,0, //8  the u64 ends here!
 			]).to_bitvec();
-		let encoded = bits_to_fibonacci_generic_array(&bits);
+		let encoded = bits_to_fibonacci_generic_array_u64(&bits);
 		// encoded=swap_endian(&encoded, 8);
 
 		let table = LookupVecNew::new();
@@ -340,7 +310,7 @@ mod testing2 {
 			0,0,0,0,0,0,0,0, //7
 			0,0,0,0,0,0,0,0, //8  the u64 ends here!
 			]).to_bitvec();
-		let encoded = bits_to_fibonacci_generic_array(&bits);
+		let encoded = bits_to_fibonacci_generic_array_u64(&bits);
 		// encoded=swap_endian(&encoded, 8);
 		let table = LookupVecNew::new();
 		let mut dd = U16DecoderFast::new(encoded.as_slice(), &table);
@@ -378,7 +348,7 @@ mod testing2 {
 			0,0,0,0,0,0,0,0, //7
 			0,0,0,0,0,0,0,0, //8  the u64 ends here!
 			]).to_bitvec();
-		let encoded = bits_to_fibonacci_generic_array(&bits);
+		let encoded = bits_to_fibonacci_generic_array_u64(&bits);
 		// encoded=swap_endian(&encoded, 8);
 		let table = LookupVecNew::new();
 
@@ -447,7 +417,7 @@ mod testing2 {
 			0,0,0,0,0,0,0,0, //8  the u64 ends here!
 			// this would be fine; the buffer is just zero padded!
 			]).to_bitvec();
-		let encoded = bits_to_fibonacci_generic_array(&bits);
+		let encoded = bits_to_fibonacci_generic_array_u64(&bits);
 		// encoded=swap_endian(&encoded, 8);
 		let table = LookupVecNew::new();
 
@@ -484,7 +454,7 @@ mod testing2 {
 			0,0,0,0,1,1,1,0, //8  the u64 ends here!
 			// NOTE THE remaining bit in there
 			]).to_bitvec();
-		let encoded = bits_to_fibonacci_generic_array(&bits);
+		let encoded = bits_to_fibonacci_generic_array_u64(&bits);
 		// encoded=swap_endian(&encoded, 8);
 		let table = LookupVecNew::new();
 
@@ -522,7 +492,7 @@ mod testing2 {
 			0,0,0,0,0,0,0,0, //7
 			0,0,0,0,0,0,0,0, //8  the u64 ends here!
 			]).to_bitvec();
-		let encoded = bits_to_fibonacci_generic_array(&bits);
+		let encoded = bits_to_fibonacci_generic_array_u64(&bits);
 		// encoded=swap_endian(&encoded, 8);
 		let table = LookupVecNew::new();
 
@@ -565,7 +535,7 @@ mod testing2 {
 			0,0,0,0,0,0,0,0, //7
 			0,0,0,0,0,0,0,0, //8  the u64 ends here!
 			]).to_bitvec();
-		let encoded = bits_to_fibonacci_generic_array(&bits);
+		let encoded = bits_to_fibonacci_generic_array_u64(&bits);
 		// encoded=swap_endian(&encoded, 8);
 		let table = LookupVecNew::new();
 

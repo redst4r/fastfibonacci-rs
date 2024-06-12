@@ -2,10 +2,11 @@
 use std::collections::VecDeque;
 use std::io::Read;
 use std::marker::PhantomData;
+use std::time::Instant;
 use funty::Integral;
 use crate::byte_decode::{bare_metal_generic_single::DirtyGenericSingle,  partial::Partial};
 use crate::fastutils::State;
-use super::chunker::{IntoU16Transform, IntoU8Transform, U32BytesToU16, U32BytesToU8, U64BytesToU16, U64BytesToU8};
+use super::bytestream_transform::{IntoU16Transform, IntoU8Transform, U32BytesToU16, U32BytesToU8, U64BytesToU16, U64BytesToU8};
 use super::partial::number_plus_partial;
 use once_cell::sync::Lazy;
 
@@ -134,8 +135,10 @@ mod testing_lookups {
 /// This table gets calculated once for the crate, can be reused many times for decoding.
 pub static FB_LOOKUP_NEW_U8: Lazy<LookupVecNew<u8>> = Lazy::new(|| {
     println!("initializing fibonacci lookup");
+    let now = Instant::now();
     let lookup = LookupVecNew::new();
-    println!("done initializing fibonacci lookup");
+    let elapsed_time: std::time::Duration = now.elapsed();
+    println!("FB_LOOKUP_NEW_U8: done initializing fibonacci lookup in {}us", elapsed_time.as_micros());
     lookup
 });
 
@@ -143,8 +146,11 @@ pub static FB_LOOKUP_NEW_U8: Lazy<LookupVecNew<u8>> = Lazy::new(|| {
 /// This table gets calculated once for the crate, can be reused many times for decoding.
 pub static FB_LOOKUP_NEW_U16: Lazy<LookupVecNew<u16>> = Lazy::new(|| {
     println!("initializing fibonacci lookup");
+    let now = Instant::now();
     let lookup = LookupVecNew::new();
-    println!("done initializing fibonacci lookup");
+    let elapsed_time: std::time::Duration = now.elapsed();
+
+    println!("FB_LOOKUP_NEW_U16: done initializing fibonacci lookup in {}us", elapsed_time.as_micros());
     lookup
 });
 
@@ -207,7 +213,7 @@ pub fn fast_decode_new<T:Integral>(stream: &[T], shifted_by_one: bool, table: &i
 
 #[cfg(test)]
 mod test {
-    use crate::{byte_decode::byte_manipulation::bits_to_fibonacci_generic_array, utils::create_bitvector};
+    use crate::{byte_decode::byte_manipulation::bits_to_fibonacci_generic_array_u64, utils::create_bitvector};
     use super::*;
     #[test]
     fn test_fast_decode() {
@@ -218,7 +224,7 @@ mod test {
             1,0,1,0,0,1,0,1,
             0,1,1,1,0,0,1,0]).to_bitvec();
 
-        let bytes = bits_to_fibonacci_generic_array(&bits);
+        let bytes = bits_to_fibonacci_generic_array_u64(&bits);
         let x_u8: Vec<u8> = U64BytesToU8::new(bytes.as_slice()).collect();
         let x_u16: Vec<u16> = U64BytesToU16::new(bytes.as_slice()).collect();
 

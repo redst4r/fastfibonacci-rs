@@ -7,8 +7,8 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use fastfibonacci::bit_decode::fast::{LookupVec, fast_decode, get_u8_decoder, get_u16_decoder};
 use fastfibonacci::byte_decode::bare_metal_16single_faster::U16DecoderFast;
 use fastfibonacci::byte_decode::bare_metal_3264_stream::Dirty64;
-use fastfibonacci::byte_decode::byte_manipulation::{bits_to_fibonacci_generic_array, read_bit_u64};
-use fastfibonacci::byte_decode::chunker::{U64BytesToU16, U64BytesToU64, U64BytesToU8};
+use fastfibonacci::byte_decode::byte_manipulation::{bits_to_fibonacci_generic_array_u64, read_bit_u64};
+use fastfibonacci::byte_decode::bytestream_transform::{U64BytesToU16, U64BytesToU64, U64BytesToU8};
 use fastfibonacci::byte_decode::faster::{fast_decode_new, FastFibonacciDecoderNewU16, FastFibonacciDecoderNewU8, LookupVecNew, StreamType};
 use fastfibonacci::bit_decode::fibonacci::{encode, FibonacciDecoder};
 use fastfibonacci::byte_decode::u64_fibdecoder::U64Decoder;
@@ -158,7 +158,7 @@ fn fibonacci_mybitwise(c: &mut Criterion) {
 
     let seed = 23; 
     let data_encoded = random_fibonacci_stream(100_000, 1, 10000, seed);
-    let mut x = bits_to_fibonacci_generic_array(&data_encoded);
+    let mut x = bits_to_fibonacci_generic_array_u64(&data_encoded);
     // this needs to have a multiiple of 8 bytes
     println!("{}", x.len());
     let bytse_to_add = 8 - (x.len() % 8);
@@ -168,7 +168,7 @@ fn fibonacci_mybitwise(c: &mut Criterion) {
     assert_eq!(x.len() % 8, 0);
     // x = swap_endian(&x, 8);
 
-    let encoded_bytes = bits_to_fibonacci_generic_array(&data_encoded);
+    let encoded_bytes = bits_to_fibonacci_generic_array_u64(&data_encoded);
     let encoded_bytes64: Vec<_>= U64BytesToU64::new(encoded_bytes.as_slice()).collect();
     fn _dummy_dirty64(data: &[u64]) -> Vec<u64> {
 
@@ -201,7 +201,7 @@ fn fibonacci_mybitwise(c: &mut Criterion) {
     //     b.iter(|| dummy_u64_iter(black_box(&x)))
     // });
 
-    let bytes = bits_to_fibonacci_generic_array(&data_encoded);
+    let bytes = bits_to_fibonacci_generic_array_u64(&data_encoded);
 
     // new fast
     let table8: LookupVecNew<u8> = LookupVecNew::new();
@@ -302,7 +302,7 @@ fn bitstore(c: &mut Criterion) {
         xu64.push(*b);
     }
     
-    let bytes = bits_to_fibonacci_generic_array(&x);
+    let bytes = bits_to_fibonacci_generic_array_u64(&x);
     let u64array:Vec<u64> = U64BytesToU64::new(bytes.as_slice()).collect();
     fn dummy_u64raw(ua: &[u64]) -> usize {
         let mut s = 0_usize;

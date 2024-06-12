@@ -6,13 +6,13 @@ use crate::byte_decode::partial::Partial;
 
 /// Fib-Decode a single u32 
 pub struct Dirty32 <'a> {
-	///
+	/// the buffer of u32s to decode
 	pub buf: &'a [u32], 
-	///
+	///  len of buf
 	pub buf_size: usize, 
-	///
+	/// next bit in buf[bupos] to pull
 	pub bitpos: usize, 
-	///
+	/// position in buffer to decode next
 	pub bufpos: usize, 
 	// num: u64, 
 	// i_fibo: usize,
@@ -138,7 +138,7 @@ impl <'a> Dirty64 <'a> {
 
 #[cfg(test)]
 mod test {
-    use crate::{byte_decode::{byte_manipulation::bits_to_fibonacci_generic_array, chunker::U64BytesToU64}, utils::create_bitvector};
+    use crate::{byte_decode::{byte_manipulation::bits_to_fibonacci_generic_array_u64, bytestream_transform::U64BytesToU64}, utils::create_bitvector};
 	use super::*;
 
 	#[test]
@@ -155,7 +155,7 @@ mod test {
 			0,0,0,0,1,1,0,0, //8  the u64 ends here! this needs to return a PartialDecode num=2, i_fibo=2, lastbit = 1
 			])
 		.to_bitvec();
-		let encoded_bytes = bits_to_fibonacci_generic_array(&bits);
+		let encoded_bytes = bits_to_fibonacci_generic_array_u64(&bits);
 		let encoded_u64s: Vec<u64> = U64BytesToU64::new(encoded_bytes.as_slice()).collect();
 
 
@@ -188,7 +188,7 @@ mod test {
 			0,0,0,0,1,1,0,1, //8  the u64 ends here! this needs to return a PartialDecode num=2, i_fibo=2, lastbit = 1
 			])
 		.to_bitvec();
-		let encoded_bytes = bits_to_fibonacci_generic_array(&bits);
+		let encoded_bytes = bits_to_fibonacci_generic_array_u64(&bits);
 		let encoded_u64s: Vec<u64> = U64BytesToU64::new(encoded_bytes.as_slice()).collect();
 
 
@@ -217,7 +217,7 @@ mod test {
 			0,0,0,0,0,0,0,0, //8  the u64 ends here! this needs to return a PartialDecode num=2, i_fibo=2, lastbit = 1
 			])
 		.to_bitvec();
-		let encoded_bytes = bits_to_fibonacci_generic_array(&bits);
+		let encoded_bytes = bits_to_fibonacci_generic_array_u64(&bits);
 		let encoded_u64s: Vec<u64> = U64BytesToU64::new(encoded_bytes.as_slice()).collect();
 
 		let mut dd = Dirty64 { buf: &encoded_u64s, buf_size: encoded_u64s.len(), bitpos:0, bufpos:0};
