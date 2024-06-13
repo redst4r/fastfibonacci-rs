@@ -4,7 +4,7 @@
 // use fastfibonacci::{utils::bits_to_fibonacci_bytes, utils::random_fibonacci_stream};
 
 use std::time::Instant;
-use fastfibonacci::byte_decode::{byte_manipulation::bits_to_fibonacci_generic_array_u64, bytestream_transform::{U64BytesToU16, U64BytesToU8}, faster::{fast_decode_new, FastFibonacciDecoderNewU16, FastFibonacciDecoderNewU8, LookupVecNew}};
+use fastfibonacci::{byte_decode::{byte_manipulation::bits_to_fibonacci_generic_array_u64, bytestream_transform::{U64BytesToU16, U64BytesToU8}, faster::{fast_decode_new, FastFibonacciDecoderNewU16, FastFibonacciDecoderNewU8, LookupVecNew}}, U64Decoder};
 // use fastfibonacci::bit_decode::fast::{fast_decode, LookupVec};
 use fastfibonacci::utils::random_fibonacci_stream;
 
@@ -25,11 +25,11 @@ pub fn main() {
     // // ------------------
     // // U64 DECODER
     // // ------------------
-    // let now = Instant::now();
-    // let dd = U64Decoder::new(bytes.as_slice());
-    // let x: Vec<_> = dd.collect();
-    // let elapsed_time = now.elapsed();
-    // println!("U64Decoder: {} in {:?}", x.len(), elapsed_time);
+    let now = Instant::now();
+    let dd = U64Decoder::new(bytes.as_slice());
+    let x: Vec<_> = dd.collect();
+    let elapsed_time = now.elapsed();
+    println!("U64Decoder: {} in {:?}", x.len(), elapsed_time);
 
     // // ------------------
     // // U64 DECODER GENERIC

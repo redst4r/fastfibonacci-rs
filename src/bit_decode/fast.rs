@@ -464,8 +464,10 @@ pub struct FastFibonacciDecoder<'a, T> {
     position: usize,
     lookup_table: &'a LookupVec<T>,
     segment_size: usize,
-    current_buffer: VecDeque<Option<u64>>, // decoded numbers not yet emitted
-    current_backtrack: VecDeque<Option<usize>>, // for each decoded number in current_buffer, remember how many bits its encoding was
+    /// decoded numbers not yet emitted
+    current_buffer: VecDeque<Option<u64>>, 
+    /// for each decoded number in current_buffer, remember how many bits its encoding was
+    current_backtrack: VecDeque<Option<usize>>, 
     state: State,
     decoding_state: DecodingState,
     // position in bitstream after the last emission;

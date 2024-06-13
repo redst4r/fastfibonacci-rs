@@ -188,18 +188,18 @@ fn fibonacci_mybitwise(c: &mut Criterion) {
     });
 
 
-    // fn dummy_u64_iter(data: &[u8]) -> Vec<u64>{
-    //     let dd = U64Decoder::new(data);
-    //     let mut decoded: Vec<_> = Vec::with_capacity(100_000);
+    fn dummy_u64_iter(data: &[u8]) -> Vec<u64>{
+        let dd = U64Decoder::new(data);
+        let mut decoded: Vec<_> = Vec::with_capacity(100_000);
 
-    //     for el in dd.take(100_000) {
-    //         decoded.push(el)
-    //     }
-    //     decoded
-    // }
-    // c.bench_function(&format!("Decoding: U64Decoder"), |b| {
-    //     b.iter(|| dummy_u64_iter(black_box(&x)))
-    // });
+        for el in dd.take(100_000) {
+            decoded.push(el)
+        }
+        decoded
+    }
+    c.bench_function(&format!("Decoding: U64Decoder"), |b| {
+        b.iter(|| dummy_u64_iter(black_box(&x)))
+    });
 
     let bytes = bits_to_fibonacci_generic_array_u64(&data_encoded);
 

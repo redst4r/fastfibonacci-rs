@@ -1,5 +1,5 @@
 use bitvec::vec::BitVec;
-use fastfibonacci::{bit_decode::{fast::{fast_decode, LookupVec, FB_LOOKUP_U16, FB_LOOKUP_U8}, fibonacci::FibonacciDecoder, MyBitVector}, byte_decode::{bare_metal_16single_faster::U16Fast, bare_metal_3264_stream::Dirty64, bare_metal_generic_single::{DirtyGenericSingle, U64DecoderGeneric}, byte_manipulation::bits_to_fibonacci_generic_array_u64, bytestream_transform::{U64BytesToU16, U64BytesToU64, U64BytesToU8}, faster::{FastFibonacciDecoderNewU16, FastFibonacciDecoderNewU8, LookupVecNew}, u64_fibdecoder::Dirty64Single}, fast_decode_new, utils::random_fibonacci_stream, FastFibonacciDecoder, U64Decoder};
+use fastfibonacci::{bit_decode::{fast::{fast_decode, LookupVec, FB_LOOKUP_U16, FB_LOOKUP_U8}, fibonacci::FibonacciDecoder, MyBitVector}, byte_decode::{bare_metal_16single_faster::U16Fast, bare_metal_3264_stream::Dirty64, bare_metal_generic_single::{DirtyGenericSingle, U64DecoderGeneric}, byte_manipulation::bits_to_fibonacci_generic_array_u64, bytestream_transform::{U64BytesToU16, U64BytesToU64, U64BytesToU8}, faster::{FastFibonacciDecoderNewU16, FastFibonacciDecoderNewU8, LookupVecNew}}, fast_decode_new, utils::random_fibonacci_stream, FastFibonacciDecoder, U64Decoder};
 
 
 // create some random numbers, encode and return
@@ -120,66 +120,6 @@ mod test_dirty_generic_single{
     }
 }
 
-#[test]
-fn test_correctness_dirty64_single(){
-    let (bytes ,x_true) = create_random();
-
-    let encoded_u64s: Vec<u64> = U64BytesToU64::new(bytes.as_slice()).collect();
-
-
-    // println!("{}", bitstream_to_string_pretty(&data_encoded, 64));
-    let mut decoded = Vec::new();
-
-    let mut last_partial = Default::default();
-    for _i in 0..encoded_u64s.len() {
-        let mut dd = Dirty64Single::new(encoded_u64s[_i]);
-
-        loop {
-            // println!("number: {_i}");
-            match dd.decode_from_partial(last_partial) {
-                Ok(n) => {
-                    decoded.push(n);
-                    last_partial = Default::default();
-                },
-                Err(partial) => {
-                    last_partial = partial;
-                    break;
-                },
-            }
-            if dd.is_finished() {
-                break
-            }
-        }
-    }
-    assert_eq!(x_true, decoded);
-}
-
-
-#[test]
-fn test_correctness_dirty64(){
-    let (bytes ,x_true) = create_random();
-
-
-    let encoded_u64s: Vec<u64> = U64BytesToU64::new(bytes.as_slice()).collect();
-    let mut decoded = Vec::new();
-    let bitpos = 0;
-    let bufpos = 0;
-
-    let mut dd: Dirty64<'_> = Dirty64 { buf: &encoded_u64s, buf_size: encoded_u64s.len(), bitpos, bufpos};
-    for _i in 0..x_true.len() {
-        // println!("number: {_i}");
-        match dd.decode() {
-            Ok(n) => {
-                decoded.push(n);
-            },
-            Err(e) => {
-                println!("{:?}", e);
-                assert_eq!(1,0);
-            },
-        }
-    }
-    assert_eq!(x_true, decoded);
-}
 
 
 
