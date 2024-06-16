@@ -8,7 +8,6 @@
 
 use std::io::Read;
 pub mod bare_metal_3264_stream;
-pub mod bare_metal_generic_single;
 pub mod bytestream_transform;
 pub mod partial;
 pub mod u64_fibdecoder;

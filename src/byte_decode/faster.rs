@@ -4,10 +4,11 @@ use std::io::Read;
 use std::marker::PhantomData;
 use std::time::Instant;
 use funty::Integral;
-use crate::byte_decode::{bare_metal_generic_single::DirtyGenericSingle,  partial::Partial};
+use crate::byte_decode::{partial::Partial};
 use crate::fastutils::State;
 use super::bytestream_transform::{IntoU16Transform, IntoU8Transform, U32BytesToU16, U32BytesToU8, U64BytesToU16, U64BytesToU8};
 use super::partial::number_plus_partial;
+use super::u64_fibdecoder::DirtyGenericSingle;
 use once_cell::sync::Lazy;
 
 
