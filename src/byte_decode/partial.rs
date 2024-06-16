@@ -10,8 +10,8 @@ use crate::{fastutils::fibonacci_left_shift, utils::FIB64};
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Partial {
     pub (crate) num: u64,
-    pub (crate)i_fibo: usize,
-    pub (crate)last_bit: u64
+    pub (crate) i_fibo: usize,
+    pub (crate) last_bit: u64
 }
 
 pub (crate) enum DecResult {
@@ -33,7 +33,15 @@ impl Partial {
         if self.last_bit + bit >= 2 {
             DecResult::Complete(self.num)
         } else {
+
+            // unsafe{std::intrinsics::assume(self.i_fibo < FIB64.len());}
+            // unsafe{self.num += bit * FIB64.get_unchecked(self.i_fibo);}
             self.num += bit * FIB64[self.i_fibo];  // todo: i_fibo cant be bigger than 64!!
+            // unsafe{
+            //     self.num = self.num.unchecked_add(
+            //         bit*FIB64[self.i_fibo]
+            //     )
+            // };
             self.i_fibo += 1;
             self.last_bit = bit;
             DecResult::Incomplete

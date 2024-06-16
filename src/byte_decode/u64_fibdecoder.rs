@@ -26,8 +26,14 @@ impl <T:Integral> DirtyGenericSingle<T> {
 		Self {buf, bitpos: 0}
 	}
 
+	/// Resets the struct, to decode another `T`. Saves some allocations as compared to calling ::new() each time
+	pub fn reset(&mut self, new_buf: T) {
+		self.buf = new_buf;
+		self.bitpos = 0;
+	}
+
 	/// decode a new number from the stream
-	pub fn decode(&mut self) -> Result<u64, Partial> {
+	pub (crate) fn decode(&mut self) -> Result<u64, Partial> {
 		let fresh_dec = Default::default();
 		self.decode_from_partial(fresh_dec)
 	}
@@ -157,7 +163,7 @@ impl <T:Integral> DirtyGenericSingle<T> {
 
     /// reads a single bit at the given position
     #[inline]
-    pub fn read_bit(x: T, pos: usize) -> bool {
+    fn read_bit(x: T, pos: usize) -> bool {
         // assert!(pos < 64);
         let shift_op = (T::BITS as usize) - 1 - pos;
         let thebit = (x >> shift_op) & T::ONE;
@@ -470,7 +476,8 @@ impl <R:Read> U64Decoder<R> {
 			// managed to pull in another u64
 			Some(el) => {
 				// println!("\tLoading new u64");
-				self.decoder = DirtyGenericSingle::new(el); // TODO lots of allocations
+				// self.decoder = DirtyGenericSingle::new(el); // TODO lots of allocations
+				self.decoder.reset(el);
 				self.dec_status = partial; // carry over the current decoding status
 				self.n_u64s_consumed += 1;
 				Ok(())
@@ -515,7 +522,7 @@ impl<R:Read> Iterator for U64Decoder<R> {
 
 			// println!("{:?}", self.dec_status);
 			// try decoiding
-			match self.decoder.decode_from_partial(self.dec_status.clone()) {
+			match self.decoder.decode_from_partial(self.dec_status.clone()) {  // TODO why clone here
 				Ok(n) => {
 					// println!("Success {n}");
 					// sucessfully decoded a number, initialize clean for the next round

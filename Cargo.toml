@@ -17,7 +17,7 @@ include = ["/src", "README.md"]
 bitvec="1"
 itertools="0.13"
 num = "0.4"
-once_cell = "1.18.0"
+once_cell = "1.19.0"
 funty = "2"
 rand = "0.8"
 byteorder = "1.5"
@@ -35,7 +35,10 @@ path = "benches/my_benchmark.rs"  # only here to make the crate publishable; oth
 
 [lints.rust]
 missing_docs = "deny"
-unsafe_code = "forbid"
+# unsafe_code = "forbid"
 
 # [lints.clippy]
 pedantic = "warn"
+
+[profile.release]
+debug = true
