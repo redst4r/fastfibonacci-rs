@@ -15,7 +15,9 @@ pub struct Partial {
 }
 
 pub (crate) enum DecResult {
+    // incomplete decoding
     Incomplete,
+    // completely decoded u64
     Complete(u64)
 }
 
@@ -43,11 +45,8 @@ impl Partial {
     pub fn combine_partial(&mut self, p_old: &Partial) {
         // the new num is: the old num + the new num (adjusted for the additional bits)
         let new_num = p_old.num + fibonacci_left_shift(self.num, p_old.i_fibo);
-        // let new_i = p_old.i_fibo + self.i_fibo;
         let new_last = self.last_bit;
-
         self.num = new_num;
-        // self.i_fibo = new_i;
         self.i_fibo += p_old.i_fibo;
         self.last_bit = new_last;    
     }

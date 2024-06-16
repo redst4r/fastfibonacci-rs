@@ -50,8 +50,7 @@ impl <R:Read> U64Decoder<R> {
 	/// is all zero-bits
 	pub fn is_clean(&self) -> bool {
 		// cant be in the middle of a decoding
-		let empty_dec = Default::default();
-		if self.dec_status !=  empty_dec {
+		if !self.dec_status.is_clean() {
 			false
 		} else {
 			self.decoder.all_trailing_zeros()

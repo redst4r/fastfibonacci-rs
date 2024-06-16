@@ -1,5 +1,5 @@
 use bitvec::vec::BitVec;
-use fastfibonacci::{bit_decode::{fast::{fast_decode, LookupVec, FB_LOOKUP_U16, FB_LOOKUP_U8}, fibonacci::FibonacciDecoder, MyBitVector}, byte_decode::{bare_metal_16single_faster::U16Fast, bare_metal_3264_stream::Dirty64, bare_metal_generic_single::{DirtyGenericSingle, U64DecoderGeneric}, byte_manipulation::bits_to_fibonacci_generic_array_u64, bytestream_transform::{U64BytesToU16, U64BytesToU64, U64BytesToU8}, faster::{FastFibonacciDecoderNewU16, FastFibonacciDecoderNewU8, LookupVecNew}}, fast_decode_new, utils::random_fibonacci_stream, FastFibonacciDecoder, U64Decoder};
+use fastfibonacci::{bit_decode::{fast::{fast_decode, LookupVec, FB_LOOKUP_U16, FB_LOOKUP_U8}, fibonacci::FibonacciDecoder, MyBitVector}, byte_decode::{bare_metal_16single_faster::U16Fast, bare_metal_generic_single::{DirtyGenericSingle, U64DecoderGeneric}, byte_manipulation::bits_to_fibonacci_generic_array_u64, bytestream_transform::{U64BytesToU16, U64BytesToU64, U64BytesToU8}, faster::{FastFibonacciDecoderNewU16, FastFibonacciDecoderNewU8, LookupVecNew}}, fast_decode_new, utils::random_fibonacci_stream, FastFibonacciDecoder, U64Decoder};
 
 
 // create some random numbers, encode and return
@@ -119,8 +119,6 @@ mod test_dirty_generic_single{
         assert_eq!(x_true, decoded);
     }
 }
-
-
 
 
 #[test]

@@ -141,8 +141,7 @@ impl <'a, R:Read> U16DecoderFast<'a, R> {
 	/// i.e. there's no Partial decoding and the rest of the current u64
 	/// is all zero-bits
 	pub fn is_clean(&self) -> bool {
-		// cant be in the middle of a decoding
-		self.partial.is_clean()
+		self.partial.is_clean() // TODO this doesnt check if the remaining u16 is all zero??!
 	}
 
 	/// returns how many u64s have been pulled from the stream (ie. 8x this is the number of bytes consumed)
@@ -160,20 +159,16 @@ impl <'a, R:Read> U16DecoderFast<'a, R> {
 		match self.u64stream.next() {
 			// managed to pull in another u64
 			Some(el) => {
-				// println!("\tLoading new u16: {bytes16:?}");
-				// self.decoder = U16Fast::new(el); // TODO lots of allocations
-				self.decoder.buf = el; // TODO lots of allocations
-				// self.partial = partial; // carry over the current decoding status
+				self.decoder.buf = el;
 				self.n_u16s_consumed += 1;
 				Ok(())
 			},
 
 			// we ran out of u64s! 
 			None => {
-				// println!("\tRan out of u16, dec: {:?}", self.partial);
 				// if the partial decoding is just zeros; thats the padding which can be ignored/
 				// If we see this, we're truely done with decoding
-				if self.partial.last_bit == 0 && self.partial.num == 0 {
+				if self.partial.is_clean() {
 					Err("End of Decoding".to_string())
 				} else {
 					panic!("ran out of u16s to decode, but still have incomplete decoding {:?}", self.partial);
@@ -207,7 +202,6 @@ impl<'a , R:Read> Iterator for U16DecoderFast<'a, R> {
 				},
 			}			
 			
-			// println!("Decoding: buf {},  {:?}", self.decoder.buf, self.partial);
 			// decode the current element
 			let (decoded_numbers, partial )= self.decoder.decode_all_from_partial(&self.partial);
 
