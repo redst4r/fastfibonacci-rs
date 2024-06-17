@@ -45,63 +45,6 @@ pub (crate) fn load_u64_from_bytes(bytes: &[u8]) -> u64 {
 }
 
 /// see xample at the top of the module
-#[test]
-fn test_load_u64_from_bytes() {
-    assert_eq!(
-        load_u64_from_bytes(&vec![0, 0, 0, 0, 0, 0, 0, 88]),
-        6341068275337658368
-    );
-
-    assert_eq!(
-        load_u64_from_bytes(&vec![0, 0, 0, 0, 0, 0, 0, 152]),
-        10952754293765046272
-    );
-
-    assert_eq!(
-        load_u64_from_bytes(&vec![0, 0, 0, 0, 0, 0, 192, 90]),
-        6539226658941960192
-    );
-}
-
-#[test]
-fn test_decode_bits() {
-    // this number corresponds to the following fibonacci bits
-    // 12358...
-    // 01011000
-    let u = load_u64_from_bytes(&vec![0, 0, 0, 0, 0, 0, 0, 88]);
-    assert_eq!(read_bit_u64(u, 0), false);
-    assert_eq!(read_bit_u64(u, 1), true);
-    assert_eq!(read_bit_u64(u, 2), false);
-    assert_eq!(read_bit_u64(u, 3), true);
-    assert_eq!(read_bit_u64(u, 4), true);
-    assert_eq!(read_bit_u64(u, 5), false);
-    assert_eq!(read_bit_u64(u, 6), false);
-    assert_eq!(read_bit_u64(u, 7), false);
-
-    // 1001100
-    let u = load_u64_from_bytes(&vec![0, 0, 0, 0, 0, 0, 0, 152]);
-    assert_eq!(read_bit_u64(u, 0), true);
-    assert_eq!(read_bit_u64(u, 1), false);
-    assert_eq!(read_bit_u64(u, 2), false);
-    assert_eq!(read_bit_u64(u, 3), true);
-    assert_eq!(read_bit_u64(u, 4), true);
-    assert_eq!(read_bit_u64(u, 5), false);
-    assert_eq!(read_bit_u64(u, 6), false);
-    assert_eq!(read_bit_u64(u, 7), false);
-
-    // 01011010_110
-    let u = load_u64_from_bytes(&vec![0, 0, 0, 0, 0, 0, 192, 90]);
-    assert_eq!(read_bit_u64(u, 0), false);
-    assert_eq!(read_bit_u64(u, 1), true);
-    assert_eq!(read_bit_u64(u, 2), false);
-    assert_eq!(read_bit_u64(u, 3), true);
-    assert_eq!(read_bit_u64(u, 4), true);
-    assert_eq!(read_bit_u64(u, 5), false);
-    assert_eq!(read_bit_u64(u, 6), true);
-    assert_eq!(read_bit_u64(u, 7), false); 
-    assert_eq!(read_bit_u64(u, 8), true); 
-    assert_eq!(read_bit_u64(u, 9), true); 
-}
 
 /// Reads out the bits from a u64. Order is such that it's consistent with
 /// the fibonacci encoding
@@ -264,30 +207,87 @@ pub fn bits_to_fibonacci_generic_array_u32(b: &MyBitSlice) -> Vec<u8>{
 }
 
 
-#[test]
-fn bits_to_bytes_u32() {
-    use crate::utils::create_bitvector;
-    // this is the number 7 in fibonacci
-    let bits = create_bitvector(vec![
-        0,1,0,1,1,0,0,0,
-        0,0,0,0,0,0,0,0,
-        0,0,0,0,0,0,0,0,
-        0,0,0,0,0,0,0,0,
-        //
-        0,0,0,0,0,0,0,0,
-        0,0,0,0,0,0,0,0,
-        0,0,0,0,0,0,0,0,
-        0,0,0,0,0,0,0,0,
-        ]);
-
-    let bytes = bits_to_fibonacci_generic_array_u32(&bits);
-    assert_eq!(bytes, vec![0,0,0,88_u8,0,0,0, 0]);
-}
-
 #[cfg(test)]
 mod testing {
     use crate::utils::create_bitvector;
     use super::*;
+    #[test]
+    fn test_load_u64_from_bytes() {
+        assert_eq!(
+            load_u64_from_bytes(&vec![0, 0, 0, 0, 0, 0, 0, 88]),
+            6341068275337658368
+        );
+    
+        assert_eq!(
+            load_u64_from_bytes(&vec![0, 0, 0, 0, 0, 0, 0, 152]),
+            10952754293765046272
+        );
+    
+        assert_eq!(
+            load_u64_from_bytes(&vec![0, 0, 0, 0, 0, 0, 192, 90]),
+            6539226658941960192
+        );
+    }
+    
+    #[test]
+    fn test_decode_bits() {
+        // this number corresponds to the following fibonacci bits
+        // 12358...
+        // 01011000
+        let u = load_u64_from_bytes(&vec![0, 0, 0, 0, 0, 0, 0, 88]);
+        assert_eq!(read_bit_u64(u, 0), false);
+        assert_eq!(read_bit_u64(u, 1), true);
+        assert_eq!(read_bit_u64(u, 2), false);
+        assert_eq!(read_bit_u64(u, 3), true);
+        assert_eq!(read_bit_u64(u, 4), true);
+        assert_eq!(read_bit_u64(u, 5), false);
+        assert_eq!(read_bit_u64(u, 6), false);
+        assert_eq!(read_bit_u64(u, 7), false);
+    
+        // 1001100
+        let u = load_u64_from_bytes(&vec![0, 0, 0, 0, 0, 0, 0, 152]);
+        assert_eq!(read_bit_u64(u, 0), true);
+        assert_eq!(read_bit_u64(u, 1), false);
+        assert_eq!(read_bit_u64(u, 2), false);
+        assert_eq!(read_bit_u64(u, 3), true);
+        assert_eq!(read_bit_u64(u, 4), true);
+        assert_eq!(read_bit_u64(u, 5), false);
+        assert_eq!(read_bit_u64(u, 6), false);
+        assert_eq!(read_bit_u64(u, 7), false);
+    
+        // 01011010_110
+        let u = load_u64_from_bytes(&vec![0, 0, 0, 0, 0, 0, 192, 90]);
+        assert_eq!(read_bit_u64(u, 0), false);
+        assert_eq!(read_bit_u64(u, 1), true);
+        assert_eq!(read_bit_u64(u, 2), false);
+        assert_eq!(read_bit_u64(u, 3), true);
+        assert_eq!(read_bit_u64(u, 4), true);
+        assert_eq!(read_bit_u64(u, 5), false);
+        assert_eq!(read_bit_u64(u, 6), true);
+        assert_eq!(read_bit_u64(u, 7), false); 
+        assert_eq!(read_bit_u64(u, 8), true); 
+        assert_eq!(read_bit_u64(u, 9), true); 
+    }
+    
+    #[test]
+    fn bits_to_bytes_u32() {
+        use crate::utils::create_bitvector;
+        // this is the number 7 in fibonacci
+        let bits = create_bitvector(vec![
+            0,1,0,1,1,0,0,0,
+            0,0,0,0,0,0,0,0,
+            0,0,0,0,0,0,0,0,
+            0,0,0,0,0,0,0,0,
+            //
+            0,0,0,0,0,0,0,0,
+            0,0,0,0,0,0,0,0,
+            0,0,0,0,0,0,0,0,
+            0,0,0,0,0,0,0,0,
+            ]);
+    
+        let bytes = bits_to_fibonacci_generic_array_u32(&bits);
+        assert_eq!(bytes, vec![0,0,0,88_u8,0,0,0, 0]);
+    }    
     #[test]
     fn bits_to_bytes() {
     

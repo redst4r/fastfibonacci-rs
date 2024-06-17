@@ -34,20 +34,28 @@ impl <'a> U16Fast <'a> {
         // if the previous segment left over something (see partial)
         // we need to "add" this to numbers[0]
         // if not, we need to merge p (the new partial decode from stream[i]) and partial (the old partial decode from stream(i-1))
-        if !numbers.is_empty() {
-            // println!("Combining {numbers:?} with {partial:?}");
-            // absorb `partial` (the old decoding) into the number
-            // and keep the new decoding status as is
-            let new_x = number_plus_partial(numbers[0], partial);
-            decoded_numbers.push(new_x);
-            decoded_numbers.extend(&numbers[1..]);
-            (decoded_numbers, new_partial.clone() )
-        } else {
-            // "add" p and partial; ORDER is important
-            let mut newp = new_partial.clone();
-            newp.combine_partial(partial);
-            (decoded_numbers, newp )
-        }
+
+		// this line does two things: 
+		// 1. if we got some returned numbers, we split it into numbers[0], numbers[1..] and 
+		//    update the first number with its prev partial decoding
+		// 2. if no new numbers (->None), just updated the partial
+        match numbers.split_first() {
+			Some((first, tail)) => {
+				// println!("Combining {numbers:?} with {partial:?}");
+				// absorb `partial` (the old decoding) into the number
+				// and keep the new decoding status as is
+				let new_x = number_plus_partial(*first, partial);
+				decoded_numbers.push(new_x);
+				decoded_numbers.extend(tail);
+				(decoded_numbers, new_partial.clone() )
+			}
+			None => {
+				// "add" p and partial; ORDER is important
+				let mut newp = new_partial.clone();
+				newp.combine_partial(partial);
+				(decoded_numbers, newp )
+			}
+		}
 	}
 }
 

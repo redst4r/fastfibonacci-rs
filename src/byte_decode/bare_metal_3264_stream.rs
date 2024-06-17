@@ -14,8 +14,6 @@ pub struct Dirty32 <'a> {
 	pub bitpos: usize, 
 	/// position in buffer to decode next
 	pub bufpos: usize, 
-	// num: u64, 
-	// i_fibo: usize,
 }
 impl <'a> Dirty32 <'a> {
 
@@ -80,8 +78,6 @@ pub struct Dirty64 <'a> {
 	pub bitpos: usize, 
 	/// Position in self.buf (points to the next element to be process)
 	pub bufpos: usize, 
-	// num: u64, 
-	// i_fibo: usize,
 }
 impl <'a> Dirty64 <'a> {
 

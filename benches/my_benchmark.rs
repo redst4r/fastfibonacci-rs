@@ -240,9 +240,9 @@ fn fibonacci_mybitwise(c: &mut Criterion) {
     //     x_u8_padded.push(0);
     // }
 
-    // c.bench_function(&format!("Decoding: FAST NEW iterator u16"), |b| {
-    //     b.iter(||  U16DecoderFast::new(x_u8_padded.as_slice(), &table16).collect::<Vec<u64>>())
-    // });
+    c.bench_function(&format!("Decoding: FAST NEW iterator u16"), |b| {
+        b.iter(||  U16DecoderFast::new(bytes.as_slice(), &table16).collect::<Vec<u64>>())
+    });
 
 
     // make a copy for fast decoder
