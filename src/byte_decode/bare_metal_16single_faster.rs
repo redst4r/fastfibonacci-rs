@@ -27,7 +27,7 @@ impl <'a> U16Fast <'a> {
 	pub fn decode_all_from_partial(&mut self, partial: &Partial) -> (Vec<u64>, Partial) {
 		let mut decoded_numbers = Vec::new();
 
-        let (numbers, new_partial) = self.table.lookup(crate::fastutils::State(partial.last_bit as usize), self.buf);
+        let (numbers, new_partial) = self.table.lookup(crate::fastutils::State(partial.last_bit == 1), self.buf);
 
         // the logic to integrate the old partial and new partial
         // now, we need to properly decode those numbers:

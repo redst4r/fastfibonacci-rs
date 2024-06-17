@@ -4,7 +4,7 @@ use crate::{utils::FIB64, bit_decode::fibonacci::encode};
 
 /// `State` is used to remember the position in the bitvector and the partically decoded number.
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Copy)]
-pub struct State(pub usize);
+pub struct State(pub bool);
 
 /// Result of the finite state machine in the paper.
 /// 

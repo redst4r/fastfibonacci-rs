@@ -87,9 +87,8 @@ impl <T:Integral> LookupTableNew<T> for LookupVecNew<T> {
         };
 
         let (numbers, partial) = match s {
-            State(0) => self.table_state0.get(idx).unwrap(),
-            State(1) => self.table_state1.get(idx).unwrap(),        
-            State(_) => panic!("yyy")
+            State(false) => self.table_state0.get(idx).unwrap(),
+            State(true) => self.table_state1.get(idx).unwrap(),        
         };
         (numbers, partial)
     }
@@ -109,23 +108,23 @@ mod testing_lookups {
         let i = create_bitvector(vec![ 1,0,1,1,0,1,0,1]).load_be::<u8>();
 
         assert_eq!(
-            t.lookup(State(0), i), 
+            t.lookup(State(false), i), 
             (vec![4].as_slice(), &Partial { num:7, i_fibo: 4, last_bit: 1})
         );
 
         let i = create_bitvector(vec![ 1,0,1,1,0,1,0,1]).load_be::<u8>();
         assert_eq!(
-            t.lookup(State(1), i), 
+            t.lookup(State(true), i), 
             (vec![0,2].as_slice(), &Partial { num:7, i_fibo: 4, last_bit: 1})
         );   
 
         let i = create_bitvector(vec![ 0,1,1,1,0,0,1,0]).load_be::<u8>();
         assert_eq!(
-            t.lookup(State(1), i), 
+            t.lookup(State(true), i), 
             (vec![2].as_slice(), &Partial { num:6, i_fibo: 5, last_bit: 0})
         );   
         assert_eq!(
-            t.lookup(State(0), i), 
+            t.lookup(State(false), i), 
             (vec![2].as_slice(), &Partial { num:6, i_fibo: 5, last_bit: 0})
         ); 
     }
@@ -173,7 +172,7 @@ pub fn fast_decode_new<T:Integral>(stream: &[T], shifted_by_one: bool, table: &i
         // let segment_int_pad = padding(segment_int);
         let segment_int_pad = segment_int;
 
-        let (numbers, p) = table.lookup(State(partial.last_bit as usize), segment_int_pad);
+        let (numbers, p) = table.lookup(State(partial.last_bit == 1), segment_int_pad);
         // println!("numbers {numbers:?}, partial {p:?}");
 
         // now, we need to properly decode those numbers:
@@ -300,7 +299,7 @@ impl<'a, R:Read+'a>  FastFibonacciDecoderNewU8<'a, R> {
                 // actually dont!
                 // let segment_int_pad = padding(segment_int);
                 let segment_int_pad = segment_int;
-                let (numbers, p) = self.lookup_table.lookup(State(self.partial.last_bit as usize), segment_int_pad);
+                let (numbers, p) = self.lookup_table.lookup(State(self.partial.last_bit == 1), segment_int_pad);
 
                 // now, we need to properly decode those numbers:
                 // if the previous segment left over something (see partial)
@@ -495,7 +494,7 @@ impl<'a, R:Read+'a>  FastFibonacciDecoderNewU16<'a, R> {
                 // actually dont!
                 // let segment_int_pad = padding(segment_int);
                 let segment_int_pad = segment_int;
-                let (numbers, p) = self.lookup_table.lookup(State(self.partial.last_bit as usize), segment_int_pad);
+                let (numbers, p) = self.lookup_table.lookup(State(self.partial.last_bit ==1), segment_int_pad);
 
                 // now, we need to properly decode those numbers:
                 // if the previous segment left over something (see partial)

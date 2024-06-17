@@ -131,10 +131,10 @@ impl <T:Integral+BitStore>LookupVec<T> {
                 let newstate = if trailing_bits.is_empty() {
                     // we ended with a temrinator:  xxxxxx11|yyy
                     // resets the state to 0
-                    State(0)
+                    State(false)
                 } else {
                     let final_bit = trailing_bits[trailing_bits.len()-1];
-                    if final_bit { State(1)} else {State(0)}
+                    if final_bit { State(true)} else {State(false)}
                 };
 
                 // insert result based on new state                 
@@ -160,11 +160,10 @@ impl <T:Integral> LookupTable<T> for LookupVec<T> {
         };
 
         let (newstate, result) = match s {
-            State(0) => self.table_state0.get(idx).unwrap(),
-            State(1) => self.table_state1.get(idx).unwrap(),
+            State(false) => self.table_state0.get(idx).unwrap(),
+            State(true) => self.table_state1.get(idx).unwrap(),
             // State(0) => &self.table_state0[segment as usize],
             // State(1) => &self.table_state1[segment as usize],            
-            State(_) => panic!("yyy")
         };
         (*newstate, result)
     }
@@ -185,7 +184,7 @@ pub fn fast_decode<T:Integral>(stream: &MyBitSlice, shifted_by_one: bool, table:
     //     n_chunks+= 1;
     // } 
 
-    let mut state = State(0);
+    let mut state = State(false);
     // for i in 0..n_chunks{
     for segment in stream.chunks(segment_size) {
         // get a segment
@@ -245,14 +244,14 @@ mod testing_lookups {
         let i = create_bitvector(vec![ 1,0,1,1,0,1,0,1]).load_be::<u8>();
 
         assert_eq!(
-            t.lookup(State(0), i), 
-            (State(1), &DecodingResult {numbers: vec![4], u:7, lu: 4, number_end_in_segment: vec![3]})
+            t.lookup(State(false), i), 
+            (State(true), &DecodingResult {numbers: vec![4], u:7, lu: 4, number_end_in_segment: vec![3]})
         );
 
         let i = create_bitvector(vec![ 1,0,1,1,0,1,0,1]).load_be::<u8>();
         assert_eq!(
-            t.lookup(State(1), i), 
-            (State(1), &DecodingResult {numbers: vec![0, 2], u:7, lu: 4, number_end_in_segment: vec![0, 3]})
+            t.lookup(State(true), i), 
+            (State(true), &DecodingResult {numbers: vec![0, 2], u:7, lu: 4, number_end_in_segment: vec![0, 3]})
         );   
     }
     #[test]
@@ -262,14 +261,14 @@ mod testing_lookups {
         let i = create_bitvector(vec![ 1,0,1,1,0,1,0,1, 0,0,1,1,0,0,0,1]).load_be::<u16>();
 
         assert_eq!(
-            t.lookup(State(0), i), 
-            (State(1), &DecodingResult {numbers: vec![4, 28], u:5, lu: 4, number_end_in_segment: vec![3, 11]})
+            t.lookup(State(false), i), 
+            (State(true), &DecodingResult {numbers: vec![4, 28], u:5, lu: 4, number_end_in_segment: vec![3, 11]})
         );
 
         let i = create_bitvector(vec![ 1,0,1,1,0,1,0,1, 0,0,1,1,0,0,0,1]).load_be::<u16>();
         assert_eq!(
-            t.lookup(State(1), i), 
-            (State(1), &DecodingResult {numbers: vec![0, 2, 28], u:5, lu: 4, number_end_in_segment: vec![0,3,11]})
+            t.lookup(State(true), i), 
+            (State(true), &DecodingResult {numbers: vec![0, 2, 28], u:5, lu: 4, number_end_in_segment: vec![0,3,11]})
         );  
     }
 
@@ -491,7 +490,7 @@ impl<'a, T:Integral> FastFibonacciDecoder<'a, T> {
             current_buffer: VecDeque::new(),
             current_backtrack: VecDeque::new(),
             segment_size: T::BITS as usize,
-            state: State(0),
+            state: State(false),
             decoding_state: DecodingState::new(),
             last_emission_last_position: None,
             shifted_by_one,
