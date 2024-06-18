@@ -127,7 +127,7 @@ pub fn encode(data: &[u64]) -> MyBitVector {
 
     // this just appends to the `overall` bitvec
     for &x in data {
-        bits_from_table_internal(x, FIB64, &mut overall).unwrap();
+        bits_from_table_internal(x, &FIB64, &mut overall).unwrap();
     }
     overall
 }
@@ -231,20 +231,20 @@ mod test {
         #[test]
         fn test_1() {
             let mut bv: MyBitVector = BitVec::new();
-            bits_from_table_internal(1, FIB64, &mut bv).unwrap();
+            bits_from_table_internal(1, &FIB64, &mut bv).unwrap();
             assert_eq!(bv.iter().collect::<Vec<_>>(), vec![true, true]);
         }
 
         #[test]
         fn test_2() {
             let mut bv: MyBitVector = BitVec::new();
-            bits_from_table_internal(2, FIB64, &mut bv).unwrap();
+            bits_from_table_internal(2, &FIB64, &mut bv).unwrap();
             assert_eq!(bv.iter().collect::<Vec<_>>(), vec![false, true, true]);
         }
         #[test]
         fn test_14() {
             let mut bv: MyBitVector = BitVec::new();
-            bits_from_table_internal(14, FIB64, &mut bv).unwrap();
+            bits_from_table_internal(14, &FIB64, &mut bv).unwrap();
             assert_eq!(
                 bv.iter().collect::<Vec<_>>(),
                 vec![true, false, false, false, false, true, true]
@@ -253,9 +253,9 @@ mod test {
         #[test]
         fn test_consecutive() {
             let mut bv: MyBitVector = BitVec::new();
-            bits_from_table_internal(1, FIB64, &mut bv).unwrap();
-            bits_from_table_internal(2, FIB64, &mut bv).unwrap();
-            bits_from_table_internal(1, FIB64, &mut bv).unwrap();
+            bits_from_table_internal(1, &FIB64, &mut bv).unwrap();
+            bits_from_table_internal(2, &FIB64, &mut bv).unwrap();
+            bits_from_table_internal(1, &FIB64, &mut bv).unwrap();
             assert_eq!(
                 bv.iter().collect::<Vec<_>>(),
                 vec![true, true, false, true, true, true, true]

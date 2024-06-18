@@ -297,6 +297,41 @@ pub(crate) fn fibonacci_left_shift(n: u64, k: usize) -> u64 {
     f_km1 * n + f_km2 * FIB_EXT_LEFT_1[n as usize]
 }
 
+
+// pub(crate) fn fibonacci_left_shift(n: u64, k: usize) -> u64 {
+//     //  FIB64[k-1] * n + FIB64[k-2] + FIB_EXT_LEFT_1[n as usize];
+
+//     // we need F(-2), F(-1) which are not in the FIB64 array; here;s the workaround
+//     let (f_km1, f_km2) = LEFT_SHIFT_LOOKUP[k];
+
+//     // shifted:
+//     f_km1 * n + f_km2 * FIB_EXT_LEFT_1[n as usize]
+// }
+
+
+// #[test]
+// fn test_left_shift_lookup(){
+//     for k in 0..FIB64.len() {
+//         assert_eq!(fibonacci_left_shift_static(10, k), fibonacci_left_shift(10, k))
+//     }
+// }
+
+
+// const LEFT_SHIFT_LOOKUP: [(u64, u64); FIB64.len()] = {
+//     let mut seq = [(0_u64,0_u64); FIB64.len()];
+    
+//     seq[0] = (1, 0);
+//     seq[1] = (1, 1);
+//     seq[2] = (2, 1);
+//     let mut k = 3;
+//     while k < FIB64.len() {
+//         seq[k] = (FIB64[k-1], FIB64[k-2]);
+//         k += 1;
+//     }
+//     seq
+// };
+
+
 /// decodes a fibonacci stream until the very end of the stream
 /// there might be a remainder (behind the last 11 delimiter)
 /// which is also returned (its value in Fib, and its len in fib)

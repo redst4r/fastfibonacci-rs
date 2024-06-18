@@ -153,11 +153,11 @@ pub (crate) fn swap_endian(bytes: &[u8], wordsize: usize) -> Vec<u8>{
     swapped_endian
 }
 
-
+const NSAMPLES:usize = 100_000;
 fn fibonacci_mybitwise(c: &mut Criterion) {
 
     let seed = 23; 
-    let data_encoded = random_fibonacci_stream(100_000, 1, 10000, seed);
+    let data_encoded = random_fibonacci_stream(NSAMPLES, 1, 10000, seed);
     let mut x = bits_to_fibonacci_generic_array_u64(&data_encoded);
     // this needs to have a multiiple of 8 bytes
     println!("{}", x.len());
@@ -172,10 +172,10 @@ fn fibonacci_mybitwise(c: &mut Criterion) {
     let encoded_bytes64: Vec<_>= U64BytesToU64::new(encoded_bytes.as_slice()).collect();
     fn _dummy_dirty64(data: &[u64]) -> Vec<u64> {
 
-        let mut decoded = Vec::with_capacity(100_000);
+        let mut decoded = Vec::with_capacity(NSAMPLES);
         let mut dd = Dirty64 {buf: &data, buf_size: data.len(), bitpos: 0, bufpos: 0};
 
-        for _i in 0..100_000 {
+        for _i in 0..NSAMPLES {
             match dd.decode() {
                 Ok(n) => { decoded.push(n); },
                 Err(_e) => { assert_eq!(1,0); }
@@ -190,9 +190,9 @@ fn fibonacci_mybitwise(c: &mut Criterion) {
 
     fn dummy_u64_iter(data: &[u8]) -> Vec<u64>{
         let dd = U64Decoder::new(data);
-        let mut decoded: Vec<_> = Vec::with_capacity(100_000);
+        let mut decoded: Vec<_> = Vec::with_capacity(NSAMPLES);
 
-        for el in dd.take(100_000) {
+        for el in dd.take(NSAMPLES) {
             decoded.push(el)
         }
         decoded
