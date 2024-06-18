@@ -4,10 +4,8 @@ use fastfibonacci::{
         fast::{fast_decode, LookupVec, FB_LOOKUP_U16, FB_LOOKUP_U8}, 
         fibonacci::FibonacciDecoder, MyBitVector},
     byte_decode::{
-        bare_metal_16single_faster::U16Fast, 
-        byte_manipulation::bits_to_fibonacci_generic_array_u64, 
-        bytestream_transform::{U64BytesToU16, U64BytesToU64, U64BytesToU8}, 
-        faster::{FastFibonacciDecoderNewU16, FastFibonacciDecoderNewU8, LookupVecNew}
+        // bare_metal_16single_faster::U16Fast, 
+        bare_metal_16single_faster::decode_all_u16, byte_manipulation::bits_to_fibonacci_generic_array_u64, bytestream_transform::{U64BytesToU16, U64BytesToU64, U64BytesToU8}, faster::{FastFibonacciDecoderNewU16, FastFibonacciDecoderNewU8, LookupVecNew}
     }, 
     fast_decode_new, 
     utils::random_fibonacci_stream, 
@@ -148,11 +146,10 @@ fn test_correctness_u16_fast(){
 
     let mut last_partial = Default::default();
     for _i in 0..x_u16.len() {
-        let mut dd = U16Fast::new(x_u16[_i], &table);
-
-        let (numbers, pa) = dd.decode_all_from_partial(&last_partial);
-        decoded.extend(numbers);
-        last_partial = pa;
+        let mut decoded_numbers: Vec<_> = Vec::with_capacity(10);
+        decode_all_u16(x_u16[_i], &mut last_partial, &table, &mut decoded_numbers);
+        decoded.extend(decoded_numbers);
+        // last_partial = pa;
     }
     assert_eq!(x_true, decoded);
 }

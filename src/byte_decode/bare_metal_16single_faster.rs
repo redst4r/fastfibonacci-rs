@@ -5,59 +5,48 @@ use crate::byte_decode::partial::Partial;
 use super::partial::number_plus_partial;
 use super::{bytestream_transform::U64BytesToU16, faster::{LookupTableNew, LookupVecNew}};
 
-/// Decoding chunks of 16bits using the lookup table
-#[derive(Debug)]
-pub struct U16Fast<'a> {
-	/// the current bits to decode, stored as a u64
-	buf: u16, 
-	/// which bit (of the 64) we have to decode next
-	// bitpos: usize, 
-    table: &'a LookupVecNew<u16>,
-}
-impl <'a> U16Fast <'a> {
-	/// A new U`6 decoder`
-	pub fn new(buf: u16, table: &'a LookupVecNew<u16>) -> Self {
-		Self {buf, table }
-	}
 
-	/// decodes as many numbers from the buffer as possible, returning the fully decoded numbers
-	/// and the partially decoded result
-	/// 
-	/// Basically a single lookup in the table, plus some integration with the previous partial result
-	pub fn decode_all_from_partial(&mut self, partial: &Partial) -> (Vec<u64>, Partial) {
-		let mut decoded_numbers = Vec::new();
+/// decodes as many numbers from the buffer as possible, returning the fully decoded numbers
+/// and the partially decoded result
+/// 
+/// Basically a single lookup in the table, plus some integration with the previous partial result
+/// 
+/// modifies `decoded_numbers` (overwrites whatever is in it) and `partial`
+pub fn decode_all_u16(buf: u16, partial: &mut Partial, table:&LookupVecNew<u16>, decoded_numbers: &mut Vec<u64>) /*-> (Vec<u64>, Partial) */{
+	// let mut decoded_numbers = Vec::new();
+	decoded_numbers.clear();
 
-        let (numbers, new_partial) = self.table.lookup(crate::fastutils::State(partial.last_bit == 1), self.buf);
+	let (numbers, new_partial) = table.lookup(crate::fastutils::State(partial.last_bit == 1), buf);
 
-        // the logic to integrate the old partial and new partial
-        // now, we need to properly decode those numbers:
-        // if the previous segment left over something (see partial)
-        // we need to "add" this to numbers[0]
-        // if not, we need to merge p (the new partial decode from stream[i]) and partial (the old partial decode from stream(i-1))
+	// the logic to integrate the old partial and new partial
+	// now, we need to properly decode those numbers:
+	// if the previous segment left over something (see partial)
+	// we need to "add" this to numbers[0]
+	// if not, we need to merge p (the new partial decode from stream[i]) and partial (the old partial decode from stream(i-1))
 
-		// this line does two things: 
-		// 1. if we got some returned numbers, we split it into numbers[0], numbers[1..] and 
-		//    update the first number with its prev partial decoding
-		// 2. if no new numbers (->None), just updated the partial
-        match numbers.split_first() {
-			Some((first, tail)) => {
-				// println!("Combining {numbers:?} with {partial:?}");
-				// absorb `partial` (the old decoding) into the number
-				// and keep the new decoding status as is
-				let new_x = number_plus_partial(*first, partial);
-				decoded_numbers.push(new_x);
-				decoded_numbers.extend(tail);
-				(decoded_numbers, new_partial.clone() )
-			}
-			None => {
-				// "add" p and partial; ORDER is important
-				let mut newp = new_partial.clone();
-				newp.combine_partial(partial);
-				(decoded_numbers, newp )
-			}
+	// this line does two things: 
+	// 1. if we got some returned numbers, we split it into numbers[0], numbers[1..] and 
+	//    update the first number with its prev partial decoding
+	// 2. if no new numbers (->None), just updated the partial
+	match numbers.split_first() {
+		Some((first, tail)) => {
+			// println!("Combining {numbers:?} with {partial:?}");
+			// absorb `partial` (the old decoding) into the number
+			// and keep the new decoding status as is
+			let new_x = number_plus_partial(*first, partial);
+			decoded_numbers.push(new_x);
+			decoded_numbers.extend(tail);
+			*partial = new_partial.to_owned();
+		}
+		None => {
+			// "add" p and partial; ORDER is important
+			let mut newp = new_partial.clone();
+			newp.combine_partial(partial);
+			*partial = newp.to_owned();
 		}
 	}
 }
+
 
 #[cfg(test)]
 mod testing {
@@ -77,10 +66,15 @@ mod testing {
 
         let table = LookupVecNew::new();
 		// println!("u: {u}");
-		let mut dd = U16Fast { buf: u, table: &table};
-		let (numbers, pa) = dd.decode_all_from_partial(&Default::default());
+
+		let mut numbers = Vec::with_capacity(10);
+		let mut pa = Default::default();
+		decode_all_u16(u, &mut pa, &table, &mut numbers);
+		// let mut dd = U16Fast { buf: u, table: &table};
+		// let (numbers, pa) = dd.decode_all_from_partial(&Default::default());
 		assert_eq!(pa,  Partial::new(0, 2, 0));
 		assert_eq!(numbers, vec![3,55]);
+
 
 		// no decoding, just remaineder
 		let bits = create_bitvector(vec![ 
@@ -90,8 +84,11 @@ mod testing {
 		let encoded_bytes = bits_to_fibonacci_generic_array_u64(&bits);
 		let u = U64BytesToU16::new(encoded_bytes.as_slice()).collect::<Vec<_>>()[0];
 
-		let mut dd = U16Fast { buf: u, table: &table};
-		let (numbers, pa) = dd.decode_all_from_partial(&Default::default());
+		let mut numbers = Vec::with_capacity(10);
+		let mut pa = Default::default();
+		decode_all_u16(u, &mut pa, &table, &mut numbers);
+		// let mut dd = U16Fast { buf: u, table: &table};
+		// let (numbers, pa) = dd.decode_all_from_partial(&Default::default());
 		assert_eq!(pa,  Partial::new(2, 16, 0));
 		assert_eq!(numbers, vec![]);
 
@@ -102,10 +99,10 @@ mod testing {
 /// and decodes them
 pub struct U16DecoderFast < 'a, R:Read> {
 	u64stream: U64BytesToU16<R>,  /// a stream of u64s
-	decoder: U16Fast<'a>, /// each u64 gets loaded into here for decoding
 	partial: Partial,
 	n_u16s_consumed: usize, // keep track of how many u64 we consumed
 	emission_buffer: VecDeque<u64>,
+	table: &'a LookupVecNew<u16>,
 }
 
 impl <'a, R:Read> U16DecoderFast<'a, R> {
@@ -116,16 +113,18 @@ impl <'a, R:Read> U16DecoderFast<'a, R> {
 
 		// a bit odd, we need to fill int the first decoding manually
 		let el = it.next().unwrap();
-		let mut u64dec = U16Fast::new(el, table);
-		let (numbers, partial) = u64dec.decode_all_from_partial(&Default::default());
+
+		let mut numbers = Vec::with_capacity(10);
+		let mut partial = Default::default();
+		decode_all_u16(el, &mut partial, &table, &mut numbers);
 
 		let emission_buffer: VecDeque<_> = numbers.into();
 		U16DecoderFast {
 			u64stream: it, 
-			decoder: u64dec, 
 			partial, 
 			n_u16s_consumed: 1,
 			emission_buffer,
+			table
 		}
 	}
 
@@ -156,34 +155,6 @@ impl <'a, R:Read> U16DecoderFast<'a, R> {
 	pub fn get_consumed_u16s(&self) -> usize {
 		self.n_u16s_consumed
 	}
-
-	/// tries to pull in a new u64 number
-	/// SHOULD ONLY BE DONE WHEN finished with the current u64 in self.decoder
-	/// `partial` lets us carry over the decoding state from the pervious u64
-	fn pull_in_next_u16(&mut self) -> Result<(), String> {
-
-		assert!(self.emission_buffer.is_empty(), "emission buffer not empty, yield those first");
-
-		match self.u64stream.next() {
-			// managed to pull in another u64
-			Some(el) => {
-				self.decoder.buf = el;
-				self.n_u16s_consumed += 1;
-				Ok(())
-			},
-
-			// we ran out of u64s! 
-			None => {
-				// if the partial decoding is just zeros; thats the padding which can be ignored/
-				// If we see this, we're truely done with decoding
-				if self.partial.is_clean() {
-					Err("End of Decoding".to_string())
-				} else {
-					panic!("ran out of u16s to decode, but still have incomplete decoding {:?}", self.partial);
-				}
-			}
-		}		
-	}
 }
 
 impl<'a , R:Read> Iterator for U16DecoderFast<'a, R> {
@@ -201,20 +172,27 @@ impl<'a , R:Read> Iterator for U16DecoderFast<'a, R> {
 			// in case the decoder is finished (the last number decoded exaclty flush withthe u64 border)
 			// try to pull in a new number
 			// println!("try pulling in new number");
-			match self.pull_in_next_u16() {
-				Ok(()) => { /* nothing, just continue the loop, trying to decode */},
-				Err(s) => {
-					if s == *"End of Decoding" {
-						return None
-					}
-				},
-			}			
-			
-			// decode the current element
-			let (decoded_numbers, partial )= self.decoder.decode_all_from_partial(&self.partial);
+			match self.u64stream.next() {
+				// managed to pull in another u64
+				Some(el) => {
 
-			self.partial = partial;
-			self.emission_buffer.extend(decoded_numbers);
+					// decode the entire u16
+					let mut numbers = Vec::with_capacity(10);
+					decode_all_u16(el, &mut self.partial, self.table, &mut numbers);
+					self.emission_buffer = numbers.into();
+					self.n_u16s_consumed += 1;
+				},
+				// we ran out of u64s! 
+				None => {
+					// if the partial decoding is just zeros; thats the padding which can be ignored/
+					// If we see this, we're truely done with decoding
+					if self.partial.is_clean() {
+						return None
+					} else {
+						panic!("ran out of u16s to decode, but still have incomplete decoding {:?}", self.partial);
+					}
+				}				
+			}		
 		}
 
 		// now we have something in the emission buffer
