@@ -92,13 +92,18 @@
 //! - fibonnaci_codec: 88ms / 1M integers
 //! 
 //! Regular fibonacci decoding (iterator based) is up to speed with the [fibonnaci_codec](https://crates.io/crates/fibonacci_codec) crate. 
-//! - regular decoding: 92ms/ 1M integers
+//! - regular decoding (bitwise): 92ms/ 1M integers
+//! - regular decoding (bytewise): 66ms/ 1M integers
 //! - fibonnaci_codec: 108ms / 1M integers
 //! 
 //! The **FastFibonacci** decoding functions are ~2x faster, but have some constant overhead (i.e. only pays of when decoding *many* integers):
-//! - fast decoding (u8 segments): 40ms / 1M integers
-//! - fast decoding (u16 segments): 30ms / 1M integers
-//! - fast decoding (using an iterator): 54ms / 1M integers
+//! - fast decoding (bitwise, u8 segments): 40ms / 1M integers
+//! - fast decoding (bitwise, u16 segments): 30ms / 1M integers
+//! - fast decoding (bitwise, using an iterator): 54ms / 1M integers
+//! 
+//! - fast decoding (bytewise, u8 segments): 24ms / 1M integers
+//! - fast decoding (bytewise, u16 segments): 22ms / 1M integers
+//! - fast decoding (bytewise, using an iterator): 30ms / 1M integers
 //! 
 // pub mod fibonacci;
 pub mod utils;

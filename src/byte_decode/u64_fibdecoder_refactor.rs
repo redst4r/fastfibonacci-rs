@@ -13,69 +13,73 @@ use super::bytestream_transform::U64BytesToU64;
 /// As opposed to [`crate::byte_decode::bare_metal_3264_stream`], this
 /// decodes only a single number (u32/u64) rather than a stream.
 #[derive(Debug)]
-pub (crate)struct DirtyGenericSingle<T:Integral> {
+pub struct DirtyGenericSingle<T:Integral> {
 	/// the current bits to decode, stored as a u32/u64.
 	/// The first bit we'll look at is the HIGHEST bit!
 	buf: T, 
 	/// which bit (of the 32/64) we have to decode next
-	bitpos: usize, 
+	bitpos: usize,
+
+	// the status of the decoding; sometimes a call to decode wont yield a complete decoding
+	// hence, store it here
+	pub (crate) partial: Partial,
 }
 impl <T:Integral> DirtyGenericSingle<T> {
 	/// New Decoder
 	pub fn new(buf: T) -> Self {
-		Self {buf, bitpos: 0}
+		Self {buf, bitpos: 0, partial: Default::default()}
 	}
 
-	/// Resets the struct, to decode another `T`. Saves some allocations as compared to calling ::new() each time
-	pub fn reset(&mut self, new_buf: T) {
+	/// adds a new number to decode, carrying over the old decodeing state
+	pub fn update_buffer(&mut self, new_buf: T) {
 		self.buf = new_buf;
 		self.bitpos = 0;
 	}
 
 	/// Decodes a single number from the buffer, given a previous unfinished decoding `partial`
 	/// just a nicer version of decode_from_partial (moved the bitreading logic into `Partial`)
-	pub fn decode_from_partial(&mut self, mut partial: Partial) -> Result<u64, Partial>{
+	pub fn decode_from_partial(&mut self) -> Option<u64>{
  
 		if self.bitpos > (T::BITS - 1) as usize {
 			println!("{:?}", self);
-			println!("{:?}", partial);
+			println!("{:?}", self.partial);
 			panic!("overflow!!")
 		}
 
 		while self.bitpos < T::BITS as usize {
 			let bit = Self::read_bit(self.buf, self.bitpos) as u64;
 			self.bitpos += 1;
-			match partial.update(bit) {
+			match self.partial.update(bit) {
 				crate::byte_decode::partial::DecResult::Incomplete => {  /*println!("{:?}", partial) */},
 				crate::byte_decode::partial::DecResult::Complete(n) => {
-					return Ok(n)
+					// since we decoded a number, reset the partial
+					self.partial = Default::default();
+					return Some(n)
 				},
 			};
 		}
-		Err(partial)
+		None
 	}
 
 	/// decodes as many numbers from the buffer as possible, returning the fully decoded numbers
 	/// and the partially decoded result
 	/// 
 	/// Basically loops, rtying to decode a number until we hit a partial decoding
-	pub fn decode_all_from_partial(&mut self, partial: Partial) -> (Vec<u64>, Partial) {
+	pub fn decode_all_from_partial(&mut self) -> Vec<u64> {
 		let mut fully_decoded = Vec::new();
-		let mut last_partial = partial;
 
 		while !self.is_finished() {
-			match self.decode_from_partial(last_partial) {
-				Ok(n) => {
+			match self.decode_from_partial() {
+				Some(n) => {
 					fully_decoded.push(n);
-					last_partial = Default::default();
+					self.partial = Default::default();
 				},
-				Err(p) => {
-					last_partial = p;
+				None => {
 					break;  // tecnhically not needed, after a partial decode, we are always finished
 				},
 			}
 		}
-		(fully_decoded,last_partial )
+		fully_decoded
 	}
 
 	/// checks if all trailing bits (including bits[self.bitpos]) are zero
@@ -94,6 +98,10 @@ impl <T:Integral> DirtyGenericSingle<T> {
 		self.bitpos >= (T::BITS as usize)
 	}
 
+	/// 
+	pub fn is_clean(&self) -> bool{
+		self.is_finished() & self.partial.is_clean()
+	 }
     /// reads a single bit at the given position
     #[inline]
     fn read_bit(x: T, pos: usize) -> bool {
@@ -107,7 +115,6 @@ impl <T:Integral> DirtyGenericSingle<T> {
 
 #[cfg(test)]
 mod testing {
-	
 	use crate::byte_decode::byte_manipulation::testing::load_u64_from_bytes;
 	use crate::byte_decode::bytestream_transform::{U64BytesToU16, U64BytesToU8};
 	use crate::{byte_decode::byte_manipulation::bits_to_fibonacci_generic_array_u64, utils::create_bitvector};
@@ -118,25 +125,23 @@ mod testing {
 		// this corresponds to a single entry [7]
 		// 01011000_000...
 		let buf = load_u64_from_bytes(&vec![0,0,0,0,0,0,0,88]); 
-		let mut dd = DirtyGenericSingle { buf, bitpos:0};
-		let (numbers, pa) = dd.decode_all_from_partial(Default::default());
+		let mut dd = DirtyGenericSingle::new(buf);
+		let numbers = dd.decode_all_from_partial();
 		assert_eq!(numbers, vec![7]);
-		assert!(pa.is_clean());
+		assert!(dd.partial.is_clean());
 
 		let buf = load_u64_from_bytes(&vec![0,0,0,0,0,0,0,152]); 
-		let mut dd = DirtyGenericSingle { buf, bitpos:0};
-		let (numbers, pa) = dd.decode_all_from_partial(Default::default());
+		let mut dd = DirtyGenericSingle::new(buf);
+		let numbers = dd.decode_all_from_partial();
 		assert_eq!(numbers, vec![6]);
-		assert!(pa.is_clean());
+		assert!(dd.partial.is_clean());
 
 		let buf = load_u64_from_bytes(&vec![0,0,0,0,0,0,192,90]); 
-		let mut dd = DirtyGenericSingle { buf, bitpos:0};
-		let (numbers, pa) = dd.decode_all_from_partial(Default::default());
+		let mut dd = DirtyGenericSingle::new(buf);
+		let numbers = dd.decode_all_from_partial();
 		assert_eq!(numbers, vec![7,7]);
-		assert!(pa.is_clean());		
+		assert!(dd.partial.is_clean());
 	}
-
-	
 
 	#[test]
 	fn test_decode_all_from_partial(){
@@ -157,10 +162,10 @@ mod testing {
 		// U64
 		let x_u64: Vec<u64> = U64BytesToU64::new(bytes.as_slice()).collect();
 
-		let mut dd = DirtyGenericSingle { buf: x_u64[0], bitpos:0};
-		let (numbers, pa) = dd.decode_all_from_partial(Default::default());
+		let mut dd = DirtyGenericSingle::new(x_u64[0]);
+		let numbers = dd.decode_all_from_partial();
 		assert_eq!(numbers, vec![2,3, 53316291173]);
-		assert_eq!(pa,  Partial::new(5, 4, 1));
+		assert_eq!(dd.partial,  Partial::new(5, 4, 1));
 
 		// // U32
 		// let x_u32: Vec<u32> = U64BytesToU32::new(bytes.as_slice()).collect();
@@ -171,22 +176,20 @@ mod testing {
 
 		// U16
 		let x_u16: Vec<u16> = U64BytesToU16::new(bytes.as_slice()).collect();
-		let mut dd = DirtyGenericSingle { buf: x_u16[0], bitpos:0};
-		let (numbers, pa) = dd.decode_all_from_partial(Default::default());
+		let mut dd = DirtyGenericSingle::new(x_u16[0]);
+		let numbers = dd.decode_all_from_partial();
 		assert_eq!(numbers, vec![2,3]);
-		assert_eq!(pa,  Partial::new(0, 9, 0));
+		assert_eq!(dd.partial,  Partial::new(0, 9, 0));
 
 
 		// U8
 		let x_u8: Vec<u8> = U64BytesToU8::new(bytes.as_slice()).collect();
 
-		let mut dd = DirtyGenericSingle { buf: x_u8[0], bitpos:0};
-		let (numbers, pa) = dd.decode_all_from_partial(Default::default());
+		let mut dd = DirtyGenericSingle::new(x_u8[0]);
+		let numbers = dd.decode_all_from_partial();
 		assert_eq!(numbers, vec![2,3]);
-		assert_eq!(pa,  Partial::new(0, 1, 0));		
+		assert_eq!(dd.partial,  Partial::new(0, 1, 0));		
 	}
-
-
 
 	#[test]
 	fn test_traliing() {
@@ -202,16 +205,16 @@ mod testing {
 			0,0,0,0,1,1,0,0, //8  the u64 ends here! this needs to return a PartialDecode num=2, i_fibo=2, lastbit = 1
 			])
 		.to_bitvec();
-
 		let bytes = bits_to_fibonacci_generic_array_u64(&bits);
 		let encoded: Vec<u64> = U64BytesToU64::new(bytes.as_slice()).collect();
-		let mut dd = DirtyGenericSingle { buf: encoded[0], bitpos:0};
+		let mut dd = DirtyGenericSingle::new(encoded[0]);
 		assert_eq!(dd.all_trailing_zeros(), false);
-		let _ = dd.decode_from_partial(Default::default());
+		let _ = dd.decode_from_partial();
 		assert_eq!(dd.all_trailing_zeros(), true);
 
 		// make sure to return zero even if read every single bit!
-		let dd = DirtyGenericSingle { buf: encoded[0], bitpos:64};
+		let mut dd = DirtyGenericSingle::new(encoded[0]);
+		dd.bitpos = 64;
 		assert_eq!(dd.all_trailing_zeros(), true);
 
 	}
@@ -233,16 +236,17 @@ mod testing {
 		let bytes = bits_to_fibonacci_generic_array_u64(&bits);
 		let encoded: Vec<u64> = U64BytesToU64::new(bytes.as_slice()).collect();
 
-		let mut dd = DirtyGenericSingle { buf: encoded[0], bitpos:0};
+		let mut dd = DirtyGenericSingle::new(encoded[0]);
 		assert_eq!(
-			dd.decode_from_partial(Default::default()),
-			Ok(4052739537881)
+			dd.decode_from_partial(),
+			Some(4052739537881)
 		);
 
 		assert_eq!(
-			dd.decode_from_partial(Default::default()),
-			Err(Partial::new(0, 2 , 0))
+			dd.decode_from_partial(),
+			None //Err(Partial::new(0, 2 , 0))
 		);
+		assert_eq!(dd.partial, Partial::new(0, 2 , 0));
 
 	}
 
@@ -262,16 +266,17 @@ mod testing {
 	let bytes = bits_to_fibonacci_generic_array_u64(&bits);
 	let encoded: Vec<u64> = U64BytesToU64::new(bytes.as_slice()).collect();
 
-		let mut dd = DirtyGenericSingle { buf: encoded[0],  bitpos: 0};
+		let mut dd = DirtyGenericSingle::new(encoded[0]);
 		assert_eq!(
-			dd.decode_from_partial(Default::default()),
-			Ok(4052739537881)
+			dd.decode_from_partial(),
+			Some(4052739537881)
 		);
 
 		assert_eq!(
-			dd.decode_from_partial(Default::default()),
-			Err(Partial::new(2,2,1))
+			dd.decode_from_partial(),
+			None // Err(Partial::new(2,2,1))
 		);
+		assert_eq!(dd.partial, Partial::new(2,2,1));
 
 		let bits = create_bitvector(vec![
 			1,0,1,1,0,0,0,0, //1 
@@ -286,11 +291,11 @@ mod testing {
 		.to_bitvec();
 		let bytes = bits_to_fibonacci_generic_array_u64(&bits);
 		let encoded: Vec<u64> = U64BytesToU64::new(bytes.as_slice()).collect();
-		let mut dd = DirtyGenericSingle { buf: encoded[0], bitpos:0};
-
+		let mut dd = DirtyGenericSingle::new(encoded[0]);
+		dd.partial = Partial::new(2, 2, 1);
 		assert_eq!(
-			dd.decode_from_partial(Partial::new(2, 2, 1)),
-			Ok(2)
+			dd.decode_from_partial(),
+			Some(2)
 		);
 	}
 
@@ -309,31 +314,34 @@ mod testing {
 		.to_bitvec();
 		let bytes = bits_to_fibonacci_generic_array_u64(&bits);
 		let encoded: Vec<u64> = U64BytesToU64::new(bytes.as_slice()).collect();
-		let mut d = DirtyGenericSingle {buf:encoded[0], bitpos: 0};
+		let mut d = DirtyGenericSingle::new(encoded[0]);
 		assert_eq!(
-			d.decode_from_partial(Default::default()),
-			Ok(2)
+			d.decode_from_partial(),
+			Some(2)
 		);
 		assert_eq!(d.bitpos, 3);
 
+		d.partial = Default::default();
 		assert_eq!(
-			d.decode_from_partial(Default::default()),
-			Ok(3)
+			d.decode_from_partial(),
+			Some(3)
 		);
 		assert_eq!(d.bitpos, 7);
 
+		d.partial = Default::default();
 		assert_eq!(
-			d.decode_from_partial(Default::default()),
-			Ok(53316291173)
+			d.decode_from_partial(),
+			Some(53316291173)
 		);
 		assert_eq!(d.bitpos, 60);
 
+		d.partial = Default::default();
 		assert_eq!(
-			d.decode_from_partial(Default::default()),
-			Err(Partial::new(5, 4, 1))
+			d.decode_from_partial(),
+			None
 		);
 		assert_eq!(d.bitpos, 64);
-
+		assert_eq!(d.partial, Partial::new(5, 4, 1));
 	}
 }
 
@@ -343,7 +351,6 @@ mod testing {
 pub struct U64Decoder <R:Read> {
 	u64stream: U64BytesToU64<R>,  /// a stream of u64s
 	decoder: DirtyGenericSingle<u64>, /// each u64 gets loaded into here for decoding
-	dec_status: Partial,
 	n_u64s_consumed: usize // keep track of how many u64 we consumed
 }
 
@@ -352,12 +359,10 @@ impl <R:Read> U64Decoder<R> {
 	pub fn new(stream: R) ->Self {
 		let mut it = U64BytesToU64::new(stream);
 		let el = it.next().unwrap();
-		// println!("El loaded {}", el);
 		let u64dec = DirtyGenericSingle::new(el);
 		U64Decoder {
 			u64stream: it, 
 			decoder: u64dec, 
-			dec_status: Default::default(), 
 			n_u64s_consumed: 1
 		}
 	}
@@ -373,7 +378,7 @@ impl <R:Read> U64Decoder<R> {
 		if self.is_clean() {
 			Ok(self.u64stream.into_inner())
 		} else {
-			panic!("unprocessed bits left");
+			panic!("unprocessed bits left {:?}", self.decoder);
 			// return Err(DecodeError::PartiallyDecoded(self.dec_status))
 		}
 	}
@@ -383,7 +388,7 @@ impl <R:Read> U64Decoder<R> {
 	/// is all zero-bits
 	pub fn is_clean(&self) -> bool {
 		// cant be in the middle of a decoding
-		if !self.dec_status.is_clean() {
+		if !self.decoder.partial.is_clean() {
 			false
 		} else {
 			self.decoder.all_trailing_zeros()
@@ -403,7 +408,7 @@ impl <R:Read> U64Decoder<R> {
 	/// tries to pull in a new u64 number
 	/// SHOULD ONLY BE DONE WHEN finished with the current u64 in self.decoder
 	/// `partial` lets us carry over the decoding state from the pervious u64
-	fn pull_in_next_u64(&mut self, partial: Partial) -> Result<(), String> {
+	fn pull_in_next_u64(&mut self) -> Result<(), String> {
 
 		assert!(self.decoder.is_finished());
 
@@ -412,8 +417,7 @@ impl <R:Read> U64Decoder<R> {
 			Some(el) => {
 				// println!("\tLoading new u64");
 				// self.decoder = DirtyGenericSingle::new(el); // TODO lots of allocations
-				self.decoder.reset(el);
-				self.dec_status = partial; // carry over the current decoding status
+				self.decoder.update_buffer(el);
 				self.n_u64s_consumed += 1;
 				Ok(())
 			},
@@ -422,10 +426,10 @@ impl <R:Read> U64Decoder<R> {
 				// println!("\tRan out of u64, dec: {:?}", partial);
 				// if the partial decoding is just zeros; thats the padding which can be ignored/
 				// If we see this, we're truely done with decoding
-				if partial.is_clean() {
+				if self.is_clean() {
 					Err("End of Decoding".to_string())
 				} else {
-					panic!("ran out of u64s to decode, but still have incomplete decoding {:?}", partial);
+					panic!("ran out of u64s to decode, but still have incomplete decoding {:?}", self.decoder.partial);
 				}
 			}
 		}		
@@ -444,8 +448,8 @@ impl<R:Read> Iterator for U64Decoder<R> {
 			// in case the decoder is finished (the last number decoded exaclty flush withthe u64 border)
 			// try to pull in a new number
 			if self.decoder.is_finished() {
-				let fresh_partial = Default::default();
-				match self.pull_in_next_u64(fresh_partial) {
+				// let fresh_partial = Default::default();
+				match self.pull_in_next_u64() {
 					Ok(()) => { /* nothing, just continue the loop */},
 					Err(s) => {
 						if s == *"End of Decoding" {
@@ -455,17 +459,16 @@ impl<R:Read> Iterator for U64Decoder<R> {
 				}			
 			}
 			// try decoiding
-			match self.decoder.decode_from_partial(self.dec_status.clone()) {  // TODO why clone here
-				Ok(n) => {
+			match self.decoder.decode_from_partial() {
+				Some(n) => {
 					// println!("Success {n}");
 					// sucessfully decoded a number, initialize clean for the next round
-					self.dec_status = Default::default();
 					return Some(n)
 				},
 				// ran into the end of the current u64
-				Err(partial) => {
+				None => {
 					// println!("Partial {:?}", partial);
-					match self.pull_in_next_u64(partial) {
+					match self.pull_in_next_u64() {
 						Ok(()) => { /* nothing, just continue the loop */},
 						Err(s) => {
 							if s == *"End of Decoding" {

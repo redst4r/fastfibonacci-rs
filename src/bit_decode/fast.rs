@@ -55,7 +55,7 @@
 //! i) the decoded numbers so far, 
 //! ii) the remaining bits of the previous buffer, 
 //! iii) the last bit of the previous buffer
-//! This is done in [crate::fastutils::DecodingResult]
+//! This is done in [`crate::fastutils::DecodingResult`]
 //! 
 //! Turns out that the implementation details are pretty important.
 //! Implementing a simple lookup table as a `HashMap<Segment, ...>` is actually **slower** than simple bit-by-bit decoding.
@@ -399,7 +399,7 @@ mod testing_fast_decode {
     }
 }
 
-/// Lazy LookupTable with u8 segment size.
+/// Lazy `LookupTable` with `u8` segment size.
 /// This table gets calculated once for the crate, can be reused many times for decoding.
 pub static FB_LOOKUP_U8: Lazy<LookupVec<u8>> = Lazy::new(|| {
     println!("FB_LOOKUP_U8: initializing fibonacci lookup");
@@ -408,7 +408,7 @@ pub static FB_LOOKUP_U8: Lazy<LookupVec<u8>> = Lazy::new(|| {
     lookup
 });
 
-/// Lazy LookupTable with u16 segment size.
+/// Lazy `LookupTable` with `u16` segment size.
 /// This table gets calculated once for the crate, can be reused many times for decoding.
 pub static FB_LOOKUP_U16: Lazy<LookupVec<u16>> = Lazy::new(|| {
     println!("FB_LOOKUP_U16: initializing fibonacci lookup");
@@ -417,10 +417,11 @@ pub static FB_LOOKUP_U16: Lazy<LookupVec<u16>> = Lazy::new(|| {
     lookup
 });
 
-/// Create a FastDecoder (internally decoding chunks of 8bits)
+/// Create a `FastDecoder` (internally decoding chunks of 8bits)
 /// 
 /// Fibonacci decoding cannot handle zeros, and often during the encoding, every value is incremented by one (to encode zero as 1).
 /// If `shifted_by_one` is `true`, we decrement each decoded value by 1, assuming that the encoder artificially incremented each value before encoding. 
+#[must_use]
 pub fn get_u8_decoder(bistream: & MyBitSlice, shifted_by_one: bool) -> FastFibonacciDecoder<'_, u8> {
     FastFibonacciDecoder::new(bistream, shifted_by_one, &FB_LOOKUP_U8)
 }
@@ -429,6 +430,7 @@ pub fn get_u8_decoder(bistream: & MyBitSlice, shifted_by_one: bool) -> FastFibon
 /// 
 /// Fibonacci decoding cannot handle zeros, and often during the encoding, every value is incremented by one (to encode zero as 1).
 /// If `shifted_by_one` is `true`, we decrement each decoded value by 1, assuming that the encoder artificially incremented each value before encoding. 
+#[must_use]
 pub fn get_u16_decoder(bistream: &MyBitSlice, shifted_by_one: bool) -> FastFibonacciDecoder<'_, u16> {
     FastFibonacciDecoder::new(bistream, shifted_by_one, &FB_LOOKUP_U16)
 }
@@ -465,7 +467,7 @@ pub struct FastFibonacciDecoder<'a, T> {
     segment_size: usize,
     /// decoded numbers not yet emitted
     current_buffer: VecDeque<Option<u64>>, 
-    /// for each decoded number in current_buffer, remember how many bits its encoding was
+    /// for each decoded number in `current_buffer`, remember how many bits its encoding was
     current_backtrack: VecDeque<Option<usize>>, 
     state: State,
     decoding_state: DecodingState,

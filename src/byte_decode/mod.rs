@@ -11,6 +11,7 @@ pub mod bare_metal_3264_stream;
 pub mod bytestream_transform;
 pub mod partial;
 pub mod u64_fibdecoder;
+pub mod u64_fibdecoder_refactor;
 pub mod faster;
 pub mod bare_metal_16single_faster;
 pub mod byte_manipulation;

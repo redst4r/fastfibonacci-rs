@@ -26,35 +26,16 @@
 //! 
 use bitvec::field::BitField;
 use crate::bit_decode::MyBitSlice;
-use super::bytestream_transform::U64BytesToU64;
-
-
-/// load a series of 8 bytes into a u64
-/// 
-/// Important to get the endianess correct here (needs to match the bus format)
-pub (crate) fn load_u64_from_bytes(bytes: &[u8]) -> u64 {
-	// with BE we need to swap the entire stream
-	// u64::from_be_bytes(bytes.try_into().unwrap())
-	
-	// do le instead, i.e. the last byte `bytes[7]` is the first to be processed
-	// This is how its done in the busfiles, and we need to stick to this!
-	// u64::from_le_bytes(bytes.try_into().unwrap())
-
-    // actually lets use the U64BytesToU64 for consistent fconversion
-    U64BytesToU64::new(bytes).next().unwrap()
-}
-
-/// see xample at the top of the module
 
 /// Reads out the bits from a u64. Order is such that it's consistent with
 /// the fibonacci encoding
 #[inline]
-pub fn read_bit_u64(x: u64, pos: usize) -> bool {
+pub (crate) fn read_bit_u64(x: u64, pos: usize) -> bool {
     read_bit_u64_msb(x, pos)
 }
 
 /// Reads out the bits, pos=0 will yield the MOST SIGNIFICANT BIT FIRST
-/// see https://togglebit.io/posts/rust-bitwise/
+/// see [here](ttps://togglebit.io/posts/rust-bitwise/)
 #[inline]
 fn read_bit_u64_msb(x: u64, pos: usize) -> bool {
 	// assert!(pos < 64);
@@ -65,24 +46,23 @@ fn read_bit_u64_msb(x: u64, pos: usize) -> bool {
 }
 
 /// Reads out the bits, pos=0 will yield the LEAST SIGNIFICANT BIT FIRST
-/// see https://togglebit.io/posts/rust-bitwise/
-
-#[inline]
-fn read_bit_u64_lsb(x: u64, pos: usize) -> bool {
-	// assert!(pos < 64);
-	let shift_op = pos;
-	let thebit = (x >> shift_op) & 1;
-	thebit>0
-}
+/// see [here](ttps://togglebit.io/posts/rust-bitwise/)
+// #[inline]
+// fn read_bit_u64_lsb(x: u64, pos: usize) -> bool {
+// 	// assert!(pos < 64);
+// 	let shift_op = pos;
+// 	let thebit = (x >> shift_op) & 1;
+// 	thebit>0
+// }
 
 /// read a bit from a u16
 #[inline] 
-pub fn read_bit_u16(x: u16, pos: usize) -> bool {
+pub (crate) fn read_bit_u16(x: u16, pos: usize) -> bool {
     read_bit_u16_msb(x, pos)
 }
 
 /// Reads out the bits, pos=0 will yield the MOST SIGNIFICANT BIT FIRST
-/// see https://togglebit.io/posts/rust-bitwise/
+/// see [here](ttps://togglebit.io/posts/rust-bitwise/)
 #[inline]
 fn read_bit_u16_msb(x: u16, pos: usize) -> bool {
 	// assert!(pos < 64);
@@ -93,26 +73,25 @@ fn read_bit_u16_msb(x: u16, pos: usize) -> bool {
 }
 
 /// Reads out the bits, pos=0 will yield the LEAST SIGNIFICANT BIT FIRST
-/// see https://togglebit.io/posts/rust-bitwise/
-
-#[inline]
-fn read_bit_u16_lsb(x: u16, pos: usize) -> bool {
-	// assert!(pos < 64);
-	let shift_op = pos;
-	let thebit = (x >> shift_op) & 1;
-	thebit>0
-}
+/// see [here](ttps://togglebit.io/posts/rust-bitwise/)
+// #[inline]
+// fn read_bit_u16_lsb(x: u16, pos: usize) -> bool {
+// 	// assert!(pos < 64);
+// 	let shift_op = pos;
+// 	let thebit = (x >> shift_op) & 1;
+// 	thebit>0
+// }
 
 
 
 /// read a bit from a u32
 #[inline]
-pub fn read_bit_u32(x: u32, pos: usize) -> bool {
+pub (crate) fn read_bit_u32(x: u32, pos: usize) -> bool {
     read_bit_u32_msb(x, pos)
 }
 
 /// Reads out the bits, pos=0 will yield the MOST SIGNIFICANT BIT FIRST
-/// see https://togglebit.io/posts/rust-bitwise/
+/// see [here](https://togglebit.io/posts/rust-bitwise/)
 #[inline]
 fn read_bit_u32_msb(x: u32, pos: usize) -> bool {
 	// assert!(pos < 64);
@@ -172,7 +151,7 @@ pub fn bits_to_fibonacci_generic_array_u64(b: &MyBitSlice) -> Vec<u8>{
 		};
         
         for byte in enc.to_le_bytes(){
-		    x.push(byte)
+		    x.push(byte);
         }
 	}
 	x
@@ -200,7 +179,7 @@ pub fn bits_to_fibonacci_generic_array_u32(b: &MyBitSlice) -> Vec<u8>{
 		};
         
         for byte in enc.to_le_bytes(){
-		    x.push(byte)
+		    x.push(byte);
         }
 	}
 	x
@@ -208,9 +187,23 @@ pub fn bits_to_fibonacci_generic_array_u32(b: &MyBitSlice) -> Vec<u8>{
 
 
 #[cfg(test)]
-mod testing {
-    use crate::utils::create_bitvector;
+pub (crate) mod testing {
+    use crate::{byte_decode::bytestream_transform::U64BytesToU64, utils::create_bitvector};
     use super::*;
+    /// load a series of 8 bytes into a u64
+    /// Important to get the endianess correct here (needs to match the bus format)
+    pub (crate) fn load_u64_from_bytes(bytes: &[u8]) -> u64 {
+        // with BE we need to swap the entire stream
+        // u64::from_be_bytes(bytes.try_into().unwrap())
+        
+        // do le instead, i.e. the last byte `bytes[7]` is the first to be processed
+        // This is how its done in the busfiles, and we need to stick to this!
+        // u64::from_le_bytes(bytes.try_into().unwrap())
+
+        // actually lets use the U64BytesToU64 for consistent fconversion
+        U64BytesToU64::new(bytes).next().unwrap()
+    }
+
     #[test]
     fn test_load_u64_from_bytes() {
         assert_eq!(
@@ -358,11 +351,11 @@ mod testing {
         assert_eq!(read_bit_u64_msb(0b01000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000, 1), true, "2 pos 1");
     }
 
-    #[test]
-    fn test_read_bit_lsb() {
-        assert_eq!(read_bit_u64_lsb(0b00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000, 0), false);
-        assert_eq!(read_bit_u64_lsb(0b00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000001, 0), true);
-        assert_eq!(read_bit_u64_lsb(0b00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000010, 1), true);
-        assert_eq!(read_bit_u64_lsb(0b00000000_00000000_00000000_00000000_00000000_00000000_00000000_10000010, 7), true);
-    }
+    // #[test]
+    // fn test_read_bit_lsb() {
+    //     assert_eq!(read_bit_u64_lsb(0b00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000, 0), false);
+    //     assert_eq!(read_bit_u64_lsb(0b00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000001, 0), true);
+    //     assert_eq!(read_bit_u64_lsb(0b00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000010, 1), true);
+    //     assert_eq!(read_bit_u64_lsb(0b00000000_00000000_00000000_00000000_00000000_00000000_00000000_10000010, 7), true);
+    // }
 }

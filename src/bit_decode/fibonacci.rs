@@ -20,7 +20,7 @@ use num::CheckedSub;
 use std::fmt::Debug;
 use crate::utils::FIB64;
 /// note the the entire content of this module is
-/// **independent** of the choice of BitOrder, i.e.
+/// **independent** of the choice of `BitOrder`, i.e.
 /// both Lsb0 and Msb0 work the same way!
 use crate::bit_decode::{MyBitSlice, MyBitVector, FbDec};
 
@@ -114,13 +114,14 @@ impl<'a> Iterator for FibonacciDecoder<'a> {
                 }
                 (false, false) | (true, false) => {} // current bit is zero, nothing to add
             }
-            prev_bit = current_bit
+            prev_bit = current_bit;
         }
         None
     }
 }
 
 /// Slightly faster (2x) encoding of multiple integers into a bitvector via Fibonacci Encoding
+#[must_use]
 pub fn encode(data: &[u64]) -> MyBitVector {
     // the capacity is a minimum, assuming each element of data is 1, i.e. `11` in fib encoding
     let mut overall = MyBitVector::with_capacity(2 * data.len());
@@ -138,8 +139,9 @@ pub fn encode(data: &[u64]) -> MyBitVector {
 /// For examples if encoded=`011001` this will decode `011`, but will leave `001` untouched (as it is not proper fibonacci encoding).
 /// 
 /// # Parameters:
-/// * encoded: bitstream to decode
-/// * shifted_by_one: if true, subtracts 1 from each decoded number. In case the data was encoded after shifting (to allow 0 to be encoded)
+/// * `encoded`: bitstream to decode
+/// * `shifted_by_one`: if true, subtracts 1 from each decoded number. In case the data was encoded after shifting (to allow 0 to be encoded)
+#[must_use]
 pub fn decode(encoded: &MyBitSlice, shifted_by_one:bool) -> Vec<u64> {
     let dec = FibonacciDecoder::new(encoded, shifted_by_one);
     let x: Vec<u64> = dec.collect();
@@ -161,7 +163,7 @@ where
     /// represented in fibonacci encoding.
     ValueTooSmall(T),
 
-    /// A bug in fibonacci_codec in which encoding the contained
+    /// A bug in `fibonacci_codec` in which encoding the contained
     /// number resulted in an attempt to subtract a larger fibonacci
     /// number than the number to encode.
     Underflow(T),

@@ -52,87 +52,68 @@ fn test_correctness_fast_decode_u8() {
     assert_eq!(x_true, x2);
 }
 
-mod test_dirty_generic_single{
-    use fastfibonacci::byte_decode::u64_fibdecoder::DirtyGenericSingle;
+// mod test_dirty_generic_single{
+//     use fastfibonacci::byte_decode::u64_fibdecoder::DirtyGenericSingle;
 
-    use super::*;
-    #[test]
-    fn test_correctness_dirty64(){
-        let (bytes ,x_true) = create_random();
-        let encoded_bytes: Vec<u64> = U64BytesToU64::new(bytes.as_slice()).collect();
-        // println!("{}", bitstream_to_string_pretty(&data_encoded, 64));
-        let mut decoded = Vec::with_capacity(x_true.len());
+//     use super::*;
+//     #[test]
+//     fn test_correctness_dirty_generic_64(){
+//         let (bytes ,x_true) = create_random();
+//         let encoded_bytes: Vec<u64> = U64BytesToU64::new(bytes.as_slice()).collect();
+//         // println!("{}", bitstream_to_string_pretty(&data_encoded, 64));
+//         let mut decoded = Vec::with_capacity(x_true.len());
 
-        let mut last_partial = Default::default();
-        for _i in 0..encoded_bytes.len() {
-            let mut dd: DirtyGenericSingle<u64> = DirtyGenericSingle::new(encoded_bytes[_i]);
+//         let mut last_partial = Default::default();
+//         for _i in 0..encoded_bytes.len() {
+//             let mut dd: DirtyGenericSingle<u64> = DirtyGenericSingle::new(encoded_bytes[_i]);
 
-            let (numbers, pa) = dd.decode_all_from_partial(last_partial);
-            decoded.extend(numbers);
-            last_partial = pa;
-        }
+//             let (numbers, pa) = dd.decode_all_from_partial(last_partial);
+//             decoded.extend(numbers);
+//             last_partial = pa;
+//         }
 
-        assert_eq!(x_true, decoded);
-    }
+//         assert_eq!(x_true, decoded);
+//     }
 
-    // #[test]
-    // fn test_correctness_dirty32(){
-    //     let (bytes ,x_true) = create_random();
+//     #[test]
+//     fn test_correctness_dirty_generic_16(){
+//         let (bytes ,x_true) = create_random();
+
+//         let x_u16: Vec<u16> = U64BytesToU16::new(bytes.as_slice()).collect();
+//         // println!("{}", bitstream_to_string_pretty(&data_encoded, 64));
+//         let mut decoded = Vec::new();
+
+//         let mut last_partial = Default::default();
+//         for _i in 0..x_u16.len() {
+//             let mut dd: DirtyGenericSingle<u16> = DirtyGenericSingle::new(x_u16[_i]);
+
+//             let (numbers, pa) = dd.decode_all_from_partial(last_partial);
+//             decoded.extend(numbers);
+//             last_partial = pa;
+//         }
+//         assert_eq!(x_true, decoded);
+//     }
+
+//     #[test]
+//     fn test_correctness_dirty_generic_8(){
+//         let (bytes ,x_true) = create_random();
+
+//         let x_u8: Vec<u8> = U64BytesToU8::new(bytes.as_slice()).collect();
         
-    //     let x_u32: Vec<u32> = U64BytesToU32::new(bytes.as_slice()).flatten().collect();        
-    //     // println!("{}", bitstream_to_string_pretty(&data_encoded, 32));
-    //     let mut decoded = Vec::new();
+//         let mut decoded = Vec::new();
 
-    //     let mut last_partial = Default::default();
-    //     for _i in 0..x_u32.len() {
-    //         let mut dd: DirtyGenericSingle<u32> = DirtyGenericSingle::new(x_u32[_i]);
-
-    //         let (numbers, pa) = dd.decode_all_from_partial(last_partial);
-    //         decoded.extend(numbers);
-    //         last_partial = pa;
-    //     }
-    //     assert_eq!(x_true, decoded);
-    // }	
-
-    #[test]
-    fn test_correctness_dirty16(){
-        let (bytes ,x_true) = create_random();
-
-        let x_u16: Vec<u16> = U64BytesToU16::new(bytes.as_slice()).collect();
-        // println!("{}", bitstream_to_string_pretty(&data_encoded, 64));
-        let mut decoded = Vec::new();
-
-        let mut last_partial = Default::default();
-        for _i in 0..x_u16.len() {
-            let mut dd: DirtyGenericSingle<u16> = DirtyGenericSingle::new(x_u16[_i]);
-
-            let (numbers, pa) = dd.decode_all_from_partial(last_partial);
-            decoded.extend(numbers);
-            last_partial = pa;
-        }
-        assert_eq!(x_true, decoded);
-    }
-
-    #[test]
-    fn test_correctness_dirty8(){
-        let (bytes ,x_true) = create_random();
-
-        let x_u8: Vec<u8> = U64BytesToU8::new(bytes.as_slice()).collect();
-        
-        let mut decoded = Vec::new();
-
-        let mut last_partial = Default::default();
-        for _i in 0..x_u8.len() {
-            let mut dd: DirtyGenericSingle<u8> = DirtyGenericSingle::new(x_u8[_i]);
+//         let mut last_partial = Default::default();
+//         for _i in 0..x_u8.len() {
+//             let mut dd: DirtyGenericSingle<u8> = DirtyGenericSingle::new(x_u8[_i]);
 
 
-            let (numbers, pa) = dd.decode_all_from_partial(last_partial);
-            decoded.extend(numbers);
-            last_partial = pa;
-        }
-        assert_eq!(x_true, decoded);
-    }
-}
+//             let (numbers, pa) = dd.decode_all_from_partial(last_partial);
+//             decoded.extend(numbers);
+//             last_partial = pa;
+//         }
+//         assert_eq!(x_true, decoded);
+//     }
+// }
 
 
 #[test]

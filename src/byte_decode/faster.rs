@@ -9,6 +9,7 @@ use crate::fastutils::State;
 use super::bytestream_transform::{IntoU16Transform, IntoU8Transform, U32BytesToU16, U32BytesToU8, U64BytesToU16, U64BytesToU8};
 use super::partial::number_plus_partial;
 use super::u64_fibdecoder::DirtyGenericSingle;
+use super::u64_fibdecoder_refactor;
 use once_cell::sync::Lazy;
 
 
@@ -48,18 +49,30 @@ impl <T:Integral>LookupVecNew<T> {    /// Create a new Lookup table for fast fib
                 // println!("Unpad {s:b}");
                 // println!("Pad   {t:b}");
 
-                // let mut dd = Dirty64Single::new(t as u64);
-                let mut dd = DirtyGenericSingle::new(t);
-                let partial = Partial::new(0, 0, lastbit as u64); // it'll be overwritten by the match/err, just need to init here
+                // let mut dd = DirtyGenericSingle::new(t);
+                // let partial = Partial::new(0, 0, lastbit as u64); // it'll be overwritten by the match/err, just need to init here
 
-                let (numbers, partial) = dd.decode_all_from_partial(partial);
+                // let (numbers, partial) = dd.decode_all_from_partial(partial);
+
+                // // insert result based on new state                 
+                // if lastbit {
+                //     table_state1.push((numbers, partial));
+                // }
+                // else{
+                //     table_state0.push((numbers, partial));
+                // }
+
+
+                let mut dd = u64_fibdecoder_refactor::DirtyGenericSingle::new(t);
+                dd.partial = Partial::new(0, 0, lastbit as u64); // it'll be overwritten by the match/err, just need to init here
+                let numbers = dd.decode_all_from_partial(); //note: this updates dd.partial internally!
 
                 // insert result based on new state                 
                 if lastbit {
-                    table_state1.push((numbers, partial));
+                    table_state1.push((numbers, dd.partial));
                 }
                 else{
-                    table_state0.push((numbers, partial));
+                    table_state0.push((numbers, dd.partial));
                 }
             }
         }
