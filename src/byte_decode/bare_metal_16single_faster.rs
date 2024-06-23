@@ -36,13 +36,15 @@ pub fn decode_all_u16(buf: u16, partial: &mut Partial, table:&LookupVecNew<u16>,
 			let new_x = number_plus_partial(*first, partial);
 			decoded_numbers.push(new_x);
 			decoded_numbers.extend(tail);
-			*partial = new_partial.to_owned();
+			// *partial = new_partial.to_owned();
+			new_partial.clone_into(partial);
 		}
 		None => {
 			// "add" p and partial; ORDER is important
 			let mut newp = new_partial.clone();
 			newp.combine_partial(partial);
-			*partial = newp.to_owned();
+			// *partial = newp.to_owned();
+			newp.clone_into(partial);
 		}
 	}
 }
@@ -116,7 +118,7 @@ impl <'a, R:Read> U16DecoderFast<'a, R> {
 
 		let mut numbers = Vec::with_capacity(10);
 		let mut partial = Default::default();
-		decode_all_u16(el, &mut partial, &table, &mut numbers);
+		decode_all_u16(el, &mut partial, table, &mut numbers);
 
 		let emission_buffer: VecDeque<_> = numbers.into();
 		U16DecoderFast {

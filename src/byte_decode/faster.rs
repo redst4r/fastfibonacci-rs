@@ -4,11 +4,11 @@ use std::io::Read;
 use std::marker::PhantomData;
 use std::time::Instant;
 use funty::Integral;
-use crate::byte_decode::{partial::Partial};
+use crate::byte_decode::partial::Partial;
 use crate::fastutils::State;
 use super::bytestream_transform::{IntoU16Transform, IntoU8Transform, U32BytesToU16, U32BytesToU8, U64BytesToU16, U64BytesToU8};
 use super::partial::number_plus_partial;
-use super::u64_fibdecoder::DirtyGenericSingle;
+// use super::u64_fibdecoder;
 use super::u64_fibdecoder_refactor;
 use once_cell::sync::Lazy;
 
@@ -26,11 +26,12 @@ impl <T:Integral>LookupVecNew<T> {    /// Create a new Lookup table for fast fib
     pub fn new() -> Self {
         let segment_size = T::BITS as usize;
 
-        let mut table_state0 = Vec::new();
-        let mut table_state1 = Vec::new();
+        let max = usize::pow(2, segment_size as u32);
+
+        let mut table_state0 = Vec::with_capacity(max);
+        let mut table_state1 = Vec::with_capacity(max);
     
         for lastbit in [true, false]{
-            let max = usize::pow(2, segment_size as u32);
             for s in 0..max {
 
                 /* This whole conversion part is a bit hacky!! */
@@ -49,7 +50,7 @@ impl <T:Integral>LookupVecNew<T> {    /// Create a new Lookup table for fast fib
                 // println!("Unpad {s:b}");
                 // println!("Pad   {t:b}");
 
-                // let mut dd = DirtyGenericSingle::new(t);
+                // let mut dd = u64_fibdecoder::DirtyGenericSingle::new(t);
                 // let partial = Partial::new(0, 0, lastbit as u64); // it'll be overwritten by the match/err, just need to init here
 
                 // let (numbers, partial) = dd.decode_all_from_partial(partial);
@@ -63,6 +64,7 @@ impl <T:Integral>LookupVecNew<T> {    /// Create a new Lookup table for fast fib
                 // }
 
 
+                // should probably be constructed outside the loop!
                 let mut dd = u64_fibdecoder_refactor::DirtyGenericSingle::new(t);
                 dd.partial = Partial::new(0, 0, lastbit as u64); // it'll be overwritten by the match/err, just need to init here
                 let numbers = dd.decode_all_from_partial(); //note: this updates dd.partial internally!
@@ -264,9 +266,6 @@ pub enum StreamType {
 /// Things are complicated: The stream of bytes usually is in groups of 8 (u64s),
 /// (but sometimes can be u32), and comes in **LittleEndian**, i.e. the 8th byte needs to be 
 /// decoded first, then the 7th...
-/// [Dirty64Single] does it right automatically as it only operates on the u64 (not the bytes).
-/// However, with fast decoding we look at 1byte (u8) or two bytes (u16)
-/// 
 /// 
 pub struct FastFibonacciDecoderNewU8<'a, R:Read> {
     //stream to decode, chunked into the right pieces to be fed into lookup table

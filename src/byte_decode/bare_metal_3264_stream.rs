@@ -10,7 +10,7 @@ pub struct Dirty32 <'a> {
 	pub buf: &'a [u32], 
 	///  len of buf
 	pub buf_size: usize, 
-	/// next bit in buf[bupos] to pull
+	/// next bit in buf\[bufpos\] to pull
 	pub bitpos: usize, 
 	/// position in buffer to decode next
 	pub bufpos: usize, 

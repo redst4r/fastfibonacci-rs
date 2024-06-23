@@ -1,6 +1,6 @@
 [package]
 name = "fastfibonacci"
-version = "1.2.0"
+version = "1.3.0"
 edition = "2021"
 rust-version = "1.74"
 license = " GPL-3.0-or-later"
@@ -37,7 +37,7 @@ path = "benches/my_benchmark.rs"  # only here to make the crate publishable; oth
 missing_docs = "deny"
 # unsafe_code = "forbid"
 
-# [lints.clippy]
+[lints.clippy]
 pedantic = "warn"
 
 [profile.release]

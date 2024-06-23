@@ -56,7 +56,8 @@ fn read_bit_u64_msb(x: u64, pos: usize) -> bool {
 // }
 
 /// read a bit from a u16
-#[inline] 
+#[inline]
+#[cfg(test)]
 pub (crate) fn read_bit_u16(x: u16, pos: usize) -> bool {
     read_bit_u16_msb(x, pos)
 }
@@ -64,6 +65,7 @@ pub (crate) fn read_bit_u16(x: u16, pos: usize) -> bool {
 /// Reads out the bits, pos=0 will yield the MOST SIGNIFICANT BIT FIRST
 /// see [here](ttps://togglebit.io/posts/rust-bitwise/)
 #[inline]
+#[cfg(test)]
 fn read_bit_u16_msb(x: u16, pos: usize) -> bool {
 	// assert!(pos < 64);
 	const WORDSIZE:usize = std::mem::size_of::<u16>() * 8;

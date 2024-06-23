@@ -1,21 +1,25 @@
 //! [Fibonacci encoding](https://en.wikipedia.org/wiki/Fibonacci_coding) of integers, 
-//! either regular (bit by bit) or en/decoding in chunks via the 
+//! via the 
 //! [FastFibonacci encoding](https://ceur-ws.org/Vol-567/paper14.pdf) or 
 //! [FastFibonacci decoding](https://www.semanticscholar.org/paper/Fast-data-Encoding-and-Deconding-Algorithms-Walder/4fbae5afc34dd32e7527fe4b1a1bd19e68794e3d) 
 //! algorithm.
+//! 
+//! The whole package works in two alternative ways (see `Bit- vs Bytestreams`):
+//! 1. En/Decoding bit-by bit via the [`bitvec`]-crate
+//! 2. En/Decoding entire  chunks of bits (represented as u8,u16,u32,u64)
 //!
-//! ## Introduction
+//! ## Introduction: Fibonacci Encoding
 //! [Fibonacci encoding](https://en.wikipedia.org/wiki/Fibonacci_coding) is a variable-length encoding of integers, 
 //! with the special property that any encoding of an interger ends in `1` (binary) and no encoding contains `11`. 
 //! Hence one can use `11` as a separator in a stream of Fibonacci encoded integers.
 //! 
-//! Regular Fibonacci en/decoding works decoding bit by bit, which can be quite slow. 
-//! [FastFibonacci decoding](https://www.semanticscholar.org/paper/Fast-data-Encoding-and-Deconding-Algorithms-Walder/4fbae5afc34dd32e7527fe4b1a1bd19e68794e3d)
-//! looks at `n` bits at once, decoding this chunk in a single operation which can be faster.
+//! - *Regular Fibonacci* en/decoding works decoding bit by bit, which can be quite slow. 
+//! - [FastFibonacci decoding](https://www.semanticscholar.org/paper/Fast-data-Encoding-and-Deconding-Algorithms-Walder/4fbae5afc34dd32e7527fe4b1a1bd19e68794e3d)
+//! looks at `n` bits at once, decoding this chunk in a single operation which can be faster. *Note*: this is distinct from the bit/byte representation (see next section).
 //! 
 //! ### Bit- vs Bytestreams
 //! The crate is divided into two parts: 
-//! - `bit_decode` (misnomer, not only for decoding), which represents input as [`bitvec::BitVec`] 
+//! - `bit_decode` (misnomer, not only for decoding), which represents input as [`bitvec::prelude::BitVec`] 
 //! and allows to decode arbitrary sequences of bits. Once we're done with decoding we can retriueve the remaining bistream for further processing
 //! - `byte_decode`, which does *not* operate on bits but assumes each block of Fibonacci-encoded numbers comes as a sequence of `u8` (or `u16`, `u32`, `u64`).
 //! The stream might contain other data after, but it is assumed that this transition happens at the `u8` (`u16` etc) boundary. This makes it less flexible, but
@@ -24,7 +28,7 @@
 //! Both approaches support an on the fly decoding and a **fast** decoding (using a lookup table of precomputed partial decodings).
 //! 
 //! # Examples
-//! Regular encoding and decoding:
+//! ## Regular encoding and decoding:
 //! ```rust
 //! use fastfibonacci::bit_decode::fibonacci::{encode, decode, FibonacciDecoder};
 //! let encoded = encode(&vec![34, 12]) ;
@@ -38,23 +42,25 @@
 //! assert_eq!(f.collect::<Vec<_>>(), vec![34,12])
 //! ```
 //!
-//! Fast decoding:
-//! 1. First, create an object implementing the [`fast::LookupTable`] trait (expensive), 
+//! ## Fast decoding:
+//! We'll stick to the bit-decoding version here, analogous approach doing chunks of bits.
+//! 
+//! 1. Create an object implementing the [`bit_decode::fast::LookupTable`] trait (expensive), 
 //!    which decodes multiple bits in a chunk.
 //!    The crate provides the following implementations of the trait: 
-//!     - [`fast::LookupVec<u8>`]: Decoding 8 bits at a time.
-//!     - [`fast::LookupVec<u16>`]: Decoding 16 bits at a time.
+//!     - [`bit_decode::fast::LookupVec<u8>`]: Decoding 8 bits at a time.
+//!     - [`bit_decode::fast::LookupVec<u16>`]: Decoding 16 bits at a time.
 //!    
 //!     ***NOTE***:  There's also a (lazy) static version of this precomputed table via 
-//!     - [`fast::FB_LOOKUP_U8`]
-//!     - [`fast::FB_LOOKUP_U16`]
+//!     - [`bit_decode::fast::FB_LOOKUP_U8`]
+//!     - [`bit_decode::fast::FB_LOOKUP_U16`]
 //!     which can be useful if the lookup table is needed in different places (but only calculated once)
-//! 2. The lookup table can then be used to do any amount of decoding via a [`fast::FastFibonacciDecoder`].
+//! 2. The lookup table can then be used to do any amount of decoding via a [`bit_decode::fast::FastFibonacciDecoder`].
 //!    It's either instantiated 
-//!     - explicitly via [`fast::FastFibonacciDecoder::new()`]
-//!     - or via the helper functions [`fast::get_u8_decoder`], [`fast::get_u16_decoder`].
+//!     - explicitly via [`bit_decode::fast::FastFibonacciDecoder::new()`]
+//!     - or via the helper functions [`bit_decode::fast::get_u8_decoder`], [`bit_decode::fast::get_u16_decoder`].
 //! 
-//!    ***Note***: For simplicity, there's also the [`fast::fast_decode`] function, which skips the Decoder and just immediately decodes the sequence.
+//!    ***Note***: For simplicity, there's also the [`bit_decode::fast::fast_decode`] function, which skips the Decoder and just immediately decodes the sequence.
 //! 
 //! ```rust
 //! use fastfibonacci::bit_decode::fibonacci::encode;
@@ -87,6 +93,7 @@
 //! assert_eq!(dec16.collect::<Vec<_>>(), vec![4,7, 86]);
 //! ```
 //! # Performance
+//! ## Regular Encoding/Decoding
 //! Regular Fibonacci encoding is up to speed with other rust implementations, e.g. [fibonnaci_codec](https://crates.io/crates/fibonacci_codec) crate (which I took some code from):
 //! - this crate: 75ms/ 1M integers 
 //! - fibonnaci_codec: 88ms / 1M integers
@@ -95,7 +102,8 @@
 //! - regular decoding (bitwise): 92ms/ 1M integers
 //! - regular decoding (bytewise): 66ms/ 1M integers
 //! - fibonnaci_codec: 108ms / 1M integers
-//! 
+
+//! ## Fast Encoding/Decoding
 //! The **FastFibonacci** decoding functions are ~2x faster, but have some constant overhead (i.e. only pays of when decoding *many* integers):
 //! - fast decoding (bitwise, u8 segments): 40ms / 1M integers
 //! - fast decoding (bitwise, u16 segments): 30ms / 1M integers

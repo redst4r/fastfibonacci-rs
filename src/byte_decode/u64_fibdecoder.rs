@@ -1,5 +1,5 @@
 //! Repeatedly reads 8bytes into a u64 and 
-//! decodes those using the [`Dirty64Single`].
+//! decodes those using the [`DirtyGenericSingle`].
 //! 
 
 use std::io::Read;
@@ -59,6 +59,7 @@ impl <T:Integral> DirtyGenericSingle<T> {
 	/// and the partially decoded result
 	/// 
 	/// Basically loops, rtying to decode a number until we hit a partial decoding
+	#[allow(dead_code)]
 	pub fn decode_all_from_partial(&mut self, partial: Partial) -> (Vec<u64>, Partial) {
 		let mut fully_decoded = Vec::new();
 		let mut last_partial = partial;
